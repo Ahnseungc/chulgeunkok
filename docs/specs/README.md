@@ -15,9 +15,9 @@
 
 | 문서 | PRD ID | 내용 |
 | --- | --- | --- |
-| [auth/README.md](./auth/README.md) | AUTH-01 | 로그인, 회원 필수 정보, 세션 |
+| [auth/README.md](./auth/README.md) | AUTH-01 | 기기 등록 세션, 사장님 휴대폰 인증, NFC |
 | [store/README.md](./store/README.md) | STORE-01~03 | 매장, QR 토큰, 사업장 규모 신고 |
-| [staff/README.md](./staff/README.md) | STAFF-01·02 | 초대, 직원 상태, 권한 |
+| [staff/README.md](./staff/README.md) | STAFF-01·02 | 초대(새 직원·기기 재등록), 직원 상태, 권한 |
 | [labor/README.md](./labor/README.md) | LABOR-01·03·04·05 | 근로조건 버전, 검토 엔진, 바텀시트 |
 | [attendance/README.md](./attendance/README.md) | TIME-01~04 | 출퇴근 punch, 퇴근 누락, 수정 요청 |
 | [payroll/README.md](./payroll/README.md) | TIME-02, PAY-01, ADMIN-02 | 근무시간 계산, 예상 기본급, CSV |
@@ -62,7 +62,6 @@ interface ApiError {
 | code | HTTP | 의미 |
 | --- | --- | --- |
 | `UNAUTHENTICATED` | 401 | 세션 없음·만료 |
-| `PROFILE_INCOMPLETE` | 403 | 이름·휴대폰 인증 미완료 (`auth` §3) |
 | `FORBIDDEN` | 403 | 역할·권한 부족 |
 | `NOT_FOUND` | 404 | 리소스 없음 또는 **다른 매장 리소스** (존재 여부를 숨긴다) |
 | `VALIDATION_FAILED` | 400 | 입력 검증 실패 |
@@ -107,8 +106,7 @@ interface ApiError {
 
 | URL | 사용자 | 문서 |
 | --- | --- | --- |
-| `/login` | 전체 | auth |
-| `/onboarding/profile` | 전체 | auth |
+| `/owner/login` | Owner | auth §4 (다음 작업) |
 | `/p/[qrToken]` | Employee | attendance (QR 랜딩) |
 | `/invite/[token]` | Employee | staff |
 | `/me` | Employee | attendance · payroll (본인 기록·예상 급여) |
@@ -127,12 +125,13 @@ interface ApiError {
 | # | 질문 | 영향 |
 | --- | --- | --- |
 | Q1 | 역할·권한·직원 상태 변경 감사 로그를 MVP에 넣을지 | 스키마 `MembershipEvent` 추가 여부 |
-| Q2 | 휴대폰 OTP 공급자 | auth |
+| Q2 | 휴대폰 OTP 공급자 (사장님만) | auth §4 |
 | Q3 | 퇴근 누락 자동 전환 기준 (소정 종료 + 4h 가정) | attendance §5 |
 | Q4 | "매장 밖" 판정 반경 (200m 가정) | attendance §4 |
 | Q5 | 원 미만 올림 정책 수용성 | payroll §3 |
 | Q6 | 법정수당 세부 규칙 (노무사 검증) | labor §4 |
 | Q7 | 관리자 근태 직접 추가를 P0에 넣을지 | attendance §7.4 |
+| Q8 | 급여 권한 받은 Manager에게 휴대폰 인증을 추가로 요구할지 | auth §4 |
 
 ---
 
@@ -147,4 +146,6 @@ interface ApiError {
 | `LaborReview` | 유니크 키에 `ruleVersion` 추가 | labor §4.1 |
 | `LaborReview` | `seenAt DateTime?` | labor §6.2 |
 | `User` | 시스템 사용자 시드 `id = 'system'` (자동 전환 actor) | attendance §5.1 |
+| `DeviceCredential` (신규) | `userId`, `tokenHash`, `revokedAt` — 기기 쿠키 세션 | auth §3 (`0003_device_auth`) |
+| `StoreInvitation` | `memberId`(기기 재등록 대상), `phone` 제거 | staff §3 (`0003_device_auth`) |
 | `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |

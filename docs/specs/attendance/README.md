@@ -33,7 +33,7 @@
 | --- | --- | --- |
 | 1 | 토큰 해시 없음 | "QR을 확인할 수 없어요" |
 | 2 | 폐기된 토큰 | "새 QR로 바뀌었어요. 매장에 붙은 최신 QR을 찍어 주세요." |
-| 3 | 미로그인 | `/login?callbackUrl=/p/<token>` |
+| 3 | 등록되지 않은 기기 | "이 휴대폰은 아직 등록되지 않았어요. 사장님께 초대 링크를 요청해 주세요." (`auth` §3.5 인앱 브라우저 안내 포함) |
 | 4 | 이 매장 ACTIVE Membership 없음 | "이 매장 직원이 아니에요. 사장님께 초대를 요청해 주세요." |
 | 5 | 근로조건 없음 (§3.3) | "근로조건이 아직 등록되지 않았어요. 사장님께 알려 주세요." |
 | 6 | 정상 | 매장명, 현재 시각, **[출근하기]** 또는 **[퇴근하기]** (+ 출근 시각, 경과 시간) |
@@ -207,8 +207,8 @@ const AdminUpdateAttendanceBody = z.object({
 
 | Method | Endpoint | 권한 |
 | --- | --- | --- |
-| GET | `/attendance/punch-preview?qrToken=` | 로그인 |
-| POST | `/attendance/punch` | 로그인 + Membership |
+| GET | `/attendance/punch-preview?qrToken=` | 등록 기기 |
+| POST | `/attendance/punch` | 등록 기기 + Membership |
 | GET | `/attendance/current?storeId=` | 본인 |
 | GET | `/attendance/me?storeId=&from=&to=` | 본인 |
 | GET | `/stores/:storeId/attendances?from=&to=&memberId=&status=` | 관리자 |
