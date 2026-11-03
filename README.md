@@ -3,6 +3,7 @@
 스티커 하나로 시작하는, 작은 가게를 위한 직원 관리 서비스.
 
 - PRD: [docs/prd-v0.4.md](docs/prd-v0.4.md)
+- 기능 스펙: [docs/specs/README.md](docs/specs/README.md)
 - DB 스키마: [prisma/schema.prisma](prisma/schema.prisma)
 
 ## 마이그레이션
