@@ -1,0 +1,25 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--seed-color-bg-layer-default);
+  color: var(--seed-color-fg-neutral);
+  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 모바일 우선 본문 폭. 관리자 데스크톱은 각 화면에서 넓힌다 */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+}

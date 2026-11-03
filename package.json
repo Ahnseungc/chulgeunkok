@@ -1,13 +1,44 @@
 {
-  "name": "qr-attendance-saas",
+  "name": "chulgeunkok",
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate",
     "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate deploy",
     "verify:constraints": "node scripts/verify-constraints.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0",
+    "@seed-design/css": "^3.1.0",
+    "@seed-design/react": "^3.1.0",
+    "next": "^15.5.28",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",
-    "prisma": "6.19.0"
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "prisma": "6.19.0",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "sharp"
+    ]
   }
 }
