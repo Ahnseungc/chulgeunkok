@@ -12,6 +12,7 @@
 |---|---|
 | `prisma/migrations/0000_init` | `prisma migrate diff`로 생성한 테이블 |
 | `prisma/migrations/0001_constraints` | Prisma 스키마로 표현할 수 없는 제약 (부분 유니크, CHECK, 근로조건 기간 겹침 금지). `btree_gist` 확장 필요 |
+| `prisma/migrations/0002_spec_alignment` | 스펙 반영 (`OtpCode`, 정산 시작일 이력, 검토 키에 규칙 버전, `seenAt`) + 시스템 사용자·2026 규칙 시드 |
 
 ## 검증
 
