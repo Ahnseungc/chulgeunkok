@@ -136,15 +136,15 @@ interface ApiError {
 
 ---
 
-## 5. 스키마 반영 필요
+## 5. 스키마 반영 내역
 
-스펙 작성 중 나온 `prisma/schema.prisma` 변경. 구현 첫 PR에서 반영한다.
+스펙 작성 중 나온 변경. `prisma/migrations/0002_spec_alignment` 에 반영됨 (2026-11-03).
 
 | 모델 | 변경 | 근거 |
 | --- | --- | --- |
-| `OtpCode` (신규) | `phone`, `codeHash`, `attempts`, `expiresAt`, `consumedAt` | auth §5 |
+| `OtpCode` (신규) | `phone`, `codeHash`, `attempts`(CHECK 0~5), `expiresAt`, `consumedAt` | auth §5 |
 | `Store` | `previousPayPeriodStartDay Int?`, `payPeriodStartDayEffectiveFrom DateTime? @db.Date` | store §4 |
 | `LaborReview` | 유니크 키에 `ruleVersion` 추가 | labor §4.1 |
 | `LaborReview` | `seenAt DateTime?` | labor §6.2 |
-| `User` | 시스템 사용자 1행 시드 (자동 전환 actor) | attendance §5.1 |
-| `LaborRuleSet` | 2026 시드 (`minimumHourlyWage = 10320`) | labor §4.1 |
+| `User` | 시스템 사용자 시드 `id = 'system'` (자동 전환 actor) | attendance §5.1 |
+| `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |

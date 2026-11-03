@@ -126,16 +126,19 @@ model User {
 }
 
 model Store {
-  id                String      @id @default(cuid())
-  name              String
-  address           String?
-  latitude          Float?
-  longitude         Float?
-  timezone          String      @default("Asia/Seoul") // IANA
-  payPeriodStartDay Int         @default(1) // 1~28
-  status            StoreStatus @default(ACTIVE)
-  createdAt         DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
+  id                             String      @id @default(cuid())
+  name                           String
+  address                        String?
+  latitude                       Float?
+  longitude                      Float?
+  timezone                       String      @default("Asia/Seoul") // IANA
+  payPeriodStartDay              Int         @default(1) // 1~28
+  // 시작일 변경은 다음 정산 기간부터. 기준일 이전 기간은 이전 값으로 계산
+  previousPayPeriodStartDay      Int?
+  payPeriodStartDayEffectiveFrom DateTime?   @db.Date
+  status                         StoreStatus @default(ACTIVE)
+  createdAt                      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt                      DateTime    @updatedAt @db.Timestamptz(3)
 
   memberships           Membership[]
   qrTokens              StoreQrToken[]
@@ -327,6 +330,20 @@ model AttendanceRevision {
   @@index([attendanceId, createdAt])
 }
 
+// 휴대폰 인증번호. 코드 원문 저장 금지
+model OtpCode {
+  id         String    @id @default(cuid())
+  phone      String // E.164
+  codeHash   String
+  attempts   Int       @default(0) // 5회 초과 시 폐기
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  // 재발송 간격·일일 횟수 조회
+  @@index([phone, createdAt])
+}
+
 // punch 재시도 시 같은 결과 반환 (24시간)
 model IdempotencyKey {
   id             String   @id @default(cuid())
@@ -355,14 +372,15 @@ model LaborReview {
   reasonCode       String
   acknowledgedById String?
   acknowledgedAt   DateTime?         @db.Timestamptz(3)
+  seenAt           DateTime?         @db.Timestamptz(3) // 바텀시트 1회 노출 기록
   createdAt        DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
 
   membership     Membership @relation(fields: [membershipId], references: [id])
   acknowledgedBy User?      @relation(fields: [acknowledgedById], references: [id])
 
-  // 같은 사유 재노출 방지
-  @@unique([membershipId, type, sourceType, sourceId])
+  // 같은 사유 재노출 방지. 규칙 버전이 바뀌면 새 행으로 재평가
+  @@unique([membershipId, type, sourceType, sourceId, ruleVersion])
   @@index([membershipId, status])
 }
 

@@ -61,7 +61,7 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 - `name`, `address`, `latitude`, `longitude`, `payPeriodStartDay`.
 - `payPeriodStartDay`를 바꾸면 **다음 정산 기간부터** 적용한다. 현재 진행 중인 기간은 그대로. 변경 내역은 `Store.payPeriodStartDay`와 `payPeriodStartDayEffectiveFrom`으로 관리한다.
 
-> 스키마 변경 필요: `Store.payPeriodStartDayEffectiveFrom DateTime? @db.Date`, 이전 값 `previousPayPeriodStartDay Int?`. 정산 기간 계산은 `payroll` §2.
+> 스키마: `Store.previousPayPeriodStartDay`, `Store.payPeriodStartDayEffectiveFrom` (둘은 함께 있거나 함께 없음, CHECK). 정산 기간 계산은 `payroll` §3.1.
 
 ## 5. QR 토큰
 

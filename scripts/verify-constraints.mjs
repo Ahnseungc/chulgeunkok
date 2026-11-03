@@ -1,11 +1,16 @@
 import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 const dir = process.argv[2] ?? new URL('../prisma', import.meta.url).pathname;
 const db = new PGlite({ extensions: { btree_gist } });
-await db.exec(readFileSync(`${dir}/migrations/0000_init/migration.sql`, 'utf8'));
-await db.exec(readFileSync(`${dir}/migrations/0001_constraints/migration.sql`, 'utf8'));
-console.log('migrations OK');
+const migrations = readdirSync(`${dir}/migrations`, { withFileTypes: true })
+  .filter((d) => d.isDirectory())
+  .map((d) => d.name)
+  .sort();
+for (const name of migrations) {
+  await db.exec(readFileSync(`${dir}/migrations/${name}/migration.sql`, 'utf8'));
+}
+console.log('migrations OK:', migrations.join(', '));
 const expectFail = async (name, sql) => {
   try { await db.exec(sql); console.log('FAIL(통과됨):', name); }
   catch (e) { console.log('OK 거부:', name, '-', e.message.split('\n')[0]); }
@@ -29,3 +34,16 @@ await expectFail('CLOSED인데 퇴근 없음', `UPDATE "Attendance" SET status='
 await expectFail('휴게>=근무', `INSERT INTO "EmploymentTermsSchedule"(id,"termsId",weekday,"startMinute","workMinutes","breakMinutes") VALUES ('sc1','t2',1,1080,60,60)`);
 await db.exec(`UPDATE "StoreQrToken" SET "revokedAt"=now() WHERE id='q1'; INSERT INTO "StoreQrToken"(id,"storeId","tokenHash") VALUES ('q2','s1','h2');`);
 console.log('QR 폐기 후 재발급 OK');
+
+// 0002
+const { rows: seed } = await db.query(`SELECT "minimumHourlyWage" FROM "LaborRuleSet" WHERE version = '2026.1'`);
+console.log(seed[0]?.minimumHourlyWage === 10320 ? 'OK 시드: 2026 최저임금 10320' : 'FAIL 시드 없음');
+await db.exec(`
+INSERT INTO "LaborReview"(id,"membershipId",type,"sourceType","sourceId","ruleVersion","reasonCode","updatedAt")
+  VALUES ('r1','m1','MINIMUM_WAGE','EMPLOYMENT_TERMS','t2','2026.1','BELOW_MINIMUM',now()),
+         ('r2','m1','MINIMUM_WAGE','EMPLOYMENT_TERMS','t2','2027.1','BELOW_MINIMUM',now());
+`);
+console.log('규칙 버전이 다르면 같은 사유도 새 행 OK');
+await expectFail('같은 규칙 버전 검토 중복', `INSERT INTO "LaborReview"(id,"membershipId",type,"sourceType","sourceId","ruleVersion","reasonCode","updatedAt") VALUES ('r3','m1','MINIMUM_WAGE','EMPLOYMENT_TERMS','t2','2026.1','BELOW_MINIMUM',now())`);
+await expectFail('정산 시작일 이전 값만 있음', `UPDATE "Store" SET "previousPayPeriodStartDay"=1 WHERE id='s1'`);
+await expectFail('인증 시도 6회', `INSERT INTO "OtpCode"(id,phone,"codeHash",attempts,"expiresAt") VALUES ('o1','+821012345678','h',6,now())`);

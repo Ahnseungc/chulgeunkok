@@ -121,9 +121,7 @@ const requiredBreak = (laborMinutes: number) =>
 ### 4.1 최저임금 규칙 세트
 
 - `LaborRuleSet.effectiveFrom <= 날짜` 중 최신. 없으면 서버 오류(`INTERNAL`) — 배포 전 시드 필수.
-- 새 연도 규칙을 넣으면 일배치가 **현재 열린 근로조건 전체**를 다시 평가해 `MINIMUM_WAGE`를 만든다 (`sourceId = terms.id`, `ruleVersion`이 달라 새 행이 생기도록 유니크 키에 `ruleVersion` 포함 — **스키마 변경 필요**).
-
-> 스키마 변경 필요: `LaborReview @@unique([membershipId, type, sourceType, sourceId, ruleVersion])`.
+- 새 연도 규칙을 넣으면 일배치가 **현재 열린 근로조건 전체**를 다시 평가해 `MINIMUM_WAGE`를 만든다 (`sourceId = terms.id`). 유니크 키에 `ruleVersion`이 있어 같은 사유라도 새 행이 생긴다.
 
 ## 5. 검토 엔진 — 근무 기록 트리거
 
@@ -162,7 +160,7 @@ ACKNOWLEDGED ─새 ruleVersion 재평가─▶ (새 행 OPEN)
 | `ABSENCE_SUSPECTED` | 검토 목록만 | 같음 | 같음 |
 
 - 근무 기록 트리거 항목의 규모 판정은 **근무일 기준** 신고값 (`store` §6.2).
-- 바텀시트는 근로조건 저장 직후, 또는 Owner가 대시보드·직원 상세에 들어올 때 **아직 본 적 없는 `OPEN` 항목**이 있으면 1회. 본 적 여부는 `LaborReview.seenAt`으로 관리 — **스키마 변경 필요**.
+- 바텀시트는 근로조건 저장 직후, 또는 Owner가 대시보드·직원 상세에 들어올 때 **아직 본 적 없는 `OPEN` 항목**이 있으면 1회. 본 적 여부는 `LaborReview.seenAt`.
 - 여러 개면 한 바텀시트에 목록으로 (최대 3개 + "외 n건").
 
 ### 6.3 문구
