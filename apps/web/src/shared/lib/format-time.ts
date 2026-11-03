@@ -22,3 +22,15 @@ export function formatDuration(milliseconds: number): string {
   if (hours === 0) return `${minutes}분`;
   return minutes === 0 ? `${hours}시간` : `${hours}시간 ${minutes}분`;
 }
+
+const localDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: STORE_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/** 매장 시간대 기준 날짜 `YYYY-MM-DD` (DB `@db.Date` 컬럼용) */
+export function toStoreLocalDate(at: Date): string {
+  return localDateFormatter.format(at);
+}

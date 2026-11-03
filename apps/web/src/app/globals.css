@@ -53,6 +53,11 @@ body {
   width: 100%;
 }
 
+/* 화면 직속 CTA는 내용이 짧아도 하단에 붙인다 */
+.screen > .punch-bottom {
+  margin-top: auto;
+}
+
 /* 초대 수락: 폼이 화면 전체를 차지하고 CTA는 하단 */
 .invite-form {
   display: flex;
@@ -68,4 +73,104 @@ body {
   width: 100%;
   margin-top: 24px;
   text-align: left;
+}
+
+/* 공통 입력 */
+.labeled-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 단계형 폼: 입력은 위, CTA는 하단 */
+.step-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step-form__fields {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* 내 매장 */
+.store-list,
+.place-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.store-list {
+  flex: 1;
+}
+
+.store-list__item,
+.place-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--seed-color-stroke-neutral-muted);
+  border-radius: 12px;
+  background: var(--seed-color-bg-layer-default);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* 매장 만들기 */
+.selected-place {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.business-number {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.headcount {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.headcount__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.store-qr {
+  margin-top: 16px;
+}
+
+.store-qr__actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media print {
+  .punch-bottom,
+  .store-qr__actions {
+    display: none;
+  }
 }

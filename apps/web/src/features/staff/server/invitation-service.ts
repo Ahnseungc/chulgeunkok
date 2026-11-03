@@ -13,8 +13,11 @@ import type {
 } from '../model/invitation-types';
 import type { CreateInvitationInput } from '../schema';
 
-/** 초대 링크 유효 기간. docs/specs/staff §3.1 */
-export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** 초대 유효 기간. 얼굴 보고 찍는 QR은 짧게, 메신저 링크는 길게. docs/specs/staff §3.1 */
+export const INVITATION_TTL_MS = {
+  QR: 10 * 60 * 1000,
+  LINK: 7 * 24 * 60 * 60 * 1000,
+} as const satisfies Record<CreateInvitationInput['delivery'], number>;
 
 /** POST /stores/:storeId/invitations — docs/specs/staff §3.1 */
 export async function createInvitation(
@@ -33,7 +36,7 @@ export async function createInvitation(
   );
   const target = await resolveInvitationTarget(db, { actor, body: input.body });
   const token = generateToken();
-  const expiresAt = new Date(input.now.getTime() + INVITATION_TTL_MS);
+  const expiresAt = new Date(input.now.getTime() + INVITATION_TTL_MS[input.body.delivery]);
 
   await db.storeInvitation.create({
     data: {

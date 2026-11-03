@@ -46,6 +46,10 @@ pnpm dev
 
 실제 Postgres: `DATABASE_URL`을 바꾸고 `pnpm db:migrate`. 확장 `btree_gist`가 필요하다.
 
+사장님 화면은 `/owner` → 휴대폰 인증(개발 중에는 화면에 인증번호가 보인다) → 매장 만들기(가게 검색·사업자 확인) → 매장 QR.
+
+외부 연동 키(`KAKAO_REST_API_KEY`, `NTS_SERVICE_KEY`)가 비어 있으면 개발용 응답을 쓴다. 키 발급처는 `apps/web/.env.example` 참고.
+
 개발 중 사장님 화면 등은 `DEV_AUTH="1"`로 두고 `x-dev-user-id` 헤더나 `dev_user_id` 쿠키로 사용자를 고른다 (production에서는 무시).
 
 ## 마이그레이션
@@ -56,6 +60,7 @@ pnpm dev
 | `0001_constraints` | Prisma 스키마로 표현할 수 없는 제약 (부분 유니크, CHECK, 근로조건 기간 겹침 금지) |
 | `0002_spec_alignment` | `OtpCode`, 정산 시작일 이력, 검토 키에 규칙 버전, `seenAt` + 시스템 사용자·2026 규칙 시드 |
 | `0003_device_auth` | 기기 세션 `DeviceCredential`, 초대 종류(새 직원·기기 재등록) |
+| `0004_store_onboarding` | 매장 사업자번호·확인 시각, 카카오 장소 ID(운영 중 매장 중복 등록 금지) |
 
 ## 검증
 

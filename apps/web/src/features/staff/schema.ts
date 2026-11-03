@@ -3,10 +3,15 @@ import { z } from 'zod';
 const InvitableRole = z.enum(['EMPLOYEE', 'MANAGER']);
 
 /** docs/specs/staff §3.1 — 새 직원 초대 또는 기존 직원 기기 재등록 */
-export const CreateInvitationBody = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('JOIN'), role: InvitableRole.default('EMPLOYEE') }),
-  z.object({ kind: z.literal('REREGISTER'), memberId: z.string().min(1) }),
-]);
+export const INVITATION_DELIVERIES = ['QR', 'LINK'] as const;
+
+export const CreateInvitationBody = z
+  .discriminatedUnion('kind', [
+    z.object({ kind: z.literal('JOIN'), role: InvitableRole.default('EMPLOYEE') }),
+    z.object({ kind: z.literal('REREGISTER'), memberId: z.string().min(1) }),
+  ])
+  // QR: 사장님 화면을 그 자리에서 찍는다 (기본) / LINK: 메신저로 보낸다
+  .and(z.object({ delivery: z.enum(INVITATION_DELIVERIES).default('QR') }));
 
 export type CreateInvitationInput = z.infer<typeof CreateInvitationBody>;
 

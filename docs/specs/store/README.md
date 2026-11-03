@@ -25,7 +25,48 @@
 
 ## 3. 매장 생성
 
-### 3.1 입력
+### 3.1 가게 검색 (카카오 로컬)
+
+`GET /places/search?query=` (로그인 사장님). 카카오 로컬 키워드 검색을 서버가 대신 호출한다 (REST 키를 클라이언트에 두지 않는다).
+
+```ts
+interface PlaceDto {
+  provider: 'KAKAO';
+  placeId: string;        // 카카오 장소 id
+  name: string;
+  category: string | null;  // "음식점 > 카페"
+  roadAddress: string | null;
+  address: string | null;
+  phone: string | null;
+  latitude: number;
+  longitude: number;
+}
+```
+
+- 검색어 2~50자. 결과 최대 15개. 카페(`CE7`)·음식점(`FD6`)을 위로 정렬하되 다른 업종도 보여 준다 (주점·편의점 등).
+- `KAKAO_REST_API_KEY`가 없으면 개발용 고정 목록에서 이름으로 찾는다 (production이면 `INTERNAL`).
+- 검색 결과에 없으면 "직접 입력"으로 이름·주소만 넣는다 (좌표 없음 → 매장 밖 판정 안 함).
+
+### 3.2 사업자 확인 (국세청)
+
+`POST /business-registrations/verify` body `{ businessNumber }` (로그인 사장님).
+
+1. 10자리 숫자로 정규화 (`123-45-67890` 허용) → 체크섬 검사. 틀리면 `400 BUSINESS_NUMBER_INVALID` (외부 호출 안 함)
+2. 국세청 사업자등록 상태조회 (`api.odcloud.kr/api/nts-businessman/v1/status`)
+3. 응답 `{ businessNumber, status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | 'NOT_FOUND', taxType }`
+
+| 국세청 `b_stt_cd` | status |
+| --- | --- |
+| `01` 계속사업자 | `ACTIVE` |
+| `02` 휴업자 | `SUSPENDED` |
+| `03` 폐업자 | `CLOSED` |
+| 빈 값 (등록되지 않은 번호) | `NOT_FOUND` |
+
+- `NTS_SERVICE_KEY`가 없으면 개발용: 체크섬만 맞으면 `ACTIVE` (production이면 `INTERNAL`).
+- 외부 호출 실패·타임아웃(5초)은 `502 BUSINESS_LOOKUP_FAILED`. 사업자번호는 **MVP에서 선택 입력**이라 화면은 "나중에 입력"으로 넘어갈 수 있다.
+- 상호·대표자는 이 API가 주지 않는다. 진위확인 API(대표자명·개업일 필요)는 세금계산서 발행 단계(P1)에서 검토.
+
+### 3.3 입력
 
 ```ts
 const CreateStoreBody = z.object({
@@ -33,6 +74,8 @@ const CreateStoreBody = z.object({
   address: z.string().trim().max(100).optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  place: z.object({ provider: z.literal('KAKAO'), placeId: z.string() }).optional(),
+  businessNumber: z.string().optional(),   // 입력 시 서버가 §3.2를 다시 확인
   payPeriodStartDay: z.number().int().min(1).max(28).default(1),
   headcountBand: z.enum(['UNDER_5', 'FIVE_OR_MORE', 'UNKNOWN']),
 }).refine((v) => (v.latitude == null) === (v.longitude == null), {
@@ -40,21 +83,31 @@ const CreateStoreBody = z.object({
 });
 ```
 
-좌표는 주소 검색 결과에서 채운다. 없으면 "매장 밖" 판정을 하지 않는다 (`attendance` §4).
+- 검색 결과의 이름·주소·좌표를 그대로 보내되, 사장님이 이름을 고칠 수 있다 (예: "골목카페" → "골목카페 망원점").
+- `businessNumber`가 있으면 서버가 국세청을 다시 조회한다. `ACTIVE`가 아니면 `409 BUSINESS_NOT_ACTIVE` (휴업·폐업·미등록). 클라이언트의 확인 결과는 믿지 않는다.
+- 같은 장소(`place`)가 이미 운영 중인 매장으로 등록돼 있으면 `409 STORE_PLACE_TAKEN` "이미 등록된 가게예요. 사장님께 초대를 요청해 주세요." (폐업 처리된 매장은 제외)
 
-### 3.2 트랜잭션
+### 3.4 트랜잭션
 
-1. `Store` 생성
+1. `Store` 생성 (`businessNumber`·`businessVerifiedAt`·`placeProvider`·`placeId` 포함)
 2. `Membership(role=OWNER, status=ACTIVE)`
 3. `StoreQrToken` 생성 → 원문 토큰 응답에 포함
 4. `StoreHeadcountDeclaration(effectiveFrom = 오늘)`
-5. `Subscription(plan=PILOT, status=TRIALING)`
+5. `Subscription(plan=PILOT, status=TRIALING, 30일)`
 
-응답: `{ store, qr: { url, token } }`. 생성 직후 화면에서 QR 출력으로 이어진다.
+응답: `{ store: { id, name }, qr: { url } }`. 생성 직후 화면에서 QR 출력으로 이어진다.
 
-### 3.3 매장 수 제한
+### 3.5 매장 수 제한
 
 User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`.
+
+### 3.6 화면 흐름 `/owner/stores/new`
+
+1. 가게 검색 → 결과 선택 (또는 직접 입력)
+2. 이름 확인·수정
+3. 사업자번호 (선택) → "확인" 시 §3.2 결과 표시
+4. 사업장 규모 선택
+5. "매장 만들기" → 매장 QR 표시 (인쇄·저장)
 
 ## 4. 매장 수정
 
@@ -126,6 +179,8 @@ const DeclareHeadcountBody = z.object({
 
 | Method | Endpoint | 권한 |
 | --- | --- | --- |
+| GET | `/places/search?query=` | 로그인 |
+| POST | `/business-registrations/verify` | 로그인 |
 | POST | `/stores` | 로그인 |
 | GET | `/stores` | 로그인 — 본인 Membership이 있는 매장 |
 | GET | `/stores/:storeId` | 소속 |
@@ -139,6 +194,10 @@ const DeclareHeadcountBody = z.object({
 | code | HTTP | 메시지 |
 | --- | --- | --- |
 | `STORE_LIMIT_REACHED` | 409 | 매장은 10개까지 만들 수 있어요. |
+| `STORE_PLACE_TAKEN` | 409 | 이미 등록된 가게예요. 사장님께 초대를 요청해 주세요. |
+| `BUSINESS_NUMBER_INVALID` | 400 | 사업자등록번호를 확인해 주세요. |
+| `BUSINESS_NOT_ACTIVE` | 409 | 영업 중인 사업자만 등록할 수 있어요. |
+| `BUSINESS_LOOKUP_FAILED` | 502 | 사업자 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요. |
 | `HEADCOUNT_DATE_OUT_OF_RANGE` | 400 | 최근 90일 안의 날짜만 선택할 수 있어요. |
 
 ## 10. 수용 기준

@@ -86,7 +86,20 @@
 | 재발송 | 번호당 60초에 1회, 하루 10회 |
 | 번호 형식 | 국내 휴대폰만, E.164 |
 
-- 공급자는 미결정 (인덱스 Q2). **이번 범위는 직원 기기 등록까지.** 사장님 OTP는 다음 작업이고, 그 전까지 사장님 화면은 개발용 세션으로 연다.
+- 코드 해시는 `sha256(phone + ':' + code)`. 유효 3분·5회 제한이 무차별 대입을 막는다.
+- 같은 번호로 새 코드를 받으면 이전 미사용 코드는 `consumedAt`으로 닫는다 (마지막 코드만 유효).
+- 인증에 성공하면 그 번호의 User로 기기를 등록한다. 번호가 없던 User(직원으로 먼저 등록된 사람)와는 합치지 않는다 — 직원은 번호를 입력한 적이 없기 때문.
+
+### 4.1 SMS 발송 어댑터
+
+| `SMS_PROVIDER` | 동작 |
+| --- | --- |
+| `dev` (기본) | 발송하지 않고 서버 로그에 코드 출력. production이 아니면 응답에 `devCode`도 넣는다 |
+| `solapi` 등 | 공급자 계약 후 같은 인터페이스(`SmsSender.send(phone, text)`)로 추가 (인덱스 Q2) |
+
+production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에** `INTERNAL`로 실패한다 (설정 누락을 숨기지 않는다).
+
+- 본인인증(PASS 등)은 유료 구독 결제 단계에서 붙인다 (P1).
 - 초대 링크로 들어온 Manager도 직원과 같은 기기 쿠키를 쓴다. 급여 권한(`PAYROLL_READ`)을 받은 Manager에게 OTP를 추가로 요구할지는 미결정 (인덱스 Q8).
 
 ## 5. NFC
@@ -148,15 +161,15 @@
 | --- | --- |
 | `/invite/[token]` | `staff` §3.3 |
 | `/p/[qrToken]` 미등록 | "이 휴대폰은 아직 등록되지 않았어요. 사장님께 초대 링크를 요청해 주세요." + 인앱 브라우저 안내 |
-| `/owner/login` | 휴대폰 번호, 인증번호 (다음 작업) |
+| `/owner/login` | 휴대폰 번호 → 인증번호 → (처음이면) 이름 → `/owner` |
 
 ## 8. API
 
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | POST | `/auth/otp/send` | 사장님. body `{ phone }` |
-| POST | `/auth/otp/verify` | 사장님. body `{ phone, code }` → 기기 등록 + 쿠키 |
-| GET | `/me` | 현재 사용자, 소속 매장 `{ storeId, storeName, role, status }[]` |
+| POST | `/auth/otp/verify` | 사장님. body `{ phone, code }` → 기기 등록 + 쿠키. 응답 `{ needsName }` |
+| GET | `/me` | 현재 사용자 `{ id, name, hasPhone }`, 소속 매장 `{ storeId, storeName, role, status }[]` |
 | PATCH | `/me` | body `{ name }` |
 | POST | `/auth/logout` | 현재 기기 폐기 + 쿠키 삭제 |
 

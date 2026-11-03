@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 
-/** 진입점. ponytail: 세션 연결 전까지 로그인으로 보낸다. 이후 소속 매장 유무로 /owner 또는 /me 분기 */
+/**
+ * 웹 진입점은 사장님 화면. 직원은 QR(/p/…)·초대(/invite/…)로만 들어온다.
+ * ponytail: RN 앱이 생기면 앱 셸이 역할에 따라 첫 화면을 정한다 (docs/specs/auth §6)
+ */
 export default function HomePage() {
-  redirect('/login');
+  redirect('/owner');
 }

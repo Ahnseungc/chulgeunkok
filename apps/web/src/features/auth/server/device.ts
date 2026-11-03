@@ -44,3 +44,15 @@ export function setDeviceCookie(response: NextResponse, token: string): void {
     path: '/',
   });
 }
+
+/** 로그아웃: 이 기기 하나만 폐기 */
+export async function revokeDeviceToken(db: DbClient, input: { token: string; now: Date }) {
+  await db.deviceCredential.updateMany({
+    where: { tokenHash: hashToken(input.token), revokedAt: null },
+    data: { revokedAt: input.now },
+  });
+}
+
+export function clearDeviceCookie(response: NextResponse): void {
+  response.cookies.set(DEVICE_COOKIE, '', { httpOnly: true, maxAge: 0, path: '/' });
+}

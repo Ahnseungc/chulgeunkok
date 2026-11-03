@@ -28,6 +28,20 @@ export const ERROR_CODES = {
 
   // store
   STORE_LIMIT_REACHED: { status: 409, message: '매장은 10개까지 만들 수 있어요.' },
+  STORE_PLACE_TAKEN: {
+    status: 409,
+    message: '이미 등록된 가게예요. 사장님께 초대를 요청해 주세요.',
+  },
+  PLACE_SEARCH_FAILED: {
+    status: 502,
+    message: '가게를 검색하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  },
+  BUSINESS_NUMBER_INVALID: { status: 400, message: '사업자등록번호를 확인해 주세요.' },
+  BUSINESS_NOT_ACTIVE: { status: 409, message: '영업 중인 사업자만 등록할 수 있어요.' },
+  BUSINESS_LOOKUP_FAILED: {
+    status: 502,
+    message: '사업자 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  },
   HEADCOUNT_DATE_OUT_OF_RANGE: {
     status: 400,
     message: '최근 90일 안의 날짜만 선택할 수 있어요.',

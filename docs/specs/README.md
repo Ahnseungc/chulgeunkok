@@ -125,7 +125,7 @@ interface ApiError {
 | # | 질문 | 영향 |
 | --- | --- | --- |
 | Q1 | 역할·권한·직원 상태 변경 감사 로그를 MVP에 넣을지 | 스키마 `MembershipEvent` 추가 여부 |
-| Q2 | 휴대폰 OTP 공급자 (사장님만) | auth §4 |
+| Q2 | SMS 공급자 계약 (어댑터는 구현됨, 지금은 `dev`) | auth §4.1 |
 | Q3 | 퇴근 누락 자동 전환 기준 (소정 종료 + 4h 가정) | attendance §5 |
 | Q4 | "매장 밖" 판정 반경 (200m 가정) | attendance §4 |
 | Q5 | 원 미만 올림 정책 수용성 | payroll §3 |
@@ -148,4 +148,5 @@ interface ApiError {
 | `User` | 시스템 사용자 시드 `id = 'system'` (자동 전환 actor) | attendance §5.1 |
 | `DeviceCredential` (신규) | `userId`, `tokenHash`, `revokedAt` — 기기 쿠키 세션 | auth §3 (`0003_device_auth`) |
 | `StoreInvitation` | `memberId`(기기 재등록 대상), `phone` 제거 | staff §3 (`0003_device_auth`) |
+| `Store` | `businessNumber`, `businessVerifiedAt`, `placeProvider`, `placeId` + 운영 중 매장 장소 부분 유니크 | store §3 (`0004_store_onboarding`) |
 | `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |

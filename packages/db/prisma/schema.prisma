@@ -37,6 +37,10 @@ enum InvitationKind {
   REREGISTER // 기존 직원 기기 재등록 (폰 교체·퇴사 후 복귀)
 }
 
+enum PlaceProvider {
+  KAKAO
+}
+
 enum StoreStatus {
   ACTIVE
   SUSPENDED
@@ -132,19 +136,25 @@ model User {
 }
 
 model Store {
-  id                             String      @id @default(cuid())
+  id                             String         @id @default(cuid())
   name                           String
   address                        String?
   latitude                       Float?
   longitude                      Float?
-  timezone                       String      @default("Asia/Seoul") // IANA
-  payPeriodStartDay              Int         @default(1) // 1~28
+  timezone                       String         @default("Asia/Seoul") // IANA
+  payPeriodStartDay              Int            @default(1) // 1~28
   // 시작일 변경은 다음 정산 기간부터. 기준일 이전 기간은 이전 값으로 계산
   previousPayPeriodStartDay      Int?
-  payPeriodStartDayEffectiveFrom DateTime?   @db.Date
-  status                         StoreStatus @default(ACTIVE)
-  createdAt                      DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt                      DateTime    @updatedAt @db.Timestamptz(3)
+  payPeriodStartDayEffectiveFrom DateTime?      @db.Date
+  // 국세청 상태조회로 확인한 10자리 사업자번호 (선택, docs/specs/store §3.2)
+  businessNumber                 String?
+  businessVerifiedAt             DateTime?      @db.Timestamptz(3)
+  // 가게 검색에서 고른 장소. 운영 중 매장끼리 중복 등록 금지 (raw SQL 부분 유니크)
+  placeProvider                  PlaceProvider?
+  placeId                        String?
+  status                         StoreStatus    @default(ACTIVE)
+  createdAt                      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                      DateTime       @updatedAt @db.Timestamptz(3)
 
   memberships           Membership[]
   qrTokens              StoreQrToken[]

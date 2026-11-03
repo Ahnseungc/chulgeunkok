@@ -36,8 +36,15 @@
 const CreateInvitationBody = z.union([
   z.object({ kind: z.literal('JOIN'), role: z.enum(['EMPLOYEE', 'MANAGER']).default('EMPLOYEE') }),
   z.object({ kind: z.literal('REREGISTER'), memberId: z.string() }),
-]);
+]).and(z.object({ delivery: z.enum(['QR', 'LINK']).default('QR') }));
 ```
+
+| `delivery` | 쓰는 법 | 유효 기간 |
+| --- | --- | --- |
+| `QR` (기본) | 사장님 앱이 QR로 띄우고 직원이 그 자리에서 찍는다 | **10분** |
+| `LINK` | 카톡 등으로 링크 전송 | 7일 |
+
+얼굴을 보고 찍는 QR이 링크보다 안전하므로 기본값이다. 매장 벽의 출근 QR로는 기기를 등록하지 않는다 (누구나 찍을 수 있어 대리 출근을 막지 못한다).
 
 | 규칙 | 에러 |
 | --- | --- |
@@ -45,7 +52,7 @@ const CreateInvitationBody = z.union([
 | `REREGISTER` 대상이 이 매장 Membership이 아님 | `NOT_FOUND` |
 | `REREGISTER` 대상이 OWNER | `FORBIDDEN` (사장님 기기는 휴대폰 인증으로 등록, `auth` §4) |
 
-- 토큰: 32바이트 base64url, 해시 저장, **7일 만료, 1회용**.
+- 토큰: 32바이트 base64url, 해시 저장, **1회용**, 만료는 위 표.
 - 응답 `{ url: 'https://<도메인>/invite/<token>', expiresAt }`. 화면은 Web Share API(실패 시 링크 복사).
 
 ### 3.2 조회 `GET /invitations/:token` (공개)

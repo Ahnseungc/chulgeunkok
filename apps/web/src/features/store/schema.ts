@@ -17,11 +17,21 @@ const hasBothOrNoCoordinates = (value: { latitude?: number; longitude?: number }
 
 const COORDINATES_MESSAGE = { message: '위도와 경도는 함께 입력해야 해요.' };
 
-/** docs/specs/store §3.1 */
+/** docs/specs/store §3.3 */
 export const CreateStoreBody = StoreFields.extend({
   payPeriodStartDay: PayPeriodStartDay.default(1),
   headcountBand: HeadcountBand,
+  place: z.object({ provider: z.literal('KAKAO'), placeId: z.string().min(1).max(50) }).optional(),
+  businessNumber: z.string().max(20).optional(),
 }).refine(hasBothOrNoCoordinates, COORDINATES_MESSAGE);
+
+export type CreateStoreInput = z.infer<typeof CreateStoreBody>;
+
+/** docs/specs/store §3.1 */
+export const PlaceSearchQuery = z.object({ query: z.string().trim().min(2).max(50) });
+
+/** docs/specs/store §3.2 */
+export const VerifyBusinessBody = z.object({ businessNumber: z.string().max(20) });
 
 /** docs/specs/store §4 */
 export const UpdateStoreBody = StoreFields.partial().refine(

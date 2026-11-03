@@ -1,11 +1,6 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import NewStoreScreen from '@/features/store/ui/NewStoreScreen';
 
+/** 매장 만들기 — docs/specs/store/README.md §3.6 */
 export default function NewStorePage() {
-  return (
-    <ScreenPlaceholder
-      title="매장 만들기"
-      spec="docs/specs/store/README.md §7"
-      summary="매장명, 주소 검색, 사업장 규모, 완료 후 QR 출력"
-    />
-  );
+  return <NewStoreScreen />;
 }
