@@ -1,11 +1,11 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import PunchScreen from '@/features/attendance/ui/PunchScreen';
 
-export default function PunchPage() {
-  return (
-    <ScreenPlaceholder
-      title="출퇴근"
-      spec="docs/specs/attendance/README.md §3.1"
-      summary="매장명, 현재 시각, 출근하기 또는 퇴근하기 확인 버튼"
-    />
-  );
+interface PunchPageProps {
+  params: Promise<{ qrToken: string }>;
+}
+
+/** 매장 QR 스캔 진입점. 토큰 검증·판별은 클라이언트가 punch-preview로 한다 */
+export default async function PunchPage({ params }: PunchPageProps) {
+  const { qrToken } = await params;
+  return <PunchScreen qrToken={qrToken} />;
 }

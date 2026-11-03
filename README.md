@@ -36,7 +36,15 @@ pnpm prisma:migrate
 pnpm dev
 ```
 
-개발 중 로그인은 `.env`에 `DEV_AUTH=1`을 두고 요청 헤더 `x-dev-user-id: <User.id>`로 대신한다 (production에서는 무시).
+Postgres 없이 돌려 보려면 PGlite 파일 DB를 쓴다 (데모 매장·직원·QR 포함):
+
+```bash
+pnpm dev:db            # .pglite/ 재생성, QR 랜딩 URL 출력
+# .env: DATABASE_URL="pglite:./.pglite", DEV_AUTH="1"
+pnpm dev
+```
+
+브라우저에서는 쿠키 `dev_user_id=staff` 로 직원을 고른다. 개발 중 API 로그인은 `.env`에 `DEV_AUTH=1`을 두고 요청 헤더 `x-dev-user-id: <User.id>`로 대신한다 (production에서는 무시).
 
 ## 검증
 

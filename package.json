@@ -12,12 +12,14 @@
     "postinstall": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate deploy",
-    "verify:constraints": "node scripts/verify-constraints.mjs"
+    "verify:constraints": "node scripts/verify-constraints.mjs",
+    "dev:db": "node scripts/dev-db.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
     "@seed-design/css": "^3.1.0",
     "@seed-design/react": "^3.1.0",
+    "es-toolkit": "^1.53.1",
     "next": "^15.5.28",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -28,6 +30,7 @@
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "pglite-prisma-adapter": "0.6.1",
     "prisma": "6.19.0",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^5.1.4",
@@ -39,6 +42,9 @@
       "@prisma/engines",
       "prisma",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "@prisma/driver-adapter-utils": "6.19.0"
+    }
   }
 }

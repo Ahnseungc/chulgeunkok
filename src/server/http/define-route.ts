@@ -6,25 +6,26 @@ import { getSessionUserId } from '@/server/auth/session';
 import { ApiError, type ApiErrorBody } from './api-error';
 
 type RouteParams = Record<string, string>;
+type RouteAuth = 'user' | 'public';
 
-interface RouteContext<TBody, TQuery, TParams extends RouteParams> {
+interface RouteContext<TBody, TQuery, TParams extends RouteParams, TAuth extends RouteAuth> {
   req: NextRequest;
   params: TParams;
   body: TBody;
   query: TQuery;
   /** `auth: 'public'` 이면 null */
-  userId: string | null;
+  userId: TAuth extends 'public' ? null : string;
 }
 
-interface RouteOptions<TBody, TQuery> {
+interface RouteOptions<TBody, TQuery, TAuth extends RouteAuth> {
   /** 기본 'user'. 'public'은 세션 없이 호출 가능 */
-  auth?: 'user' | 'public';
+  auth?: TAuth;
   body?: ZodType<TBody, any, unknown>;
   query?: ZodType<TQuery, any, unknown>;
 }
 
-type Handler<TBody, TQuery, TParams extends RouteParams> = (
-  ctx: RouteContext<TBody, TQuery, TParams>,
+type Handler<TBody, TQuery, TParams extends RouteParams, TAuth extends RouteAuth> = (
+  ctx: RouteContext<TBody, TQuery, TParams, TAuth>,
 ) => Promise<Response | unknown>;
 
 /**
@@ -37,10 +38,20 @@ export function defineRoute<
   TBody = undefined,
   TQuery = undefined,
   TParams extends RouteParams = RouteParams,
->(options: RouteOptions<TBody, TQuery>, handler: Handler<TBody, TQuery, TParams>) {
+  TAuth extends RouteAuth = 'user',
+>(
+  options: RouteOptions<TBody, TQuery, TAuth>,
+  handler: Handler<TBody, TQuery, TParams, TAuth>,
+) {
   return async (req: NextRequest, segment: { params: Promise<TParams> }) => {
     try {
-      const userId = options.auth === 'public' ? null : await getSessionUserId(req);
+      // auth 옵션과 userId 타입은 제네릭 TAuth로 묶여 있어 런타임 분기와 일치한다
+      const userId = (options.auth === 'public' ? null : await getSessionUserId(req)) as RouteContext<
+        TBody,
+        TQuery,
+        TParams,
+        TAuth
+      >['userId'];
       const body = options.body ? options.body.parse(await readJson(req)) : (undefined as TBody);
       const query = options.query
         ? options.query.parse(Object.fromEntries(req.nextUrl.searchParams))

@@ -23,3 +23,32 @@ body {
   margin: 0 auto;
   padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
 }
+
+:root {
+  /* 출근콕 브랜드 레드 (assets/brand). Seed 팔레트에 없는 브랜드 고유색이라 여기서만 정의한다 */
+  --color-brand-kok: #f04a33;
+}
+
+/* QR 랜딩: 워드마크 위, 내용 가운데, CTA 하단 고정 */
+.punch-screen {
+  align-items: center;
+}
+
+.punch-center {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.punch-center > svg {
+  margin-bottom: 24px;
+}
+
+.punch-bottom {
+  display: flex;
+  width: 100%;
+}

@@ -2,10 +2,12 @@ import { z } from 'zod';
 
 import { IsoDateTime, LocalDate, Reason } from '@/shared/schema/common';
 
+import { ATTENDANCE_STATUSES, PUNCH_ACTIONS } from './model/punch-types';
+
 /** base64url 32바이트 = 43자. docs/specs/store §5.1 */
 export const QrToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'QR을 확인할 수 없어요.');
 
-const PunchAction = z.enum(['CLOCK_IN', 'CLOCK_OUT']);
+const PunchAction = z.enum(PUNCH_ACTIONS);
 
 /** docs/specs/attendance §3.2 */
 export const PunchPreviewQuery = z.object({ qrToken: QrToken });
@@ -23,7 +25,7 @@ export const PunchBody = z.object({
     .nullable(),
 });
 
-const AttendanceStatus = z.enum(['OPEN', 'CLOSED', 'MISSING_CLOCK_OUT', 'VOID']);
+const AttendanceStatus = z.enum(ATTENDANCE_STATUSES);
 
 export const MyAttendanceQuery = z.object({
   storeId: z.string().min(1),
