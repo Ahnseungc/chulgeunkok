@@ -1,0 +1,13 @@
+{
+  "name": "qr-attendance-saas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prisma:validate": "prisma validate",
+    "verify:constraints": "node scripts/verify-constraints.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "prisma": "6.19.0"
+  }
+}
