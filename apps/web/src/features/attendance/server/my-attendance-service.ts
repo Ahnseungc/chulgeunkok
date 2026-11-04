@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@chulgeunkok/db';
 
-import { summarizePeriod } from '@/features/payroll/model/work-time';
+import { payPeriodConfigOf, summarizePeriod } from '@/features/payroll/model/work-time';
 import { loadPeriodAttendances, resolvePeriod } from '@/features/payroll/server/period-attendances';
 import { requireMembership } from '@/server/auth/require-membership';
 
@@ -18,7 +18,7 @@ export async function getMyAttendances(
 ): Promise<MyAttendancesDto> {
   const member = await requireMembership({ storeId: input.storeId, userId: input.userId, action: 'MEMBER' }, db);
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
-  const period = resolvePeriod({ periodStart: input.periodStart, payPeriodStartDay: store.payPeriodStartDay, now: input.now });
+  const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
   const [rows, pending, open] = await Promise.all([
     loadPeriodAttendances(db, { storeId: input.storeId, period, memberId: member.id }),
     db.correctionRequest.findMany({

@@ -24,7 +24,7 @@ const MENU = [
   { path: 'members', title: '직원', ready: true },
   { path: 'attendances', title: '근태 기록', ready: true },
   { path: 'payroll', title: '정산', ready: true },
-  { path: 'settings', title: '매장 설정', ready: false },
+  { path: 'settings', title: '매장 설정', ready: true },
 ] as const;
 
 /** `/owner/[storeId]` 매장 홈 대시보드 — docs/specs/dashboard §3 */

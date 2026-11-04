@@ -44,6 +44,41 @@ export function getPayPeriod(localDate: string, startDay: number): PayPeriod {
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
 }
 
+/** 매장 정산 시작일 설정. 바꾸면 다음 기간부터 적용된다 (docs/specs/store §4) */
+export interface PayPeriodConfig {
+  startDay: number;
+  previousStartDay: number | null;
+  /** 새 시작일이 적용되는 날짜 `YYYY-MM-DD`. 그 전 날짜는 이전 시작일로 계산 */
+  changeEffectiveFrom: string | null;
+}
+
+export function payPeriodConfigOf(store: {
+  payPeriodStartDay: number;
+  previousPayPeriodStartDay: number | null;
+  payPeriodStartDayEffectiveFrom: Date | null;
+}): PayPeriodConfig {
+  return {
+    startDay: store.payPeriodStartDay,
+    previousStartDay: store.previousPayPeriodStartDay,
+    changeEffectiveFrom: store.payPeriodStartDayEffectiveFrom?.toISOString().slice(0, 10) ?? null,
+  };
+}
+
+/**
+ * 시작일 변경을 반영한 정산 기간. 바뀌는 날을 경계로 이전 기간은 거기서 끝나고, 새 기간은 거기서 시작한다
+ * (예: 1일 → 21일, 12/1부터 적용이면 11/1~12/1, 12/1~12/21, 12/21~1/21)
+ */
+export function getStorePayPeriod(localDate: string, config: PayPeriodConfig): PayPeriod {
+  const changeFrom = config.changeEffectiveFrom;
+  if (!changeFrom || config.previousStartDay === null) return getPayPeriod(localDate, config.startDay);
+  if (localDate < changeFrom) {
+    const before = getPayPeriod(localDate, config.previousStartDay);
+    return { start: before.start, end: before.end < changeFrom ? before.end : changeFrom };
+  }
+  const after = getPayPeriod(localDate, config.startDay);
+  return { start: after.start > changeFrom ? after.start : changeFrom, end: after.end };
+}
+
 export interface WorkSegment {
   attendanceId: string;
   localDate: string;

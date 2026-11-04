@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getPayPeriod, summarizePeriod, toSegments, type SegmentInput } from './work-time';
+import { getPayPeriod, getStorePayPeriod, summarizePeriod, toSegments, type SegmentInput } from './work-time';
 
 const HOUR = 3600;
 const MINUTE = 60;
@@ -100,5 +100,37 @@ describe('summarizePeriod', () => {
       { hourlyWage: 10320, recognizedSeconds: 3 * HOUR },
       { hourlyWage: 11000, recognizedSeconds: 3 * HOUR },
     ]);
+  });
+});
+
+describe('getStorePayPeriod — 정산 시작일 변경 (store §4)', () => {
+  // 1일 → 21일, 12/1부터 적용
+  const changed = { startDay: 21, previousStartDay: 1, changeEffectiveFrom: '2026-12-01' };
+
+  it('바뀌기 전 기간은 이전 시작일로 계산한다', () => {
+    expect(getStorePayPeriod('2026-11-15', changed)).toEqual({ start: '2026-11-01', end: '2026-12-01' });
+  });
+
+  it('바뀌는 날부터 새 시작일까지 짧은 전환 기간이 생긴다', () => {
+    expect(getStorePayPeriod('2026-12-10', changed)).toEqual({ start: '2026-12-01', end: '2026-12-21' });
+  });
+
+  it('그 뒤로는 새 시작일 기간이다', () => {
+    expect(getStorePayPeriod('2026-12-25', changed)).toEqual({ start: '2026-12-21', end: '2027-01-21' });
+  });
+
+  it('21일 → 1일로 바꿔도 이전 기간이 바뀌는 날에서 끝난다', () => {
+    const back = { startDay: 1, previousStartDay: 21, changeEffectiveFrom: '2026-11-21' };
+    expect([getStorePayPeriod('2026-11-10', back), getStorePayPeriod('2026-11-25', back)]).toEqual([
+      { start: '2026-10-21', end: '2026-11-21' },
+      { start: '2026-11-21', end: '2026-12-01' },
+    ]);
+  });
+
+  it('변경이 없으면 그대로', () => {
+    expect(getStorePayPeriod('2026-11-15', { startDay: 1, previousStartDay: null, changeEffectiveFrom: null })).toEqual({
+      start: '2026-11-01',
+      end: '2026-12-01',
+    });
   });
 });

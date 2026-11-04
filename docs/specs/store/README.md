@@ -112,7 +112,10 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 ## 4. 매장 수정
 
 - `name`, `address`, `latitude`, `longitude`, `payPeriodStartDay`.
-- `payPeriodStartDay`를 바꾸면 **다음 정산 기간부터** 적용한다. 현재 진행 중인 기간은 그대로. 변경 내역은 `Store.payPeriodStartDay`와 `payPeriodStartDayEffectiveFrom`으로 관리한다.
+- `payPeriodStartDay`를 바꾸면 **다음 정산 기간부터** 적용한다. 현재 진행 중인 기간은 그대로. 변경 내역은 `Store.payPeriodStartDay`·`previousPayPeriodStartDay`·`payPeriodStartDayEffectiveFrom`(= 지금 기간의 끝)으로 관리한다.
+- 바뀌는 날을 경계로 짧은 전환 기간이 생긴다. 예: 1일 → 21일, 12/1부터 → `11/1~12/1`, `12/1~12/21`, `12/21~1/21`.
+- 적용 전(대기 중)에 다시 바꾸면 값만 바뀌고 적용일은 그대로. 원래 값으로 되돌리면 변경 취소.
+- 변경 이력은 1단계만 보관한다. 두 번 바뀐 뒤 아주 오래된 기간을 다시 보면 계산이 달라질 수 있다 (P1: 시작일 이력 테이블).
 
 > 스키마: `Store.previousPayPeriodStartDay`, `Store.payPeriodStartDayEffectiveFrom` (둘은 함께 있거나 함께 없음, CHECK). 정산 기간 계산은 `payroll` §3.1.
 
@@ -141,8 +144,9 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 
 ### 5.4 출력
 
-- `/owner/[storeId]/settings/qr` 에서 A6 스티커 레이아웃(`assets/brand/출근콕-QR스티커.png` 기준) 미리보기 + 인쇄 + PNG 저장.
+- 매장 생성 직후와 설정의 "새 QR 만들기" 직후 화면에서 QR 미리보기 + 인쇄 + PNG 저장. 별도 QR 페이지는 두지 않는다 (원문을 다시 볼 수 없으므로).
 - QR 이미지는 클라이언트에서 생성 (원문은 재발급 직후 메모리에만).
+- P1: A6 스티커 레이아웃(`assets/brand/출근콕-QR스티커.png`) 인쇄용 템플릿.
 
 ## 6. 사업장 규모 신고
 
@@ -173,7 +177,6 @@ const DeclareHeadcountBody = z.object({
 | --- | --- |
 | `/owner/stores/new` | 매장명, 주소 검색, 규모 선택(바텀시트 안내), 완료 → QR 출력 |
 | `/owner/[storeId]/settings` | 매장 정보, 정산 시작일, 사업장 규모(현재 값 + 이력), QR 재발급 |
-| `/owner/[storeId]/settings/qr` | 스티커 미리보기·인쇄·저장 |
 
 ## 8. API
 
@@ -183,7 +186,8 @@ const DeclareHeadcountBody = z.object({
 | POST | `/business-registrations/verify` | 로그인 |
 | POST | `/stores` | 로그인 |
 | GET | `/stores` | 로그인 — 본인 Membership이 있는 매장 |
-| GET | `/stores/:storeId` | 소속 |
+| GET | `/stores/:storeId` | 소속 — 이름·내 역할 |
+| GET | `/stores/:storeId/settings` | Owner — 이름·주소·정산 시작일(대기 중 변경)·사업장 규모 이력·QR 발급일 |
 | PATCH | `/stores/:storeId` | Owner |
 | POST | `/stores/:storeId/qr/rotate` | Owner |
 | POST | `/stores/:storeId/headcount-declarations` | Owner |

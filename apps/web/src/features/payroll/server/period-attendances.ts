@@ -3,11 +3,12 @@ import type { Attendance, DbClient, EmploymentTerms, EmploymentTermsSchedule, Me
 import { ApiError } from '@/server/http/api-error';
 
 import {
-  getPayPeriod,
+  getStorePayPeriod,
   localMidnight,
   toLocalDate,
   toSegments,
   type PayPeriod,
+  type PayPeriodConfig,
   type PeriodWithNav,
   type WorkSegment,
 } from '../model/work-time';
@@ -34,15 +35,15 @@ export interface PeriodAttendanceRow {
  * periodStart가 없으면 오늘이 속한 기간. 주어지면 실제 기간 시작일이어야 한다.
  * docs/specs/payroll §3.1·§8
  */
-export function resolvePeriod(input: { periodStart?: string; payPeriodStartDay: number; now: Date }): PeriodWithNav {
+export function resolvePeriod(input: { periodStart?: string; payPeriod: PayPeriodConfig; now: Date }): PeriodWithNav {
   const today = toLocalDate(input.now);
-  const period = getPayPeriod(input.periodStart ?? today, input.payPeriodStartDay);
+  const period = getStorePayPeriod(input.periodStart ?? today, input.payPeriod);
   if (input.periodStart && period.start !== input.periodStart) throw new ApiError('PAY_PERIOD_INVALID');
   if (period.start > today) throw new ApiError('PAY_PERIOD_IN_FUTURE');
   const dayBefore = new Date(Date.parse(`${period.start}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
   return {
     ...period,
-    prevStart: getPayPeriod(dayBefore, input.payPeriodStartDay).start,
+    prevStart: getStorePayPeriod(dayBefore, input.payPeriod).start,
     nextStart: period.end > today ? null : period.end,
   };
 }

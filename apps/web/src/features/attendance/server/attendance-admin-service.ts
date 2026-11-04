@@ -1,7 +1,7 @@
 import type { Attendance, AttendanceStatus, Prisma, PrismaClient } from '@chulgeunkok/db';
 
 import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
-import { getPayPeriod, toLocalDate } from '@/features/payroll/model/work-time';
+import { getStorePayPeriod, payPeriodConfigOf, toLocalDate } from '@/features/payroll/model/work-time';
 import { loadPeriodAttendances, resolvePeriod, type PeriodAttendanceRow } from '@/features/payroll/server/period-attendances';
 import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
@@ -41,7 +41,7 @@ export async function listStoreAttendances(
 ): Promise<AttendanceListDto> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'ATTENDANCE_ADMIN' }, db);
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
-  const period = resolvePeriod({ periodStart: input.periodStart, payPeriodStartDay: store.payPeriodStartDay, now: input.now });
+  const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
   const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period, memberId: input.memberId });
   return {
     period,
@@ -64,7 +64,7 @@ export async function getAttendanceDetail(
   if (actor.role === 'EMPLOYEE' && attendance.membershipId !== actor.id) throw new ApiError('FORBIDDEN');
 
   const store = await db.store.findUniqueOrThrow({ where: { id: attendance.storeId } });
-  const period = getPayPeriod(toLocalDate(attendance.clockInAt), store.payPeriodStartDay);
+  const period = getStorePayPeriod(toLocalDate(attendance.clockInAt), payPeriodConfigOf(store));
   const [row] = (await loadPeriodAttendances(db, { storeId: attendance.storeId, period, memberId: attendance.membershipId }))
     .filter((candidate) => candidate.attendance.id === attendance.id);
   if (!row) throw new ApiError('NOT_FOUND');

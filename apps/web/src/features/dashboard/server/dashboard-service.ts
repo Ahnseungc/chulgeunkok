@@ -3,7 +3,15 @@ import type { Membership, PrismaClient } from '@chulgeunkok/db';
 import { findHeadcountBand } from '@/features/labor/server/labor-context';
 import { OPEN_REVIEW_STATUSES } from '@/features/labor/server/review-service';
 import { reviewPresentation } from '@/features/labor/model/review-copy';
-import { getPayPeriod, localMidnight, localWeekday, summarizePeriod, toLocalDate } from '@/features/payroll/model/work-time';
+import {
+  getStorePayPeriod,
+  localMidnight,
+  localWeekday,
+  payPeriodConfigOf,
+  summarizePeriod,
+  toLocalDate,
+  type PayPeriodConfig,
+} from '@/features/payroll/model/work-time';
 import { loadPeriodAttendances } from '@/features/payroll/server/period-attendances';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
@@ -25,7 +33,7 @@ export async function getDashboard(
     findWorking(db, input.storeId),
     findTodayStatus(db, { storeId: input.storeId, today, now: input.now }),
     countTodo(db, { actor, now: input.now, today }),
-    summarizeCurrentPeriod(db, { storeId: input.storeId, today, payPeriodStartDay: store.payPeriodStartDay }),
+    summarizeCurrentPeriod(db, { storeId: input.storeId, today, payPeriod: payPeriodConfigOf(store) }),
   ]);
 
   return {
@@ -143,9 +151,9 @@ async function countSheetReviews(db: PrismaClient, input: { storeId: string; tod
 /** 이번 정산 기간 합계. 정산 화면과 같은 함수로 계산한다 (docs/specs/dashboard §5) */
 async function summarizeCurrentPeriod(
   db: PrismaClient,
-  input: { storeId: string; today: string; payPeriodStartDay: number },
+  input: { storeId: string; today: string; payPeriod: PayPeriodConfig },
 ) {
-  const period = getPayPeriod(input.today, input.payPeriodStartDay);
+  const period = getStorePayPeriod(input.today, input.payPeriod);
   const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period });
   const summary = summarizePeriod(rows.flatMap((row) => row.segments), period);
   return { start: period.start, end: period.end, recognizedSeconds: summary.recognizedSeconds, basePayEstimate: summary.basePayEstimate };

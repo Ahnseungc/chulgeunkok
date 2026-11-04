@@ -4,7 +4,7 @@ import { OPEN_REVIEW_STATUSES } from '@/features/labor/server/review-service';
 import { requireMembership } from '@/server/auth/require-membership';
 
 import type { PayrollMemberDto, PayrollPreviewDto } from '../model/payroll-types';
-import { summarizePeriod } from '../model/work-time';
+import { payPeriodConfigOf, summarizePeriod } from '../model/work-time';
 
 import { loadPeriodAttendances, resolvePeriod, type PeriodAttendanceRow } from './period-attendances';
 
@@ -34,7 +34,7 @@ export async function loadPayroll(
 ): Promise<PayrollPreviewWithRows> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'PAYROLL' }, db);
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
-  const period = resolvePeriod({ periodStart: input.periodStart, payPeriodStartDay: store.payPeriodStartDay, now: input.now });
+  const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
   const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period });
 
   const workedMemberIds = new Set(rows.map((row) => row.attendance.membershipId));

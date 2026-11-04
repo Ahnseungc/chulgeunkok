@@ -1,11 +1,11 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import SettingsScreen from '@/features/store/ui/SettingsScreen';
 
-export default function SettingsPage() {
-  return (
-    <ScreenPlaceholder
-      title="매장 설정"
-      spec="docs/specs/store/README.md §7"
-      summary="매장 정보, 정산 시작일, 사업장 규모, QR 재발급"
-    />
-  );
+interface SettingsPageProps {
+  params: Promise<{ storeId: string }>;
+}
+
+/** 매장 설정 — docs/specs/store/README.md §7 */
+export default async function SettingsPage({ params }: SettingsPageProps) {
+  const { storeId } = await params;
+  return <SettingsScreen storeId={storeId} />;
 }
