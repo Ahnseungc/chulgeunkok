@@ -174,3 +174,190 @@ body {
     display: none;
   }
 }
+
+/* 공통 */
+.back-link {
+  color: var(--seed-color-fg-neutral-muted);
+  text-decoration: none;
+}
+
+.store-list__item--disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.segmented,
+.weekday-toggles,
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--seed-color-bg-neutral-weak);
+  color: var(--seed-color-fg-neutral);
+}
+
+.badge--positive {
+  background: var(--seed-color-bg-positive-weak);
+  color: var(--seed-color-fg-positive);
+}
+
+.badge--critical {
+  background: var(--seed-color-bg-critical-weak);
+  color: var(--seed-color-fg-critical);
+}
+
+.badge--warning {
+  background: var(--seed-color-bg-warning-weak);
+  color: var(--seed-color-fg-warning);
+}
+
+.member-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* 하단 시트 */
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  margin: auto auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 20px 20px 0 0;
+  background: var(--seed-color-bg-layer-floating, var(--seed-color-bg-layer-default));
+  color: inherit;
+}
+
+.sheet::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.sheet__actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.invite-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+/* 직원 상세 */
+.member-header,
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.detail-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--seed-color-stroke-neutral-muted);
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-list__item--badge {
+  opacity: 0.7;
+}
+
+.terms-summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.terms-summary dt {
+  color: var(--seed-color-fg-neutral-muted);
+}
+
+.terms-summary dd {
+  margin: 0;
+}
+
+/* 근로조건 폼 */
+.schedule-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 요일 | 출근 – 퇴근 / 아래 줄에 휴게. 375px 폭에서 넘치지 않게 두 줄로 */
+.schedule-row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.schedule-row > .native-select {
+  grid-column: 2 / 5;
+}
+
+.schedule-row__day {
+  width: 20px;
+}
+
+.native-input,
+.native-select {
+  min-width: 0;
+  height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--seed-color-stroke-neutral-muted);
+  border-radius: 8px;
+  background: var(--seed-color-bg-layer-default);
+  color: inherit;
+  font: inherit;
+}
+
+.native-input {
+  flex: 1;
+}
+
+.labeled-field > .native-select {
+  height: 48px;
+}

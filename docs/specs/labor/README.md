@@ -69,7 +69,9 @@ const CreateTermsBody = z.object({
 1. 직원 Membership `FOR UPDATE` 잠금
 2. 최저임금 검사 (§4.1). 미달이고 `confirmBelowMinimumWage = false` → `409 MINIMUM_WAGE_CONFIRM_REQUIRED` (저장 안 함)
 3. 현재 열린 버전의 `effectiveTo = effectiveFrom 00:00` (매장 시간대 → UTC)
-4. `effectiveFrom`이 현재 열린 버전의 시작보다 이르면 `409 TERMS_EFFECTIVE_BEFORE_CURRENT` — 과거 소급은 MVP 미지원
+4. `effectiveFrom`이 현재 열린 버전의 시작보다 이르면 `409 TERMS_EFFECTIVE_BEFORE_CURRENT`
+   - 열린 버전에 `effectiveFrom` 이후 출근 기록이 있으면 `409 TERMS_HAS_LATER_ATTENDANCE` — 이미 일한 근무의 시급이 바뀌면 안 된다 ("다음 날부터 적용해 주세요")
+   - 같은 날 시작이고 근무 기록이 없으면 열린 버전을 지우고 대체한다 (등록 직후 오타 수정). 버전 번호는 계속 올라간다
 5. 새 버전 `version = max + 1` 생성 + schedules
 6. 이전 버전 기준 검토 항목 중 `OPEN`·`NEEDS_INFORMATION` → `SUPERSEDED`
 7. 검토 엔진 실행 → 새 `LaborReview` upsert
@@ -207,6 +209,7 @@ CTA: `확인했어요` → `ACKNOWLEDGED` / `근로조건 수정` → 근로조�
 | --- | --- | --- |
 | `MINIMUM_WAGE_CONFIRM_REQUIRED` | 409 | 최저임금보다 낮은 시급이에요. 그래도 저장할까요? (`details.minimumHourlyWage`) |
 | `TERMS_EFFECTIVE_BEFORE_CURRENT` | 409 | 현재 근로조건 시작일보다 이전 날짜로는 바꿀 수 없어요. |
+| `TERMS_HAS_LATER_ATTENDANCE` | 409 | 적용 시작일 이후의 근무 기록이 있어요. 다음 날부터 적용해 주세요. |
 | `TERMS_OVERLAP` | 409 | DB exclusion 위반 시. 재시도 안내 |
 | `LABOR_REVIEW_STATUS_INVALID` | 409 | `SUPERSEDED`·`RESOLVED` 항목은 확인 처리할 수 없어요. |
 

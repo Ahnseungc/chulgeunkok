@@ -36,6 +36,8 @@ export const UpdateMemberBody = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: '바꿀 값을 입력해 주세요.' });
 
+export type UpdateMemberInput = z.infer<typeof UpdateMemberBody>;
+
 export const MemberListQuery = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
 });

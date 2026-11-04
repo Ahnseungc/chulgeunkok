@@ -2,12 +2,15 @@
 export class ApiRequestError extends Error {
   readonly code: string;
   readonly status: number;
+  /** 서버가 준 추가 정보 (예: MINIMUM_WAGE_CONFIRM_REQUIRED의 minimumHourlyWage) */
+  readonly details?: Record<string, number | string>;
 
-  constructor(input: { code: string; message: string; status: number }) {
+  constructor(input: { code: string; message: string; status: number; details?: Record<string, number | string> }) {
     super(input.message);
     this.name = 'ApiRequestError';
     this.code = input.code;
     this.status = input.status;
+    this.details = input.details;
   }
 }
 
@@ -24,11 +27,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   });
   const json: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const error = (json as { error?: { code?: string; message?: string } } | null)?.error;
+    const error = (
+      json as { error?: { code?: string; message?: string; details?: Record<string, number | string> } } | null
+    )?.error;
     throw new ApiRequestError({
       code: error?.code ?? 'INTERNAL',
       message: error?.message ?? FALLBACK_MESSAGE,
       status: response.status,
+      details: error?.details,
     });
   }
   return json as T;

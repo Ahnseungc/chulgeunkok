@@ -71,6 +71,10 @@ export const ERROR_CODES = {
     message: '현재 근로조건 시작일보다 이전 날짜로는 바꿀 수 없어요.',
   },
   TERMS_OVERLAP: { status: 409, message: '근로조건 기간이 겹쳐요. 다시 시도해 주세요.' },
+  TERMS_HAS_LATER_ATTENDANCE: {
+    status: 409,
+    message: '적용 시작일 이후의 근무 기록이 있어요. 다음 날부터 적용해 주세요.',
+  },
   LABOR_REVIEW_STATUS_INVALID: {
     status: 409,
     message: '이미 정리된 항목은 확인 처리할 수 없어요.',

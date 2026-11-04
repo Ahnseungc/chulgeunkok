@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@chulgeunkok/db';
 
+import { requireMembership } from '@/server/auth/require-membership';
 import { generateToken } from '@/server/crypto/generate-token';
 import { hashToken } from '@/server/crypto/hash-token';
 import { ApiError } from '@/server/http/api-error';
@@ -125,4 +126,14 @@ async function assertPlaceAvailable(db: PrismaClient, placeId: string) {
     where: { placeProvider: 'KAKAO', placeId, status: { not: 'CLOSED' } },
   });
   if (taken) throw new ApiError('STORE_PLACE_TAKEN');
+}
+
+/** GET /stores/:storeId — 매장 홈 헤더용. 소속 직원 누구나 */
+export async function getStoreSummary(
+  db: PrismaClient,
+  input: { storeId: string; actorUserId: string },
+): Promise<{ id: string; name: string; myRole: 'OWNER' | 'MANAGER' | 'EMPLOYEE' }> {
+  const actor = await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'MEMBER' }, db);
+  const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
+  return { id: store.id, name: store.name, myRole: actor.role };
 }

@@ -1,11 +1,10 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import MembersScreen from '@/features/staff/ui/MembersScreen';
 
-export default function MembersPage() {
-  return (
-    <ScreenPlaceholder
-      title="직원"
-      spec="docs/specs/staff/README.md §5.1"
-      summary="직원 목록, 상태 배지, 대기 중 초대"
-    />
-  );
+interface MembersPageProps {
+  params: Promise<{ storeId: string }>;
+}
+
+export default async function MembersPage({ params }: MembersPageProps) {
+  const { storeId } = await params;
+  return <MembersScreen storeId={storeId} />;
 }
