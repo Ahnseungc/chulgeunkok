@@ -11,3 +11,6 @@ export const VerifyOtpBody = z.object({
 });
 
 export const UpdateMeBody = z.object({ name: z.string().trim().min(1).max(20) });
+
+/** docs/specs/auth §6.2 */
+export const RedeemHandoffBody = z.object({ code: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });

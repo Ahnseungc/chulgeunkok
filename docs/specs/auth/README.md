@@ -123,37 +123,44 @@ production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에**
 | 기기 토큰 보관 | 네이티브 | 아래 §6.2 |
 | 위치 | 웹 | WebView의 `navigator.geolocation` (네이티브 권한 위임) |
 
-### 6.2 기기 토큰 흐름
+### 6.2 기기 토큰 흐름 (일회용 연결 코드)
 
-1. 초대 수락 응답이 WebView 쿠키 저장소에 `ck_device`(HttpOnly)를 심는다. **응답 본문에는 토큰이 없다.**
-2. 네이티브가 WebView 쿠키 저장소에서 `ck_device`를 읽어 SecureStore(Keychain·Keystore)에 백업한다. 네이티브 쿠키 API는 HttpOnly도 읽을 수 있다.
-3. 앱을 켤 때 SecureStore에 토큰이 있으면 WebView를 열기 **전에** 쿠키 저장소에 같은 속성(§3.2)으로 다시 넣는다. WebView 쿠키가 지워져도(앱 업데이트·OS 정리) 세션이 유지된다.
-4. 네이티브가 API를 직접 부를 때는 `Authorization: Bearer <토큰>`. 서버는 쿠키와 같은 세션으로 판정한다 (§3.3).
-5. 로그아웃·기기 재등록으로 서버가 기기를 폐기하면 다음 요청이 `UNAUTHENTICATED` → 네이티브는 SecureStore 토큰을 지운다.
+WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·새 아키텍처에서 쿠키 모듈을 쓸 수 없다). 대신 60초짜리 일회용 **연결 코드**(`DeviceHandoffCode`, 해시만 저장)로 넘긴다.
 
-> 토큰은 JS로 노출하지 않는다 (`injectedJavaScript`로 넣지 않는다). 웹 화면에 XSS가 생겨도 토큰을 빼갈 수 없게 하기 위해서다.
+1. 초대 수락·사장님 OTP 인증 응답이 WebView에 `ck_device`(HttpOnly)를 심는다. 응답 본문에는 토큰이 없다.
+2. 웹이 앱 안이면 `POST /api/v1/auth/handoff`(쿠키 세션)로 연결 코드를 받아 `DEVICE_REGISTERED { handoffCode }` 를 보낸다.
+3. 네이티브는 `POST /api/v1/auth/handoff/redeem { code }` → `{ deviceToken }` 을 받아 SecureStore(Keychain·Keystore)에 둔다. 코드는 한 번 쓰면 끝이다 (조건부 `usedAt` 갱신).
+4. 앱을 켤 때 SecureStore에 토큰이 있으면 `Authorization: Bearer` 로 연결 코드를 받고, WebView를 `/auth/restore?code=…&next=<경로>` 로 연다. 서버가 코드를 쓰고 새 `ck_device` 쿠키를 심은 뒤 `next`로 보낸다. WebView 쿠키가 지워져도 세션이 이어진다.
+5. 서버가 기기를 폐기해 Bearer 요청이 401이면 네이티브는 SecureStore 토큰을 지우고 일반 경로로 연다.
+
+- `next`는 `/me`, `/owner`, `/p/…`, `/invite/…` 만 허용한다 (오픈 리다이렉트 방지). 그 밖은 `/me`.
+- 복원 실패(만료·사용된 코드)도 `next`로 보낸다. 쿠키가 없으니 해당 화면의 미등록 안내가 뜬다.
+
+> 기기 토큰은 JS로 노출하지 않는다. JS에 보이는 값은 60초 일회용 코드뿐이라 웹에 XSS가 생겨도 영구 토큰은 빠지지 않는다.
 
 ### 6.3 웹 ↔ 네이티브 브릿지 (최소)
 
-`window.ReactNativeWebView.postMessage` / `onMessage`. 메시지는 Zod로 검증한다.
+`window.ReactNativeWebView.postMessage` / `onMessage`. 메시지는 `packages/app-bridge`의 Zod 스키마로 검증한다.
 
 | 방향 | type | payload | 용도 |
 | --- | --- | --- | --- |
-| 웹 → 앱 | `OPEN_SCANNER` | 없음 | 웹 화면의 "QR 찍기" 버튼 |
-| 웹 → 앱 | `DEVICE_REGISTERED` | 없음 | 초대 수락 직후. 네이티브가 §6.2-2 실행 |
-| 앱 → 웹 | `SCAN_RESULT` | `{ url }` | 스캔 결과. 웹이 같은 출처 `/p/`만 이동 |
+| 웹 → 앱 | `OPEN_SCANNER` | 없음 | `/me`의 "매장 QR 찍기" 버튼 |
+| 웹 → 앱 | `DEVICE_REGISTERED` | `{ handoffCode }` | 초대 수락·사장님 인증 직후. 네이티브가 §6.2-3 실행 |
 
+- 스캔 결과는 메시지로 보내지 않는다. 네이티브가 `toAppPath`로 검증한 경로(`/p/…`, `/invite/…`, 같은 출처 또는 `chulgeunkok://`)로 WebView를 바로 연다. 그 밖의 QR은 "출근콕 QR이 아니에요" 안내.
 - 웹은 `window.ReactNativeWebView` 존재로 앱 안인지 판단한다. 없으면 일반 웹 동작.
-- 브릿지 타입은 `packages/`의 공용 패키지로 두고 웹·앱이 같이 쓴다 (앱 작업 시작 때 추가).
+- WebView는 웹 출처만 안에서 연다. 다른 주소는 시스템 브라우저로 보낸다.
 
 ### 6.4 모노레포 배치
 
 | 경로 | 내용 |
 | --- | --- |
 | `apps/web` | Next.js (화면 + API) |
-| `apps/mobile` | Expo 셸 (다음 작업) |
+| `apps/mobile` | Expo 셸 — WebView, QR 스캐너, SecureStore, 딥링크 (`chulgeunkok://`) |
 | `packages/db` | Prisma 스키마·마이그레이션·DB 클라이언트 |
-| `packages/app-bridge` | §6.3 메시지 스키마 (앱 작업 때 추가) |
+| `packages/app-bridge` | §6.3 메시지 스키마, 쿠키 이름, 딥링크 경로 검증 |
+
+유니버설 링크·앱 링크(도메인 연결)와 앱 안 NFC 읽기는 도메인이 생기면 붙인다. 그 전에는 NFC 스티커 URL이 브라우저로 열린다.
 
 ## 7. 화면
 

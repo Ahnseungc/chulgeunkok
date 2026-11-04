@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { apiFetch, ApiRequestError } from '@/shared/lib/api-client';
+import { notifyDeviceRegistered } from '@/shared/lib/app-shell';
 
 import type { AcceptInvitationResultDto, InvitationInfoDto } from '../model/invitation-types';
 
@@ -37,6 +38,7 @@ export function useInvite(token: string) {
           method: 'POST',
           body: JSON.stringify(info.needsName ? { name } : {}),
         });
+        await notifyDeviceRegistered();
         setState({ phase: 'done', result });
       } catch (error) {
         // 이름 누락 등은 같은 화면에서 고칠 수 있다. 사용·만료된 초대는 처음 화면으로

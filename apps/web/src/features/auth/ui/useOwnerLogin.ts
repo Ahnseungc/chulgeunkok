@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { apiFetch, ApiRequestError } from '@/shared/lib/api-client';
+import { notifyDeviceRegistered } from '@/shared/lib/app-shell';
 
 import type { SendOtpResultDto, VerifyOtpResultDto } from '../model/me-types';
 
@@ -53,6 +54,7 @@ export function useOwnerLogin() {
         method: 'POST',
         body: JSON.stringify({ phone, code }),
       });
+      await notifyDeviceRegistered();
       if (result.needsName) setState({ step: 'name' });
       else router.replace(AFTER_LOGIN_PATH);
     });

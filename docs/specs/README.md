@@ -149,4 +149,5 @@ interface ApiError {
 | `DeviceCredential` (신규) | `userId`, `tokenHash`, `revokedAt` — 기기 쿠키 세션 | auth §3 (`0003_device_auth`) |
 | `StoreInvitation` | `memberId`(기기 재등록 대상), `phone` 제거 | staff §3 (`0003_device_auth`) |
 | `Store` | `businessNumber`, `businessVerifiedAt`, `placeProvider`, `placeId` + 운영 중 매장 장소 부분 유니크 | store §3 (`0004_store_onboarding`) |
+| `DeviceHandoffCode` (신규) | `userId`, `codeHash`, `expiresAt`, `usedAt` — 앱 ↔ WebView 세션 연결 60초 코드 | auth §6.2 (`0005_device_handoff`) |
 | `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |

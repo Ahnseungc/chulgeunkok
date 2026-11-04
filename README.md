@@ -16,9 +16,10 @@ apps/
     src/app/            라우트. 미구현 API는 501 NOT_IMPLEMENTED
     src/features/<도메인>/  schema(Zod) · model(공용 타입·순수 규칙) · server(서비스) · ui
     src/server/         defineRoute(세션·검증·에러 포맷), 에러 코드, 권한 가드, 기기 세션
-  mobile/               Expo 셸 (다음 작업, docs/specs/auth §6)
+  mobile/               Expo 셸 — WebView·QR 스캐너·기기 토큰 보관 (docs/specs/auth §6)
 packages/
   db/                   Prisma 스키마·마이그레이션, createDbClient, 테스트용 PGlite DB
+  app-bridge/           웹 ↔ 앱 메시지 스키마(Zod)·딥링크 경로 검증
 ```
 
 ## 실행
@@ -65,6 +66,14 @@ pnpm dev
 curl -H "authorization: Bearer $CRON_SECRET" http://localhost:3000/api/internal/jobs/daily-reviews
 ```
 
+### 앱 (Expo)
+
+웹 dev 서버를 띄운 뒤 iOS 시뮬레이터에서 Expo Go로 연다. WebView 주소는 `apps/mobile/app.json`의 `extra.webOrigin` (기본 `http://localhost:3020`, 실기기는 PC의 LAN IP로 바꾼다).
+
+```bash
+pnpm --filter @chulgeunkok/mobile ios
+```
+
 > PGlite 개발 DB는 dev 서버가 강제 종료되면 파일이 깨질 수 있다. "Aborted()" 오류가 나면 `pnpm db:dev`로 다시 만든다.
 
 ## 마이그레이션
@@ -76,6 +85,7 @@ curl -H "authorization: Bearer $CRON_SECRET" http://localhost:3000/api/internal/
 | `0002_spec_alignment` | `OtpCode`, 정산 시작일 이력, 검토 키에 규칙 버전, `seenAt` + 시스템 사용자·2026 규칙 시드 |
 | `0003_device_auth` | 기기 세션 `DeviceCredential`, 초대 종류(새 직원·기기 재등록) |
 | `0004_store_onboarding` | 매장 사업자번호·확인 시각, 카카오 장소 ID(운영 중 매장 중복 등록 금지) |
+| `0005_device_handoff` | 앱 ↔ WebView 세션 연결용 60초 일회용 코드 `DeviceHandoffCode` |
 
 ## 검증
 

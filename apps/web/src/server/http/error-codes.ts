@@ -17,6 +17,7 @@ export const ERROR_CODES = {
   NOT_IMPLEMENTED: { status: 501, message: '아직 준비 중인 기능이에요.' },
 
   // auth
+  HANDOFF_INVALID: { status: 401, message: '연결 시간이 지났어요. 다시 시도해 주세요.' },
   OTP_INVALID: { status: 400, message: '인증번호가 맞지 않아요.' },
   OTP_EXPIRED: { status: 410, message: '인증번호가 만료됐어요. 다시 받아 주세요.' },
   OTP_TOO_MANY_ATTEMPTS: {

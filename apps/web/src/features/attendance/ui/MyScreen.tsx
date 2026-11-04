@@ -1,12 +1,13 @@
 'use client';
 
-import { Text } from '@seed-design/react';
+import { ActionButton, Text } from '@seed-design/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import type { MeDto } from '@/features/auth/model/me-types';
 import { PAYROLL_DISCLAIMER } from '@/features/payroll/model/payroll-types';
+import { postToApp, useIsInApp } from '@/shared/lib/app-shell';
 import { formatClock, formatDuration, formatLocalDate } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
 import PeriodNav from '@/shared/ui/PeriodNav';
@@ -30,6 +31,7 @@ export default function MyScreen() {
   const query = storeId ? new URLSearchParams({ storeId, ...(periodStart ? { periodStart } : {}) }) : null;
   const mine = useApiResource<MyAttendancesDto>(query ? `/api/v1/attendance/me?${query}` : null, EMPLOYEE_OPTIONS);
   const data = mine.data;
+  const inApp = useIsInApp();
 
   return (
     <main className="screen">
@@ -43,6 +45,12 @@ export default function MyScreen() {
         <Text as="h1" textStyle="t8Bold">
           {me.data.user.name}님의 근무
         </Text>
+      ) : null}
+      {/* 앱 안에서는 카메라를 바로 연다. 브라우저에서는 휴대폰 기본 카메라로 매장 QR을 찍는다 */}
+      {inApp ? (
+        <ActionButton variant="neutralSolid" size="large" onClick={() => postToApp({ type: 'OPEN_SCANNER' })}>
+          매장 QR 찍기
+        </ActionButton>
       ) : null}
       {stores.length > 1 ? (
         <select className="native-select" aria-label="매장" value={storeId ?? ''} onChange={(event) => setSelectedStoreId(event.target.value)}>

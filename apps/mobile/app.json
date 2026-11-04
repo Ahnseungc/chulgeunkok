@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "출근콕",
+    "slug": "chulgeunkok",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.chulgeunkok"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.chulgeunkok"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "매장 QR을 찍어 출퇴근을 기록하려면 카메라가 필요해요.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-brand.png",
+          "imageWidth": 200,
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
+    ],
+    "scheme": "chulgeunkok",
+    "extra": {
+      "webOrigin": "http://localhost:3020"
+    }
+  }
+}

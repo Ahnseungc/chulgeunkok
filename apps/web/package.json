@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@chulgeunkok/app-bridge": "workspace:*",
     "@chulgeunkok/db": "workspace:*",
     "@seed-design/css": "^3.1.0",
     "@seed-design/react": "^3.1.0",

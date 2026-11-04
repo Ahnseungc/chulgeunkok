@@ -125,6 +125,7 @@ model User {
 
   memberships            Membership[]
   devices                DeviceCredential[]
+  deviceHandoffCodes     DeviceHandoffCode[]
   invitationsCreated     StoreInvitation[]           @relation("InvitationCreatedBy")
   invitationsAccepted    StoreInvitation[]           @relation("InvitationAcceptedBy")
   headcountDeclarations  StoreHeadcountDeclaration[]
@@ -361,6 +362,20 @@ model AttendanceRevision {
   correctionRequest CorrectionRequest? @relation(fields: [correctionRequestId], references: [id])
 
   @@index([attendanceId, createdAt])
+}
+
+// RN 앱 셸 ↔ WebView 기기 세션 교환용 1회용 코드 (docs/specs/auth §6.2). 원문은 저장하지 않는다
+model DeviceHandoffCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([expiresAt])
 }
 
 // 휴대폰 인증번호. 코드 원문 저장 금지

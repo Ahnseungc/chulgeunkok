@@ -1,11 +1,12 @@
+import { DEVICE_COOKIE } from '@chulgeunkok/app-bridge';
 import type { DbClient } from '@chulgeunkok/db';
 import type { NextResponse } from 'next/server';
 
 import { generateToken } from '@/server/crypto/generate-token';
 import { hashToken } from '@/server/crypto/hash-token';
 
-/** 기기 쿠키. docs/specs/auth §3.2 */
-export const DEVICE_COOKIE = 'ck_device';
+/** 기기 쿠키 이름은 앱 셸과 같은 정본을 쓴다 (docs/specs/auth §3.2) */
+export { DEVICE_COOKIE };
 const DEVICE_COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60; // 브라우저 상한
 
 /** 기기를 등록하고 쿠키에 넣을 토큰 원문을 돌려준다. 원문은 DB에 남지 않는다 */
