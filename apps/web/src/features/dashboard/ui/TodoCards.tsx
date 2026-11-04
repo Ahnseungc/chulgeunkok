@@ -1,0 +1,58 @@
+import { Text } from '@seed-design/react';
+import Link from 'next/link';
+
+import type { DashboardDto } from '../model/dashboard-types';
+
+interface TodoCardsProps {
+  storeId: string;
+  todo: DashboardDto['todo'];
+}
+
+/**
+ * 처리할 일. 정산을 막는 순서대로, 0건은 숨긴다 (docs/specs/dashboard §4).
+ * ponytail: 퇴근 누락·수정 요청은 근태 화면이 생기기 전까지 링크 없이 건수만 보여 준다.
+ */
+export default function TodoCards({ storeId, todo }: TodoCardsProps) {
+  const membersPath = `/owner/${storeId}/members` as const;
+  const cards = [
+    { count: todo.termsMissing, title: '근로조건 필요', description: '근로조건이 없으면 출근할 수 없어요', href: membersPath },
+    { count: todo.missingClockOut, title: '퇴근 누락', description: '퇴근 기록을 확인해 주세요', href: null },
+    { count: todo.pendingCorrections, title: '수정 요청', description: '직원이 기록 수정을 요청했어요', href: null },
+    { count: todo.laborReviews ?? 0, title: '확인할 안내', description: '최저임금·휴게·주휴 안내', href: membersPath },
+    { count: todo.pendingInvitations, title: '대기 중 초대', description: '아직 수락하지 않은 등록 QR·링크', href: membersPath },
+  ].filter((card) => card.count > 0);
+
+  if (cards.length === 0) return null;
+  return (
+    <section className="dash-card" aria-labelledby="todo-heading">
+      <Text as="h2" id="todo-heading" textStyle="t6Bold">
+        처리할 일
+      </Text>
+      <ul className="dash-list">
+        {cards.map((card) => {
+          const content = (
+            <>
+              <Text textStyle="t5Bold">
+                {card.title} {card.count}건
+              </Text>
+              <Text textStyle="t4Regular" color="fg.neutralMuted">
+                {card.description}
+              </Text>
+            </>
+          );
+          return (
+            <li key={card.title}>
+              {card.href ? (
+                <Link href={card.href} className="dash-list__row">
+                  {content}
+                </Link>
+              ) : (
+                <div className="dash-list__row">{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

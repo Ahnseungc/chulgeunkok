@@ -1,0 +1,32 @@
+/** GET /stores/:storeId/dashboard 응답. 정본: docs/specs/dashboard §5 */
+export interface DashboardDto {
+  serverNow: string;
+  store: { id: string; name: string };
+  working: {
+    attendanceId: string;
+    memberId: string;
+    name: string;
+    clockInAt: string;
+    outsideArea: boolean | null;
+  }[];
+  today: {
+    clockedInCount: number;
+    scheduledCount: number;
+    notYetClockedIn: { memberId: string; name: string; scheduledStartAt: string }[];
+  };
+  todo: {
+    termsMissing: number;
+    missingClockOut: number;
+    pendingCorrections: number;
+    /** 권한(LABOR_REVIEW)이 없으면 null */
+    laborReviews: number | null;
+    pendingInvitations: number;
+  };
+  currentPeriod: {
+    start: string;
+    end: string;
+    recognizedSeconds: number;
+    /** 권한(PAYROLL)이 없으면 null */
+    basePayEstimate: number | null;
+  };
+}

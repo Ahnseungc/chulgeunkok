@@ -38,5 +38,22 @@ export function useApiResource<T>(path: string | null) {
   return { data, errorMessage, reload };
 }
 
+/** 화면이 보이는 동안 일정 간격으로 다시 조회하고, 탭으로 돌아오면 바로 조회한다 */
+export function usePolling(reload: () => Promise<void>, intervalMs: number) {
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void reload();
+    }, intervalMs);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void reload();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [reload, intervalMs]);
+}
+
 export const errorMessageOf = (error: unknown) =>
   error instanceof ApiRequestError ? error.message : NETWORK_ERROR_MESSAGE;
