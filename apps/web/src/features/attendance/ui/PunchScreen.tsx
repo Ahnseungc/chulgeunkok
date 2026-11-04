@@ -131,6 +131,12 @@ function PunchDone({ state }: { state: Extract<PunchState, { phase: 'done' }> })
           {workedMs != null ? ` · ${formatDuration(workedMs)} 근무` : null}
         </Text>
       </section>
+      {/* 퇴근하면 휴게를 못 쓴 날을 바로 알릴 수 있게 (docs/specs/attendance §3.4·§7.2) */}
+      {state.action === 'CLOCK_OUT' && attendance ? (
+        <ActionButton asChild variant="ghost" size="medium">
+          <Link href={`/me/attendances/${attendance.id}`}>휴게 못 했어요</Link>
+        </ActionButton>
+      ) : null}
       <div className="punch-bottom">
         <ActionButton asChild variant="neutralSolid" size="large" flexGrow>
           <Link href="/me">확인</Link>

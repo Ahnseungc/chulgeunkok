@@ -27,10 +27,10 @@ export const PunchBody = z.object({
 
 const AttendanceStatus = z.enum(ATTENDANCE_STATUSES);
 
+/** 정산 기간 단위. periodStart가 없으면 오늘이 속한 기간 */
 export const MyAttendanceQuery = z.object({
   storeId: z.string().min(1),
-  from: LocalDate.optional(),
-  to: LocalDate.optional(),
+  periodStart: LocalDate.optional(),
 });
 
 /** 정산 기간 단위로 본다. periodStart가 없으면 오늘이 속한 기간 (docs/specs/attendance §8) */

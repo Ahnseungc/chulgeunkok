@@ -42,6 +42,27 @@ export interface AttendanceSnapshot {
   breakWaived: boolean;
 }
 
+export type CorrectionType = 'TIME' | 'BREAK_WAIVED' | 'MISSING_CLOCK_OUT';
+export type CorrectionStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
+
+/** 직원 수정 요청. docs/specs/attendance §7 */
+export interface CorrectionDto {
+  id: string;
+  attendanceId: string;
+  memberId: string;
+  memberName: string;
+  type: CorrectionType;
+  proposedClockInAt: string | null;
+  proposedClockOutAt: string | null;
+  reason: string;
+  status: CorrectionStatus;
+  decisionNote: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  attendance: { clockInAt: string; clockOutAt: string | null; status: AttendanceStatus };
+}
+
 export interface AttendanceDetailDto extends AttendanceRowDto {
   revisions: AttendanceRevisionDto[];
+  corrections: CorrectionDto[];
 }

@@ -150,8 +150,13 @@ describe('updateAttendanceByAdmin', () => {
 });
 
 describe('getAttendanceDetail', () => {
-  it('직원은 관리자 상세를 볼 수 없다', async () => {
-    await expect(getAttendanceDetail(db, { attendanceId: 'closed', actorUserId: 'staff', now: NOW })).rejects.toMatchObject({
+  it('직원은 자기 기록 상세를 볼 수 있다', async () => {
+    const detail = await getAttendanceDetail(db, { attendanceId: 'closed', actorUserId: 'staff', now: NOW });
+    expect(detail.recognizedSeconds).toBe(4.5 * HOUR);
+  });
+
+  it('직원은 다른 사람 기록을 볼 수 없다', async () => {
+    await expect(getAttendanceDetail(db, { attendanceId: 'october', actorUserId: 'staff', now: NOW })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
   });

@@ -12,6 +12,7 @@ import type {
   AttendanceSnapshot,
 } from '../model/attendance-admin-types';
 
+import { toCorrectionDto } from './correction-dto';
 import { findEffectiveTerms } from './punch-context';
 
 /** 근무 한 건의 최대 길이 (docs/specs/attendance §7.1) */
@@ -58,8 +59,8 @@ export async function getAttendanceDetail(
     { storeId: attendance.storeId, userId: input.actorUserId, action: 'MEMBER' },
     db,
   );
-  // 직원 본인 기록 상세는 /me 화면 작업 때 따로 연다. 지금은 관리자만
-  if (actor.role === 'EMPLOYEE') throw new ApiError('FORBIDDEN');
+  // 직원은 자기 기록만 (docs/specs/attendance §9)
+  if (actor.role === 'EMPLOYEE' && attendance.membershipId !== actor.id) throw new ApiError('FORBIDDEN');
 
   const store = await db.store.findUniqueOrThrow({ where: { id: attendance.storeId } });
   const period = getPayPeriod(toLocalDate(attendance.clockInAt), store.payPeriodStartDay);
@@ -67,13 +68,21 @@ export async function getAttendanceDetail(
     .filter((candidate) => candidate.attendance.id === attendance.id);
   if (!row) throw new ApiError('NOT_FOUND');
 
-  const revisions = await db.attendanceRevision.findMany({
-    where: { attendanceId: attendance.id },
-    include: { actor: true },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [revisions, corrections] = await Promise.all([
+    db.attendanceRevision.findMany({
+      where: { attendanceId: attendance.id },
+      include: { actor: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    db.correctionRequest.findMany({
+      where: { attendanceId: attendance.id },
+      include: { requester: true, attendance: { include: { membership: { include: { user: true } } } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
   return {
     ...toRowDto(row),
+    corrections: corrections.map(toCorrectionDto),
     revisions: revisions.map((revision) => ({
       id: revision.id,
       actorName: revision.actor.name,
@@ -99,20 +108,38 @@ export async function updateAttendanceByAdmin(
   await requireMembership({ storeId: current.storeId, userId: input.actorUserId, action: 'ATTENDANCE_ADMIN' }, db);
   if (current.status === 'VOID') throw new ApiError('ATTENDANCE_NOT_EDITABLE');
 
-  await db.$transaction(async (tx) => {
-    const next = await buildNextState(tx, { current, change: input.change, now: input.now });
-    await tx.attendance.update({ where: { id: current.id }, data: next });
-    await tx.attendanceRevision.create({
-      data: {
-        attendanceId: current.id,
-        actorId: input.actorUserId,
-        reason: input.change.reason,
-        before: snapshot(current),
-        after: snapshot({ ...current, ...next }),
-      },
-    });
-  });
+  await db.$transaction((tx) =>
+    applyAttendanceChange(tx, { current, change: input.change, actorUserId: input.actorUserId, now: input.now }),
+  );
   return getAttendanceDetail(db, input);
+}
+
+/**
+ * 근태 변경 적용 + 변경 이력. 관리자 직접 수정과 수정 요청 승인이 같은 규칙을 쓴다.
+ * 호출부 트랜잭션 안에서 부른다.
+ */
+export async function applyAttendanceChange(
+  tx: Prisma.TransactionClient,
+  input: {
+    current: Attendance;
+    change: AdminAttendanceChange;
+    actorUserId: string;
+    now: Date;
+    correctionRequestId?: string;
+  },
+) {
+  const next = await buildNextState(tx, { current: input.current, change: input.change, now: input.now });
+  await tx.attendance.update({ where: { id: input.current.id }, data: next });
+  await tx.attendanceRevision.create({
+    data: {
+      attendanceId: input.current.id,
+      actorId: input.actorUserId,
+      reason: input.change.reason,
+      before: snapshot(input.current),
+      after: snapshot({ ...input.current, ...next }),
+      correctionRequestId: input.correctionRequestId,
+    },
+  });
 }
 
 async function buildNextState(

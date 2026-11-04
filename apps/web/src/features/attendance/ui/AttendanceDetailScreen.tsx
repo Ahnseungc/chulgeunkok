@@ -60,6 +60,16 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
             ) : null}
             <AttendanceBadges row={data} />
           </header>
+          {data.corrections.some((correction) => correction.status === 'PENDING') ? (
+            <Link href={`/owner/${storeId}/corrections`} className="dash-card unresolved-banner">
+              <Text textStyle="t5Bold" color="fg.warning">
+                직원이 수정을 요청했어요
+              </Text>
+              <Text textStyle="t4Regular" color="fg.neutralMuted">
+                눌러서 승인하거나 반려해 주세요
+              </Text>
+            </Link>
+          ) : null}
           {data.status !== 'VOID' ? <EditForm detail={data} path={path} onSaved={detail.reload} /> : null}
           <RevisionList detail={data} />
         </>
