@@ -1,5 +1,6 @@
 import type { Attendance, AttendanceStatus, Prisma, PrismaClient } from '@chulgeunkok/db';
 
+import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
 import { getPayPeriod, toLocalDate } from '@/features/payroll/model/work-time';
 import { loadPeriodAttendances, resolvePeriod, type PeriodAttendanceRow } from '@/features/payroll/server/period-attendances';
 import { requireMembership } from '@/server/auth/require-membership';
@@ -111,6 +112,7 @@ export async function updateAttendanceByAdmin(
   await db.$transaction((tx) =>
     applyAttendanceChange(tx, { current, change: input.change, actorUserId: input.actorUserId, now: input.now }),
   );
+  await evaluateAttendanceReviewsSafely(db, { attendanceId: current.id, now: input.now });
   return getAttendanceDetail(db, input);
 }
 

@@ -18,6 +18,25 @@ const weekdayOf = (reasonCode: string) => {
   return `${WEEKDAY_LABELS[weekday] ?? ''}요일`;
 };
 
+/** 근무 기록 안내의 reasonCode는 `<사유>:<YYYY-MM-DD>` */
+const dateOf = (reasonCode: string) => {
+  const date = reasonCode.split(':')[1];
+  if (!date) return '';
+  const [, month, day] = date.split('-').map(Number);
+  return `${month}월 ${day}일`;
+};
+
+const OVERTIME_BODY = {
+  DAILY_OVER_8H: (date: string) => `${date} 하루 8시간을 넘겨 일했어요. 연장근로에 해당하는지 확인해 주세요.`,
+  WEEKLY_OVER_40H: (date: string) => `${date}이 있는 주에 40시간을 넘겨 일했어요. 연장근로에 해당하는지 확인해 주세요.`,
+  SHORT_TIME_DAILY: (date: string) => `${date} 정한 근무시간보다 오래 일했어요. 단시간 근로자는 정한 시간을 넘긴 만큼 연장근로가 될 수 있어요.`,
+} as const;
+
+function overtimeBody(reasonCode: string) {
+  const kind = reasonCode.split(':')[0] as keyof typeof OVERTIME_BODY;
+  return (OVERTIME_BODY[kind] ?? OVERTIME_BODY.DAILY_OVER_8H)(dateOf(reasonCode));
+}
+
 export function reviewCopy(
   review: { type: string; reasonCode: string },
   context: CopyContext,
@@ -47,6 +66,18 @@ export function reviewCopy(
       return {
         title: '정한 시간을 넘기면 가산수당이 생길 수 있어요',
         body: '단시간 근로자는 정한 시간을 넘겨 일하면 5인 이상 사업장에서 가산수당이 생길 수 있어요.',
+      };
+    case 'NIGHT_WORK':
+      return {
+        title: '야간근무 기록이 있어요',
+        body: `${dateOf(review.reasonCode)} 야간근무(22시~6시) 기록이 확인되었어요. 사업장 조건에 따라 야간근로 가산수당이 발생할 수 있어요.`,
+      };
+    case 'OVERTIME':
+      return { title: '연장근로인지 확인해 주세요', body: overtimeBody(review.reasonCode) };
+    case 'ABSENCE_SUSPECTED':
+      return {
+        title: '출근 기록이 없는 근무일이 있어요',
+        body: `${dateOf(review.reasonCode)}은 근무일인데 출근 기록이 없어요. 결근이면 주휴수당에 영향을 줄 수 있어요.`,
       };
     default:
       return { title: '확인이 필요한 항목이 있어요', body: '근로조건과 근무 기록을 확인해 주세요.' };

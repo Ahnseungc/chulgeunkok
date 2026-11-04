@@ -7,6 +7,8 @@ import {
   saveIdempotentResponse,
 } from '@/server/http/idempotency';
 
+import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
+
 import { isOutsideStoreArea } from '../model/store-area';
 import type {
   AttendanceDto,
@@ -57,9 +59,7 @@ export async function getPunchPreview(
 /**
  * POST /attendance/punch — docs/specs/attendance §3.3
  * 같은 직원의 punch는 Membership 행 잠금으로 직렬화한다.
- *
- * ponytail: 퇴근 후 검토 엔진(docs/specs/labor §5) 호출은 아직 없다. 엔진을 구현할 때
- * 트랜잭션 커밋 뒤에 붙인다. 스펙상 실패해도 일배치가 다시 잡으므로 punch 응답과 분리한다.
+ * 퇴근이면 커밋 뒤에 야간·연장 안내를 만든다. 실패해도 punch 응답과 분리한다 (일배치가 다시 잡는다).
  */
 export async function punch(
   db: PrismaClient,
@@ -80,8 +80,9 @@ export async function punch(
     now: input.now,
   };
 
+  let result: PunchResultDto;
   try {
-    return await db.$transaction(async (tx) => {
+    result = await db.$transaction(async (tx) => {
       const store = await resolveQrStore(tx, input.qrToken);
       const membership = await findActiveMembership(tx, { storeId: store.id, userId: input.userId });
       await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "id" = ${membership.id} FOR UPDATE`;
@@ -111,6 +112,10 @@ export async function punch(
     if (isUniqueViolation(error)) throw new ApiError('IDEMPOTENCY_KEY_REUSED');
     throw error;
   }
+  if (result.action === 'CLOCK_OUT') {
+    await evaluateAttendanceReviewsSafely(db, { attendanceId: result.attendance.id, now: input.now });
+  }
+  return result;
 }
 
 /** GET /attendance/current — 재시도 실패 후 기록 여부 확인용 */

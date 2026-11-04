@@ -52,6 +52,21 @@ pnpm dev
 
 개발 중 사장님 화면 등은 `DEV_AUTH="1"`로 두고 `x-dev-user-id` 헤더나 `dev_user_id` 쿠키로 사용자를 고른다 (production에서는 무시).
 
+## 배치
+
+외부 스케줄러가 `Authorization: Bearer <CRON_SECRET>`로 부른다 (`CRON_SECRET`이 비어 있으면 항상 401).
+
+| 작업 | 주기 | 내용 |
+|---|---|---|
+| `/api/internal/jobs/missing-clock-out` | 10분 | 퇴근 누락 자동 전환 |
+| `/api/internal/jobs/daily-reviews` | 매일 06:00 KST (21:00 UTC) | 결근 의심 + 최근 근무 야간·연장 재평가 |
+
+```bash
+curl -H "authorization: Bearer $CRON_SECRET" http://localhost:3000/api/internal/jobs/daily-reviews
+```
+
+> PGlite 개발 DB는 dev 서버가 강제 종료되면 파일이 깨질 수 있다. "Aborted()" 오류가 나면 `pnpm db:dev`로 다시 만든다.
+
 ## 마이그레이션
 
 | 폴더 (`packages/db/prisma/migrations/`) | 내용 |

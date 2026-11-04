@@ -112,10 +112,12 @@ OPEN 근무 중 `now > 기준시각`인 것을 `MISSING_CLOCK_OUT`으로 바꾼�
 | 경우 | 기준시각 |
 | --- | --- |
 | 출근 요일에 소정 스케줄 있음 | 소정 퇴근 시각 + 4시간 (출근이 소정 시작보다 늦어도 소정 퇴근 기준) |
-| 소정 스케줄 없음 | `clockInAt + 16시간` |
+| 소정 스케줄 없음, 또는 소정 퇴근 시각 뒤에 출근(추가 근무) | `clockInAt + 16시간` (출근하자마자 누락이 되지 않게) |
+| 근로조건이 "주마다 달라요" | `clockInAt + 16시간` |
 
 - 소정 퇴근 시각 = 출근 날짜(매장 시간대)의 `startMinute + workMinutes`.
-- 전환은 `AttendanceRevision`에 `actorId = 시스템 사용자`, `reason = 'AUTO_MISSING_CLOCK_OUT'`.
+- 전환은 `AttendanceRevision`에 `actorId = 'system'`, `reason = 'AUTO_MISSING_CLOCK_OUT'`. 직원이 그 사이 퇴근을 찍었으면 조건부 update가 0건이라 건너뛴다.
+- 실행: `GET|POST /api/internal/jobs/missing-clock-out` (`Authorization: Bearer <CRON_SECRET>`), 10분마다.
 
 ### 5.2 이후 동작
 

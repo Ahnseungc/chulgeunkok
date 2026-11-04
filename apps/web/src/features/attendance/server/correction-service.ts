@@ -1,5 +1,6 @@
 import { Prisma, type Attendance, type PrismaClient } from '@chulgeunkok/db';
 
+import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
 import { toLocalDate } from '@/features/payroll/model/work-time';
 import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
@@ -144,6 +145,7 @@ export async function approveCorrectionRequest(
     });
     return tx.correctionRequest.findUniqueOrThrow({ where: { id: request.id }, include: WITH_ATTENDANCE });
   });
+  await evaluateAttendanceReviewsSafely(db, { attendanceId: request.attendanceId, now: input.now });
   return toCorrectionDto(updated);
 }
 

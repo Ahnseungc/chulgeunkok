@@ -136,7 +136,10 @@ const requiredBreak = (laborMinutes: number) =>
 | `ABSENCE_SUSPECTED` | 매일 06:00 일배치 | 전날이 소정 근무 요일인데 출근 기록 없음 (계약기간 안, `scheduleVaries = false`) |
 
 - `sourceType = ATTENDANCE`, `sourceId = attendance.id`. `ABSENCE_SUSPECTED`는 `sourceType = PAY_PERIOD`, `sourceId = "<membershipId>:<YYYY-MM-DD>"`.
-- 근무 기록이 수정되면 해당 `sourceId` 항목을 다시 평가한다. 조건이 사라지면 `RESOLVED`.
+- 근무 기록이 수정되면 해당 `sourceId` 항목을 다시 평가한다. 조건이 사라지면 `RESOLVED`, 다시 해당하면 다시 `OPEN`. 이미 `ACKNOWLEDGED`인 항목은 건드리지 않는다.
+- 평가 시점: 퇴근 punch 커밋 뒤, 관리자 근태 수정 뒤, 수정 요청 승인 뒤. 실패해도 응답은 막지 않고 일배치가 최근 2일 퇴근 근무를 다시 평가한다.
+- `reasonCode`: `NIGHT:<날짜>`, `DAILY_OVER_8H|WEEKLY_OVER_40H|SHORT_TIME_DAILY:<날짜>`, `ABSENCE:<날짜>`. 문구는 날짜를 넣어 만든다 (§6.3).
+- 일배치 실행: `GET|POST /api/internal/jobs/daily-reviews` (`Authorization: Bearer <CRON_SECRET>`), 매일 06:00 KST.
 
 ## 6. 노출 규칙
 
