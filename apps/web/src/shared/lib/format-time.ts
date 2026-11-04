@@ -34,3 +34,33 @@ const localDateFormatter = new Intl.DateTimeFormat('en-CA', {
 export function toStoreLocalDate(at: Date): string {
   return localDateFormatter.format(at);
 }
+
+const monthDayFormatter = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+const monthDayWeekdayFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'numeric',
+  day: 'numeric',
+  weekday: 'short',
+  timeZone: 'UTC',
+});
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 정산 기간 [start, end) → "11월 1일 ~ 11월 30일" */
+export function formatPeriodRange(start: string, end: string): string {
+  const lastDay = new Date(Date.parse(`${end}T00:00:00Z`) - DAY_MS);
+  return `${monthDayFormatter.format(new Date(`${start}T00:00:00Z`))} ~ ${monthDayFormatter.format(lastDay)}`;
+}
+
+/** `2026-11-02` → "11. 2. (월)" */
+export function formatLocalDate(localDate: string): string {
+  return monthDayWeekdayFormatter.format(new Date(`${localDate}T00:00:00Z`));
+}
+
+/** ISO → `<input type="datetime-local">` 값 (매장 시간대) */
+export function toLocalDateTimeInput(iso: string): string {
+  return new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 16);
+}
+
+/** `<input type="datetime-local">` 값 (매장 시간대) → ISO */
+export function fromLocalDateTimeInput(value: string): string {
+  return new Date(`${value}:00+09:00`).toISOString();
+}

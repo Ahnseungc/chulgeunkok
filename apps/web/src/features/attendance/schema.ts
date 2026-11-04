@@ -33,9 +33,9 @@ export const MyAttendanceQuery = z.object({
   to: LocalDate.optional(),
 });
 
+/** 정산 기간 단위로 본다. periodStart가 없으면 오늘이 속한 기간 (docs/specs/attendance §8) */
 export const StoreAttendanceQuery = z.object({
-  from: LocalDate,
-  to: LocalDate,
+  periodStart: LocalDate.optional(),
   memberId: z.string().optional(),
   status: AttendanceStatus.optional(),
 });

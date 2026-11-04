@@ -191,6 +191,8 @@ const AdminUpdateAttendanceBody = z.object({
 ```
 
 - 시각을 바꿔도 `termsId`는 바꾸지 않는다. 단, 새 `clockInAt`이 다른 근로조건 기간이면 그 버전으로 다시 연결한다 (시급 적용 일관성).
+- 겹침 검사: 같은 직원의 무효가 아닌 다른 근무와 시간이 겹치면 `ATTENDANCE_CONFLICT`. 퇴근 시각이 없는 기록은 근무 중(`OPEN`)만 끝나지 않은 것으로 본다 (퇴근 누락은 끝을 모르므로 막지 않는다).
+- 목록·상세는 정산 기간 단위 (`?periodStart=`, 생략 시 오늘이 속한 기간). 인정 시간은 정산과 같은 계산 (`payroll` §3).
 - **근태 새로 만들기는 MVP 미지원.** QR을 못 찍은 날은 직원이 다음 날 찍지 않은 이상 기록이 없다. → 미결정 Q7: "관리자 근태 추가"를 P0에 넣을지. 넣는다면 `AttendanceRevision.before = null`.
 
 ## 8. 화면

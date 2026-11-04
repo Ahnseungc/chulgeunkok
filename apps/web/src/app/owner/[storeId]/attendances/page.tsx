@@ -1,11 +1,19 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import AttendancesScreen from '@/features/attendance/ui/AttendancesScreen';
 
-export default function AttendancesPage() {
+interface AttendancesPageProps {
+  params: Promise<{ storeId: string }>;
+  searchParams: Promise<{ memberId?: string; status?: string; periodStart?: string }>;
+}
+
+/** 근태 기록 — docs/specs/attendance/README.md §8 */
+export default async function AttendancesPage({ params, searchParams }: AttendancesPageProps) {
+  const [{ storeId }, query] = await Promise.all([params, searchParams]);
   return (
-    <ScreenPlaceholder
-      title="근태 기록"
-      spec="docs/specs/attendance/README.md §8"
-      summary="기간·직원 필터, 상태 배지, 대기 중 수정 요청"
+    <AttendancesScreen
+      storeId={storeId}
+      initialMemberId={query.memberId}
+      initialStatus={query.status}
+      initialPeriodStart={query.periodStart}
     />
   );
 }

@@ -4,7 +4,7 @@ import { ActionButton, Text } from '@seed-design/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { formatClock, formatDuration } from '@/shared/lib/format-time';
+import { formatClock, formatDuration, formatPeriodRange } from '@/shared/lib/format-time';
 import { usePolling, useApiResource } from '@/shared/lib/useApiResource';
 
 import type { DashboardDto } from '../model/dashboard-types';
@@ -22,8 +22,8 @@ interface DashboardScreenProps {
 
 const MENU = [
   { path: 'members', title: '직원', ready: true },
-  { path: 'attendances', title: '근태 기록', ready: false },
-  { path: 'payroll', title: '정산', ready: false },
+  { path: 'attendances', title: '근태 기록', ready: true },
+  { path: 'payroll', title: '정산', ready: true },
   { path: 'settings', title: '매장 설정', ready: false },
 ] as const;
 
@@ -102,7 +102,7 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
               이번 정산 기간
             </Text>
             <Text textStyle="t4Regular" color="fg.neutralMuted">
-              {formatPeriod(data.currentPeriod.start, data.currentPeriod.end)}
+              {formatPeriodRange(data.currentPeriod.start, data.currentPeriod.end)}
             </Text>
             {data.currentPeriod.recognizedSeconds === 0 ? (
               <Text textStyle="t5Regular" color="fg.neutralMuted">
@@ -135,14 +135,6 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
       </nav>
     </main>
   );
-}
-
-const monthDay = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', timeZone: 'UTC' });
-
-/** 정산 기간 [start, end) → "11월 1일 ~ 11월 30일" */
-function formatPeriod(start: string, end: string) {
-  const lastDay = new Date(Date.parse(`${end}T00:00:00Z`) - 24 * 60 * 60 * 1000);
-  return `${monthDay.format(new Date(`${start}T00:00:00Z`))} ~ ${monthDay.format(lastDay)}`;
 }
 
 /** 경과 시간은 서버 시각 기준으로 1분마다 갱신한다 (기기 시계가 틀려도 같다) */

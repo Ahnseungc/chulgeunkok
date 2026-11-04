@@ -46,6 +46,17 @@ INSERT INTO "EmploymentTermsSchedule"(id, "termsId", weekday, "startMinute", "wo
 INSERT INTO "StoreInvitation"(id, "storeId", "tokenHash", kind, role, "memberId", "createdById", "expiresAt") VALUES
   ('inv-join', 'store', '${hash(DEMO_JOIN_TOKEN)}', 'JOIN', 'EMPLOYEE', NULL, 'owner', now() + interval '7 days'),
   ('inv-rereg', 'store', '${hash(DEMO_REREGISTER_TOKEN)}', 'REREGISTER', 'EMPLOYEE', 'm-staff', 'owner', now() + interval '7 days');
+-- 이알바 최근 근무 (오늘 기준 3일 전 낮 근무, 2일 전 저녁 근무, 어제 저녁 퇴근 누락)
+INSERT INTO "Attendance"(id, "storeId", "membershipId", "termsId", "clockInAt", "clockOutAt", status, "updatedAt")
+SELECT id, 'store', 'm-staff', 'terms-staff',
+       ((now() AT TIME ZONE 'Asia/Seoul')::date - days + start_time) AT TIME ZONE 'Asia/Seoul',
+       CASE WHEN end_time IS NULL THEN NULL ELSE ((now() AT TIME ZONE 'Asia/Seoul')::date - days + end_time) AT TIME ZONE 'Asia/Seoul' END,
+       status::"AttendanceStatus", now()
+FROM (VALUES
+  ('att-1', 3, time '10:00', time '16:00', 'CLOSED'),
+  ('att-2', 2, time '18:00', time '23:00', 'CLOSED'),
+  ('att-3', 1, time '18:00', NULL, 'MISSING_CLOCK_OUT')
+) AS demo(id, days, start_time, end_time, status);
 `);
 await db.close();
 

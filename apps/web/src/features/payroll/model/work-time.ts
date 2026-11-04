@@ -28,6 +28,13 @@ export interface PayPeriod {
   end: string;
 }
 
+/** 화면의 이전·다음 기간 이동용 */
+export interface PeriodWithNav extends PayPeriod {
+  prevStart: string;
+  /** 다음 기간이 아직 시작하지 않았으면 null */
+  nextStart: string | null;
+}
+
 /** 날짜가 속한 정산 기간. startDay는 1~28 (docs/specs/payroll §3.1) */
 export function getPayPeriod(localDate: string, startDay: number): PayPeriod {
   const [year = 0, month = 1, day = 1] = localDate.split('-').map(Number);
@@ -99,7 +106,10 @@ export interface PeriodSummary {
 
 /** 기간 안 구간 합계. 원 미만은 합계에서 1회 올림 (docs/specs/payroll §3.3) */
 export function summarizePeriod(segments: readonly WorkSegment[], period: PayPeriod): PeriodSummary {
-  const inPeriod = segments.filter((segment) => segment.localDate >= period.start && segment.localDate < period.end);
+  // 시급 목록이 적용된 날짜 순서로 나오도록 날짜순으로 모은다
+  const inPeriod = segments
+    .filter((segment) => segment.localDate >= period.start && segment.localDate < period.end)
+    .sort((a, b) => a.localDate.localeCompare(b.localDate));
   const byWage = new Map<number, number>();
   for (const segment of inPeriod) {
     byWage.set(segment.hourlyWage, (byWage.get(segment.hourlyWage) ?? 0) + segment.recognizedSeconds);

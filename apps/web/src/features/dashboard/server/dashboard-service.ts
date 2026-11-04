@@ -3,15 +3,14 @@ import type { Membership, PrismaClient } from '@chulgeunkok/db';
 import { findHeadcountBand } from '@/features/labor/server/labor-context';
 import { OPEN_REVIEW_STATUSES } from '@/features/labor/server/review-service';
 import { reviewPresentation } from '@/features/labor/model/review-copy';
-import { getPayPeriod, localMidnight, localWeekday, summarizePeriod, toLocalDate, toSegments } from '@/features/payroll/model/work-time';
+import { getPayPeriod, localMidnight, localWeekday, summarizePeriod, toLocalDate } from '@/features/payroll/model/work-time';
+import { loadPeriodAttendances } from '@/features/payroll/server/period-attendances';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
 
 import type { DashboardDto } from '../model/dashboard-types';
 
 const MINUTE_MS = 60_000;
-/** 기간 시작 직전에 출근해 자정을 넘긴 근무도 포함하려고 하루 앞부터 읽는다 */
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** GET /stores/:storeId/dashboard — docs/specs/dashboard §3·§5 */
 export async function getDashboard(
@@ -147,22 +146,7 @@ async function summarizeCurrentPeriod(
   input: { storeId: string; today: string; payPeriodStartDay: number },
 ) {
   const period = getPayPeriod(input.today, input.payPeriodStartDay);
-  const closed = await db.attendance.findMany({
-    where: {
-      storeId: input.storeId,
-      status: 'CLOSED',
-      clockInAt: {
-        gte: new Date(localMidnight(period.start).getTime() - DAY_MS),
-        lt: localMidnight(period.end),
-      },
-    },
-    include: { terms: { include: { schedules: true } } },
-  });
-  const segments = closed.flatMap((attendance) =>
-    attendance.clockOutAt
-      ? toSegments({ attendance: { ...attendance, clockOutAt: attendance.clockOutAt }, terms: attendance.terms }).segments
-      : [],
-  );
-  const summary = summarizePeriod(segments, period);
+  const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period });
+  const summary = summarizePeriod(rows.flatMap((row) => row.segments), period);
   return { start: period.start, end: period.end, recognizedSeconds: summary.recognizedSeconds, basePayEstimate: summary.basePayEstimate };
 }

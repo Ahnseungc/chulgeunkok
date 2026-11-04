@@ -1,11 +1,11 @@
-import ScreenPlaceholder from '@/shared/ui/ScreenPlaceholder';
+import PayrollScreen from '@/features/payroll/ui/PayrollScreen';
 
-export default function PayrollPage() {
-  return (
-    <ScreenPlaceholder
-      title="정산"
-      spec="docs/specs/payroll/README.md §6"
-      summary="기간 선택, 미해결 배너, 합계, 직원별 시간·금액, CSV"
-    />
-  );
+interface PayrollPageProps {
+  params: Promise<{ storeId: string }>;
+}
+
+/** 정산 — docs/specs/payroll/README.md §6 */
+export default async function PayrollPage({ params }: PayrollPageProps) {
+  const { storeId } = await params;
+  return <PayrollScreen storeId={storeId} />;
 }
