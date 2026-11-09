@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { apiFetch } from '@/shared/lib/api-client';
@@ -18,6 +17,7 @@ import LabeledTextField from '@/shared/ui/LabeledTextField';
 import type { AttendanceDetailDto, AttendanceSnapshot } from '../model/attendance-admin-types';
 
 import { AttendanceBadges } from './AttendancesScreen';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 const SECOND_MS = 1000;
 const REASON_MAX_LENGTH = 200;
@@ -35,9 +35,9 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}/attendances`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}/attendances`} className="back-link">
         ← 근태 기록
-      </Link>
+      </AppBackLink>
       {detail.errorMessage ? (
         <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
           {detail.errorMessage}
@@ -61,14 +61,14 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
             <AttendanceBadges row={data} />
           </header>
           {data.corrections.some((correction) => correction.status === 'PENDING') ? (
-            <Link href={`/owner/${storeId}/corrections`} className="dash-card unresolved-banner">
+            <AppLink href={`/owner/${storeId}/corrections`} className="dash-card unresolved-banner">
               <Text textStyle="t5Bold" color="fg.warning">
                 직원이 수정을 요청했어요
               </Text>
               <Text textStyle="t4Regular" color="fg.neutralMuted">
                 눌러서 승인하거나 반려해 주세요
               </Text>
-            </Link>
+            </AppLink>
           ) : null}
           {data.status !== 'VOID' ? <EditForm detail={data} path={path} onSaved={detail.reload} /> : null}
           <RevisionList detail={data} />

@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import type { MemberSummaryDto } from '@/features/staff/model/member-types';
@@ -10,6 +9,7 @@ import { useApiResource } from '@/shared/lib/useApiResource';
 import PeriodNav from '@/shared/ui/PeriodNav';
 
 import type { AttendanceListDto, AttendanceRowDto } from '../model/attendance-admin-types';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 const SECOND_MS = 1000;
 
@@ -35,9 +35,9 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}`} className="back-link">
         ← 매장 홈
-      </Link>
+      </AppBackLink>
       <Text as="h1" textStyle="t8Bold">
         근태 기록
       </Text>
@@ -73,7 +73,7 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
       <ul className="store-list">
         {list.data?.rows.map((row) => (
           <li key={row.id}>
-            <Link className="store-list__item" href={`/owner/${storeId}/attendances/${row.id}`}>
+            <AppLink className="store-list__item" href={`/owner/${storeId}/attendances/${row.id}`}>
               <div className="member-row">
                 <Text textStyle="t5Bold">{row.name}</Text>
                 <Text textStyle="t4Regular" color="fg.neutralMuted">
@@ -82,7 +82,7 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
               </div>
               <Text textStyle="t4Regular">{timeRange(row)}</Text>
               <AttendanceBadges row={row} />
-            </Link>
+            </AppLink>
           </li>
         ))}
       </ul>

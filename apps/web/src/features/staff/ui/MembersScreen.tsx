@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import { useApiResource } from '@/shared/lib/useApiResource';
@@ -10,6 +9,7 @@ import type { MemberSummaryDto } from '../model/member-types';
 
 import InviteQrSheet from './InviteQrSheet';
 import { ROLE_LABEL } from './member-labels';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 interface MembersScreenProps {
   storeId: string;
@@ -27,9 +27,9 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}`} className="back-link">
         ← 매장 홈
-      </Link>
+      </AppBackLink>
       <Text as="h1" textStyle="t8Bold">
         직원
       </Text>
@@ -59,7 +59,7 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
       <ul className="store-list">
         {data?.members.map((member) => (
           <li key={member.memberId}>
-            <Link className="store-list__item" href={`/owner/${storeId}/members/${member.memberId}`}>
+            <AppLink className="store-list__item" href={`/owner/${storeId}/members/${member.memberId}`}>
               <div className="member-row">
                 <Text textStyle="t5Bold">{member.name}</Text>
                 <Text textStyle="t4Regular" color="fg.neutralMuted">
@@ -67,7 +67,7 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
                 </Text>
               </div>
               <MemberBadges member={member} />
-            </Link>
+            </AppLink>
           </li>
         ))}
       </ul>

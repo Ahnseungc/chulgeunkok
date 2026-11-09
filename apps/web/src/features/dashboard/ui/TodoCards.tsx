@@ -1,7 +1,7 @@
 import { Text } from '@seed-design/react';
-import Link from 'next/link';
 
 import type { DashboardDto } from '../model/dashboard-types';
+import { AppLink } from '@/shared/ui/AppLink';
 
 interface TodoCardsProps {
   storeId: string;
@@ -44,9 +44,9 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
           return (
             <li key={card.title}>
               {card.href ? (
-                <Link href={card.href} className="dash-list__row">
+                <AppLink href={card.href} className="dash-list__row">
                   {content}
-                </Link>
+                </AppLink>
               ) : (
                 <div className="dash-list__row">{content}</div>
               )}

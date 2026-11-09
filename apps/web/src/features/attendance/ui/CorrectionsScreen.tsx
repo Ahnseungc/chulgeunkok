@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import { toLocalDate } from '@/features/payroll/model/work-time';
@@ -14,6 +13,7 @@ import Sheet from '@/shared/ui/Sheet';
 import type { CorrectionDto } from '../model/attendance-admin-types';
 
 import { CORRECTION_TYPE_LABEL } from './correction-labels';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 const NOTE_MAX_LENGTH = 200;
 
@@ -37,9 +37,9 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}`} className="back-link">
         ← 매장 홈
-      </Link>
+      </AppBackLink>
       <Text as="h1" textStyle="t8Bold">
         수정 요청
       </Text>
@@ -74,11 +74,11 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
                 승인
               </ActionButton>
             </div>
-            <Link href={`/owner/${storeId}/attendances/${request.attendanceId}`} className="back-link">
+            <AppLink href={`/owner/${storeId}/attendances/${request.attendanceId}`} className="back-link">
               <Text textStyle="t3Regular" color="fg.neutralMuted">
                 기록 보기 (시각을 고쳐서 처리하기)
               </Text>
-            </Link>
+            </AppLink>
           </li>
         ))}
       </ul>

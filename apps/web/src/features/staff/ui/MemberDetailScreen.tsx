@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { LaborReviewDto } from '@/features/labor/model/labor-types';
@@ -16,6 +15,7 @@ import type { MemberDetailDto } from '../model/member-types';
 
 import InviteQrSheet from './InviteQrSheet';
 import { ROLE_LABEL } from './member-labels';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 interface MemberDetailScreenProps {
   storeId: string;
@@ -47,9 +47,9 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}/members`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}/members`} className="back-link">
         ← 직원
-      </Link>
+      </AppBackLink>
       {member.errorMessage ? <ErrorText message={member.errorMessage} /> : null}
       {detail ? (
         <>
@@ -82,7 +82,7 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
               )}
               {detail.canEditTerms ? (
                 <ActionButton asChild variant="neutralWeak" size="medium">
-                  <Link href={termsPath}>{detail.currentTerms ? '근로조건 수정' : '근로조건 등록'}</Link>
+                  <AppLink href={termsPath}>{detail.currentTerms ? '근로조건 수정' : '근로조건 등록'}</AppLink>
                 </ActionButton>
               ) : null}
             </section>

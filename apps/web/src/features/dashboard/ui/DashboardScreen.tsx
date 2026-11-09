@@ -10,6 +10,7 @@ import { usePolling, useApiResource } from '@/shared/lib/useApiResource';
 import type { DashboardDto } from '../model/dashboard-types';
 
 import TodoCards from './TodoCards';
+import { AppLink } from '@/shared/ui/AppLink';
 
 /** docs/specs/dashboard §5 */
 const POLL_INTERVAL_MS = 30_000;
@@ -61,13 +62,13 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
               <ul className="dash-list">
                 {data.working.map((row) => (
                   <li key={row.attendanceId}>
-                    <Link href={`/owner/${storeId}/members/${row.memberId}`} className="dash-list__row">
+                    <AppLink href={`/owner/${storeId}/members/${row.memberId}`} className="dash-list__row">
                       <Text textStyle="t5Bold">{row.name}</Text>
                       <Text textStyle="t4Regular" color="fg.neutralMuted">
                         {formatClock(row.clockInAt)} 출근 · {formatDuration(now.getTime() - new Date(row.clockInAt).getTime())}
                       </Text>
                       {row.outsideArea ? <span className="badge badge--warning">매장 밖</span> : null}
-                    </Link>
+                    </AppLink>
                   </li>
                 ))}
               </ul>
@@ -83,12 +84,12 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
               <ul className="dash-list">
                 {data.today.notYetClockedIn.map((row) => (
                   <li key={row.memberId}>
-                    <Link href={`/owner/${storeId}/members/${row.memberId}`} className="dash-list__row">
+                    <AppLink href={`/owner/${storeId}/members/${row.memberId}`} className="dash-list__row">
                       <Text textStyle="t5Bold">{row.name}</Text>
                       <Text textStyle="t4Regular" color="fg.critical">
                         {formatClock(row.scheduledStartAt)} 출근 예정 · 아직 출근 전
                       </Text>
-                    </Link>
+                    </AppLink>
                   </li>
                 ))}
               </ul>
@@ -124,7 +125,7 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
         {MENU.map((item) =>
           item.ready ? (
             <ActionButton key={item.path} asChild variant="neutralWeak" size="medium">
-              <Link href={`/owner/${storeId}/${item.path}`}>{item.title}</Link>
+              <AppLink href={`/owner/${storeId}/${item.path}`}>{item.title}</AppLink>
             </ActionButton>
           ) : (
             <ActionButton key={item.path} variant="neutralWeak" size="medium" disabled>

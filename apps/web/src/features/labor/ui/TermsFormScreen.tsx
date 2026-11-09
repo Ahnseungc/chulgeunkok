@@ -1,8 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import type { MemberDetailDto } from '@/features/staff/model/member-types';
@@ -16,6 +14,7 @@ import { WEEKDAY_LABELS } from '../model/review-copy';
 import ReviewSheet from './ReviewSheet';
 import ScheduleEditor from './ScheduleEditor';
 import { initialTermsValues, useSaveTerms, type TermsFormValues } from './useTermsForm';
+import { AppBackLink, useBackTo } from '@/shared/ui/AppLink';
 
 interface TermsFormScreenProps {
   storeId: string;
@@ -24,7 +23,7 @@ interface TermsFormScreenProps {
 
 /** 근로조건 등록·수정 — docs/specs/labor §3·§7 */
 export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenProps) {
-  const router = useRouter();
+  const backTo = useBackTo();
   const memberPath = `/api/v1/stores/${storeId}/members/${memberId}`;
   const detailPath = `/owner/${storeId}/members/${memberId}` as const;
   const member = useApiResource<MemberDetailDto>(memberPath);
@@ -49,7 +48,7 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
     if (!result) return;
     const sheetReviews = result.reviews.filter((review) => review.presentation !== 'LIST');
     if (sheetReviews.length > 0) setSavedReviews(sheetReviews);
-    else router.push(detailPath);
+    else backTo(detailPath);
   };
   const wage = Number(values.hourlyWage);
   const belowMinimum = rule.data && wage > 0 && wage < rule.data.minimumHourlyWage;
@@ -58,9 +57,9 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
 
   return (
     <main className="screen">
-      <Link href={detailPath} className="back-link">
+      <AppBackLink href={detailPath} className="back-link">
         ← {member.data.name}
-      </Link>
+      </AppBackLink>
       <Text as="h1" textStyle="t8Bold">
         {member.data.name}님 근로조건
       </Text>
@@ -130,7 +129,7 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
       <ReviewSheet
         reviews={savedReviews ?? []}
         open={savedReviews !== null}
-        onClose={() => router.push(detailPath)}
+        onClose={() => backTo(detailPath)}
         onEditTerms={() => setSavedReviews(null)}
       />
     </main>

@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import { formatDuration } from '@/shared/lib/format-time';
@@ -10,6 +9,7 @@ import PeriodNav from '@/shared/ui/PeriodNav';
 import Sheet from '@/shared/ui/Sheet';
 
 import { PAYROLL_DISCLAIMER, type PayrollMemberDto, type PayrollPreviewDto } from '../model/payroll-types';
+import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
 
 const SECOND_MS = 1000;
 
@@ -40,9 +40,9 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
 
   return (
     <main className="screen">
-      <Link href={`/owner/${storeId}`} className="back-link">
+      <AppBackLink href={`/owner/${storeId}`} className="back-link">
         ← 매장 홈
-      </Link>
+      </AppBackLink>
       <Text as="h1" textStyle="t8Bold">
         정산
       </Text>
@@ -55,7 +55,7 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
         <>
           <PeriodNav period={data.period} onChange={setPeriodStart} />
           {data.unresolved.missingClockOut > 0 ? (
-            <Link
+            <AppLink
               className="dash-card unresolved-banner"
               href={`/owner/${storeId}/attendances?status=MISSING_CLOCK_OUT&periodStart=${data.period.start}`}
             >
@@ -65,7 +65,7 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
               <Text textStyle="t4Regular" color="fg.neutralMuted">
                 눌러서 퇴근 시각을 넣어 주세요
               </Text>
-            </Link>
+            </AppLink>
           ) : null}
           <section className="dash-card" aria-label="합계">
             <Text textStyle="t4Regular" color="fg.neutralMuted">
@@ -120,7 +120,7 @@ function MemberRow({ storeId, periodStart, member }: { storeId: string; periodSt
     member.status === 'INACTIVE' ? '퇴사' : null,
   ].filter((flag): flag is string => flag !== null);
   return (
-    <Link className="store-list__item" href={`/owner/${storeId}/attendances?memberId=${member.memberId}&periodStart=${periodStart}`}>
+    <AppLink className="store-list__item" href={`/owner/${storeId}/attendances?memberId=${member.memberId}&periodStart=${periodStart}`}>
       <div className="payroll-row">
         <Text textStyle="t5Bold">{member.name}</Text>
         <Text textStyle="t5Bold">{won(member.basePayEstimate)}</Text>
@@ -141,6 +141,6 @@ function MemberRow({ storeId, periodStart, member }: { storeId: string; periodSt
           ))}
         </div>
       ) : null}
-    </Link>
+    </AppLink>
   );
 }
