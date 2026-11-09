@@ -5,6 +5,7 @@ import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
 import { useApiResource } from '@/shared/lib/useApiResource';
+import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 
 import type { MemberSummaryDto } from '../model/member-types';
 
@@ -59,21 +60,22 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
           {status === 'ACTIVE' ? '아직 직원이 없어요. 직원 등록 QR을 띄워 보세요.' : '퇴사한 직원이 없어요.'}
         </Text>
       ) : null}
-      <ul className="store-list">
-        {data?.members.map((member) => (
-          <li key={member.memberId}>
-            <AppLink className="store-list__item" href={`/owner/${storeId}/members/${member.memberId}`}>
-              <div className="member-row">
-                <Text textStyle="t5Bold">{member.name}</Text>
-                <Text textStyle="t4Regular" color="fg.neutralMuted">
-                  {ROLE_LABEL[member.role]}
-                </Text>
-              </div>
-              <MemberBadges member={member} />
-            </AppLink>
-          </li>
-        ))}
-      </ul>
+      <CardStaggerList
+        className="store-list"
+        items={data?.members ?? []}
+        getKey={(member) => member.memberId}
+        renderItem={(member) => (
+          <AppLink className="store-list__item" href={`/owner/${storeId}/members/${member.memberId}`}>
+            <div className="member-row">
+              <Text textStyle="t5Bold">{member.name}</Text>
+              <Text textStyle="t4Regular" color="fg.neutralMuted">
+                {ROLE_LABEL[member.role]}
+              </Text>
+            </div>
+            <MemberBadges member={member} />
+          </AppLink>
+        )}
+      />
       <div className="punch-bottom">
         <ActionButton variant="neutralSolid" size="large" flexGrow onClick={() => setInviteOpen(true)}>
           직원 등록

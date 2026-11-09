@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 
 import { formatClock, formatDuration, formatPeriodRange } from '@/shared/lib/format-time';
 import { usePolling, useApiResource } from '@/shared/lib/useApiResource';
+import { SmoothCountUpNumber } from '@/shared/motion/SmoothCountUpNumber';
+import { useIntroCountUp } from '@/shared/motion/useIntroCountUp';
 
 import type { DashboardDto } from '../model/dashboard-types';
 
@@ -33,6 +35,10 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
   const { data, errorMessage, reload } = useApiResource<DashboardDto>(`/api/v1/stores/${storeId}/dashboard`);
   usePolling(reload, POLL_INTERVAL_MS);
   const now = useServerNow(data?.serverNow ?? null);
+  // 처음 받은 숫자만 카운트업. 30초 폴링·되살아남 재조회로 바뀐 값은 바로 바꾼다
+  const workingIntro = useIntroCountUp(data?.working.length);
+  const clockedInIntro = useIntroCountUp(data?.today.clockedInCount);
+  const basePayIntro = useIntroCountUp(data?.currentPeriod.basePayEstimate);
 
   return (
     <main className="screen">
@@ -52,7 +58,7 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
         <>
           <section className="dash-card" aria-labelledby="working-heading">
             <Text as="h2" id="working-heading" textStyle="t6Bold">
-              지금 근무 중 {data.working.length}명
+              지금 근무 중 <SmoothCountUpNumber value={data.working.length} {...workingIntro} />명
             </Text>
             {data.working.length === 0 ? (
               <Text textStyle="t4Regular" color="fg.neutralMuted">
@@ -77,7 +83,7 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
 
           <section className="dash-card" aria-labelledby="today-heading">
             <Text as="h2" id="today-heading" textStyle="t6Bold">
-              오늘 출근 {data.today.clockedInCount}명
+              오늘 출근 <SmoothCountUpNumber value={data.today.clockedInCount} {...clockedInIntro} />명
               {data.today.scheduledCount > 0 ? ` / 근무 예정 ${data.today.scheduledCount}명` : ''}
             </Text>
             {data.today.notYetClockedIn.length > 0 ? (
@@ -112,9 +118,12 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
             ) : (
               <Text textStyle="t5Bold">
                 근무 {formatDuration(data.currentPeriod.recognizedSeconds * SECOND_MS)}
-                {data.currentPeriod.basePayEstimate !== null
-                  ? ` · 예상 기본급 ${data.currentPeriod.basePayEstimate.toLocaleString('ko-KR')}원`
-                  : ''}
+                {data.currentPeriod.basePayEstimate !== null ? (
+                  <>
+                    {' · 예상 기본급 '}
+                    <SmoothCountUpNumber value={data.currentPeriod.basePayEstimate} {...basePayIntro} />원
+                  </>
+                ) : null}
               </Text>
             )}
           </section>

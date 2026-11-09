@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { MemberSummaryDto } from '@/features/staff/model/member-types';
 import { formatClock, formatDuration, formatLocalDate } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
+import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import PeriodNav from '@/shared/ui/PeriodNav';
 
 import type { AttendanceListDto, AttendanceRowDto } from '../model/attendance-admin-types';
@@ -76,22 +77,23 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
           이 기간에는 기록이 없어요
         </Text>
       ) : null}
-      <ul className="store-list">
-        {list.data?.rows.map((row) => (
-          <li key={row.id}>
-            <AppLink className="store-list__item" href={`/owner/${storeId}/attendances/${row.id}`}>
-              <div className="member-row">
-                <Text textStyle="t5Bold">{row.name}</Text>
-                <Text textStyle="t4Regular" color="fg.neutralMuted">
-                  {formatLocalDate(row.localDate)}
-                </Text>
-              </div>
-              <Text textStyle="t4Regular">{timeRange(row)}</Text>
-              <AttendanceBadges row={row} />
-            </AppLink>
-          </li>
-        ))}
-      </ul>
+      <CardStaggerList
+        className="store-list"
+        items={list.data?.rows ?? []}
+        getKey={(row) => row.id}
+        renderItem={(row) => (
+          <AppLink className="store-list__item" href={`/owner/${storeId}/attendances/${row.id}`}>
+            <div className="member-row">
+              <Text textStyle="t5Bold">{row.name}</Text>
+              <Text textStyle="t4Regular" color="fg.neutralMuted">
+                {formatLocalDate(row.localDate)}
+              </Text>
+            </div>
+            <Text textStyle="t4Regular">{timeRange(row)}</Text>
+            <AttendanceBadges row={row} />
+          </AppLink>
+        )}
+      />
     </main>
   );
 }

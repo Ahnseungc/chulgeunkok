@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
+import { AnimatePresence } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { LaborReviewDto } from '@/features/labor/model/labor-types';
@@ -9,6 +10,7 @@ import ReviewSheet from '@/features/labor/ui/ReviewSheet';
 import TermsSummary from '@/features/labor/ui/TermsSummary';
 import { apiFetch } from '@/shared/lib/api-client';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
+import { ExpandFadeReveal } from '@/shared/motion/ExpandFadeReveal';
 import Sheet from '@/shared/ui/Sheet';
 
 import type { MemberDetailDto } from '../model/member-types';
@@ -88,28 +90,33 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
             </section>
           ) : null}
 
-          {reviews.data && reviews.data.reviews.length > 0 ? (
-            <section className="detail-section" aria-labelledby="reviews-heading">
-              <Text as="h2" id="reviews-heading" textStyle="t6Bold">
-                확인할 안내 {reviews.data.reviews.length}건
-              </Text>
-              <ul className="review-list">
-                {reviews.data.reviews.map((review) => (
-                  <li key={review.id} className={`review-list__item review-list__item--${review.presentation.toLowerCase()}`}>
-                    <Text as="h3" textStyle="t5Bold">
-                      {review.title}
-                    </Text>
-                    <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
-                      {review.presentation === 'BADGE' ? UNDER_FIVE_BADGE_TEXT : review.body}
-                    </Text>
-                  </li>
-                ))}
-              </ul>
-              <ActionButton variant="neutralWeak" size="medium" onClick={() => setReviewSheetOpen(true)}>
-                확인하기
-              </ActionButton>
-            </section>
-          ) : null}
+          {/* 안내는 직원 정보보다 늦게 와서, 툭 밀지 않고 펼치며 나타난다. 다 확인하면 접혀 사라진다 */}
+          <AnimatePresence>
+            {reviews.data && reviews.data.reviews.length > 0 ? (
+              <ExpandFadeReveal key="reviews">
+                <section className="detail-section" aria-labelledby="reviews-heading">
+                  <Text as="h2" id="reviews-heading" textStyle="t6Bold">
+                    확인할 안내 {reviews.data.reviews.length}건
+                  </Text>
+                  <ul className="review-list">
+                    {reviews.data.reviews.map((review) => (
+                      <li key={review.id} className={`review-list__item review-list__item--${review.presentation.toLowerCase()}`}>
+                        <Text as="h3" textStyle="t5Bold">
+                          {review.title}
+                        </Text>
+                        <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
+                          {review.presentation === 'BADGE' ? UNDER_FIVE_BADGE_TEXT : review.body}
+                        </Text>
+                      </li>
+                    ))}
+                  </ul>
+                  <ActionButton variant="neutralWeak" size="medium" onClick={() => setReviewSheetOpen(true)}>
+                    확인하기
+                  </ActionButton>
+                </section>
+              </ExpandFadeReveal>
+            ) : null}
+          </AnimatePresence>
 
           {detail.role !== 'OWNER' ? (
             <section className="detail-section" aria-labelledby="device-heading">

@@ -224,20 +224,45 @@ body {
   gap: 8px;
 }
 
-/* 하단 시트 */
+/* 하단 시트. dialog 는 화면 전체를 덮는 투명 틀이고, 배경·패널을 안에서 따로 움직인다 (::backdrop 은 애니메이션이 안 되어 쓰지 않는다) */
 .sheet {
+  position: fixed;
+  inset: 0;
   width: 100%;
-  max-width: 480px;
-  margin: auto auto 0;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 20px 20px 0 0;
-  background: var(--seed-color-bg-layer-floating, var(--seed-color-bg-layer-default));
+  overflow: hidden;
+  background: transparent;
   color: inherit;
 }
 
 .sheet::backdrop {
+  background: transparent;
+}
+
+.sheet__backdrop {
+  position: absolute;
+  inset: 0;
   background: rgb(0 0 0 / 40%);
+}
+
+.sheet__panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100% - 24px);
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 20px 20px 0 0;
+  background: var(--seed-color-bg-layer-floating, var(--seed-color-bg-layer-default));
 }
 
 .sheet__body {
@@ -425,4 +450,54 @@ body {
 .unresolved-banner {
   color: inherit;
   text-decoration: none;
+}
+
+/* 공통 모션 (shared/motion) */
+.gpu-layer {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@keyframes gpu-layer-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--gpu-layer-slide-distance, 12px), 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.gpu-layer-slide-in-right {
+  animation: gpu-layer-slide-in-right var(--gpu-layer-duration, 0.32s) cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--gpu-layer-delay, 0s);
+}
+
+.tab-underline {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+}
+
+.tab-underline__bar {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+}
+
+.tab-underline-label {
+  transition: color 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gpu-layer-slide-in-right {
+    animation: none;
+  }
+
+  .tab-underline-label {
+    transition: none;
+  }
 }

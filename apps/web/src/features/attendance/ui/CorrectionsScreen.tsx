@@ -7,6 +7,7 @@ import { toLocalDate } from '@/features/payroll/model/work-time';
 import { apiFetch } from '@/shared/lib/api-client';
 import { formatClock, formatLocalDate } from '@/shared/lib/format-time';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
+import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 import Sheet from '@/shared/ui/Sheet';
 
@@ -53,9 +54,13 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
           확인할 요청이 없어요
         </Text>
       ) : null}
-      <ul className="store-list">
-        {data?.requests.map((request) => (
-          <li key={request.id} className="store-list__item">
+      {/* 승인·반려한 요청은 접히며 빠지고 아래 요청이 따라 올라온다 */}
+      <CardStaggerList
+        className="store-list"
+        items={data?.requests ?? []}
+        getKey={(request) => request.id}
+        renderItem={(request) => (
+          <div className="store-list__item">
             <div className="member-row">
               <Text textStyle="t5Bold">{request.memberName}</Text>
               <Text textStyle="t4Regular" color="fg.neutralMuted">
@@ -79,9 +84,9 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
                 기록 보기 (시각을 고쳐서 처리하기)
               </Text>
             </AppLink>
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+      />
       <RejectSheet
         request={rejecting}
         onClose={() => setRejecting(null)}
