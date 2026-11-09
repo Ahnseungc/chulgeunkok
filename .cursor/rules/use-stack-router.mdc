@@ -1,0 +1,62 @@
+---
+description: >-
+  사장님 매장 화면(/owner/[storeId]/**)은 @ahnseungchan/webviewkit 2.3 스택으로 push/back 한다.
+  AppLink·AppBackLink·useBackTo, OwnerStackApp Activity 등록, keepAlive + useOnRevive 규칙.
+globs: "apps/web/src/features/**/ui/**/*.tsx,apps/web/src/shared/ui/AppLink.tsx,apps/web/src/app/owner/**/*.tsx"
+alwaysApply: false
+---
+
+# 스택 네비게이션 — @ahnseungchan/webviewkit 2.3
+
+정본 구현: `apps/web/src/features/owner-stack/ui/OwnerStackApp.tsx`, `apps/web/src/shared/ui/AppLink.tsx`.
+라이브러리 문서: `apps/web/node_modules/@ahnseungchan/webviewkit/README.md`.
+스킬: `.cursor/skills/use-stack-router/SKILL.md`
+
+## 구조
+
+- `app/owner/[storeId]/layout.tsx` 가 `<OwnerStackApp storeId>` 를 그린다. `StackRouterProvider` 가 URL을 보고 스택을 복원한다 (`restoreStack` 기본 `with-root` → `[매장 홈, 대상]`).
+- 하위 `page.tsx` 는 딥링크·새로고침 때 Next 라우트가 존재하도록만 둔다. 실제 화면은 Activity 의 `element`.
+- 스택 밖 화면(`/owner`, `/owner/login`, `/owner/stores/new`, `/me/**`, `/p/[qrToken]`, `/invite/[token]`)은 일반 Next 라우팅.
+
+## 이동 규칙
+
+| 상황 | 쓰는 것 |
+|------|---------|
+| 하위 화면 열기 | `<AppLink href=...>` — 스택 안이면 `push`, 밖이면 `next/link` |
+| 상단 "← 상위" | `<AppBackLink href=상위>` — 스택 안이면 `back` (스택이 비면 `replace(상위)`) |
+| 저장 뒤 상위로 | `const backTo = useBackTo(); backTo(href)` |
+| 같은 화면 필터·기간만 변경 | 상태 + `useApiResource` path 변경. push 하지 않는다 |
+| 중간 단계 지우고 결과 화면 | `useStackRouter().resetPush(path)` / `replace(path)` |
+| 스택 안·밖 공용 컴포넌트 | `useOptionalStackRouter()` 로 분기 (Provider 밖이면 `null`) |
+
+- 수정키 클릭(새 탭)·가운데 클릭은 브라우저 기본 동작으로 둔다 (`isPlainClick`). 링크는 항상 실제 `href` 를 가진 `<a>`.
+- `href` 는 `typedRoutes` 의 `Route<T>`.
+
+## 새 매장 하위 화면 추가
+
+1. `features/<domain>/ui/XxxScreen.tsx` 작성 (props 로 `storeId`, id 들).
+2. `OwnerStackApp` 의 `activities` 에 `{ path: '/owner/:storeId/...', element }` 추가. 경로 파라미터는 내부 래퍼에서 `useParams()`, 쿼리는 `useActivity().query`.
+3. 목록 화면이면 `keepAlive: true` (back 뒤 스크롤·필터 유지, `keepAliveLimit` 기본 5).
+4. `app/owner/[storeId]/.../page.tsx` 추가 (딥링크용).
+
+## keepAlive 화면
+
+되살아난 화면은 데이터를 다시 부르지 않는다. 최신 목록이 필요하면:
+
+```tsx
+const { data, errorMessage, reload } = useApiResource<...>(path);
+// 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
+useOnRevive(() => void reload());
+```
+
+## 금지
+
+- 스택 안에서 `next/link`·`router.push` 로 하위 화면 열기 (스택·전환이 깨진다).
+- 필터·탭 변경에 `push` (back 이 필터만 되감는다).
+- Activity 에 등록하지 않은 경로로 push (dev 경고 + 이동 없음).
+- `StackRouterProvider` 를 화면마다 새로 감싸기.
+
+## 참고
+
+- iOS 스와이프 백(`allowsBackForwardNavigationGestures`)·Android 하드웨어 back 은 history back → webviewkit popstate 로 스택 pop 된다.
+- `bridge` prop(네이티브 스택 연동)은 쓰지 않는다. RN 셸 통신은 `@chulgeunkok/app-bridge` (`webview-shell.mdc`).

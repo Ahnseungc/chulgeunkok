@@ -1,0 +1,38 @@
+---
+description: 출근콕 보안·환경 변수 규칙 — 서버 전용 키, .env.example, DEV_AUTH, CRON_SECRET, 토큰 해시, WebView 신뢰 경계
+globs: "apps/**/*.{ts,tsx},packages/**/*.ts,apps/web/.env.example,apps/web/next.config.ts"
+alwaysApply: false
+---
+
+# Security & Env — 출근콕
+
+## 1. 환경 변수
+
+- 목록·설명은 `apps/web/.env.example` 이 정본. 새 변수는 여기에 설명과 함께 추가하고 README 실행 절도 확인.
+- 현재 변수: `DATABASE_URL`, `DEV_AUTH`, `APP_ORIGIN`, `KAKAO_REST_API_KEY`, `NTS_SERVICE_KEY`, `SMS_PROVIDER`, `CRON_SECRET`. 모두 **서버 전용**.
+- `NEXT_PUBLIC_*` 에 키·토큰을 두지 않는다. 브라우저가 외부 API 를 직접 부르지 않는다 — `/api/v1` 를 경유 (`/api/v1/places/search` 등).
+- `.env*` 는 커밋하지 않는다 (`.gitignore`). `.env.example` 만.
+- 앱(`apps/mobile`)의 설정은 `app.json` `extra` — 공개 값만.
+
+## 2. 개발용 우회
+
+- `DEV_AUTH="1"` (`x-dev-user-id` 헤더·`dev_user_id` 쿠키) 와 외부 연동 개발용 응답(`server/integrations/dev-fallback.ts`), 화면에 보이는 개발용 인증번호는 **production 에서 무시·오류**여야 한다. 새 우회를 만들면 같은 `NODE_ENV !== 'production'` 가드를 둔다.
+- 배치는 `CRON_SECRET` 없으면 항상 401 (`server/http/cron-auth.ts`).
+
+## 3. 토큰·세션
+
+- 초대·QR·기기 토큰은 `server/crypto/generate-token.ts` 로 만들고 DB에는 해시만 (`hash-token.ts`).
+- 세션 쿠키 `ck_device` 는 httpOnly·production secure (`features/auth/server/device.ts`). 토큰을 JS·URL·로그에 남기지 않는다.
+- WebView ↔ 앱은 1회용 handoff 코드만 (`webview-shell.mdc`).
+
+## 4. 입력·출력
+
+- 서버에서 Zod 검증 (`zod-validation-first.mdc`). 권한은 서비스에서 `requireMembership`.
+- 다른 매장 리소스는 `NOT_FOUND` 로 존재를 숨긴다.
+- `dangerouslySetInnerHTML` 쓰지 않는다.
+- 리다이렉트 대상(`/auth/restore?next=`)은 앱 내부 경로만 허용.
+- CSV 내보내기는 셀 이스케이프 (`payroll-csv.ts` 의 `escapeCsvCell`).
+
+## 5. 개인정보
+
+- 휴대폰 번호·이름·근무 위치는 로그에 남기지 않는다. 테스트 데이터는 가짜 값.

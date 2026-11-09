@@ -1,0 +1,33 @@
+---
+description: >-
+  출근콕 기능 스펙은 docs/specs/<domain>/README.md 가 정본. 시그니처·상태 전이·계산 규칙·에러 코드는 스펙 먼저 고치고 코드를 맞춘다.
+globs: "docs/**/*,apps/web/src/features/**/*"
+alwaysApply: false
+---
+
+# 스펙 문서 — docs/specs/<domain>
+
+## 1. 정본 관계
+
+- `docs/specs/README.md` — 공통 규칙(시간·금액·API 포맷·공통 에러 코드·권한 매트릭스)과 문서 목록.
+- `docs/specs/<domain>/README.md` — 도메인별 스펙 (`auth`, `store`, `staff`, `labor`, `attendance`, `payroll`, `dashboard`).
+- `docs/prd-v0.4.md` — 배경·근거. **스펙과 PRD가 다르면 스펙을 따르고 PRD를 고친다.**
+- 도메인 폴더 이름 = `apps/web/src/features/<domain>`.
+
+## 2. 작업 순서
+
+1. 관련 스펙 절을 먼저 읽는다. 코드 주석의 근거(`docs/specs/staff §5.1`)를 따라간다.
+2. 동작·API·에러 코드·계산 규칙이 바뀌면 **스펙을 같은 커밋에서** 갱신한다.
+3. 코드 주석·서비스 docblock 에 스펙 절을 남긴다 (`/** GET /stores/:storeId/members — docs/specs/staff §5.1 */`).
+4. 스키마 변경은 `packages/db/prisma/schema.prisma` + 마이그레이션 + README 마이그레이션 표.
+
+## 3. 새 도메인 스펙
+
+`docs/specs/<kebab-domain>/README.md` 에 기존 문서(`docs/specs/staff/README.md`)와 같은 순서로: 상태·PRD ID 표 → 1. 개요 → 2. 범위 / 비목표 → 도메인 절(모델·상태 전이·화면) → API → 에러 코드 → 수용 기준. 그리고 `docs/specs/README.md` §1 목록에 한 줄 추가.
+
+## 4. 주의
+
+- 법령 해석은 설계용 가정이다 (README). 법정 기준값을 바꿀 땐 근거를 스펙에 적는다.
+- 시크릿·실제 개인정보를 스펙에 넣지 않는다.
+
+스킬: `.cursor/skills/spec-docs-by-feature/SKILL.md`

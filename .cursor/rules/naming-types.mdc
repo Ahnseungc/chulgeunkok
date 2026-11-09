@@ -1,0 +1,44 @@
+---
+description: 출근콕 파일·변수 네이밍과 타입 정의 위치 (features/<domain>/{model,schema.ts})
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Naming & Types — 출근콕
+
+## 1. 파일
+
+| 종류 | 규칙 | 예 |
+|------|------|-----|
+| React 컴포넌트 | PascalCase | `MembersScreen.tsx`, `InviteQrSheet.tsx`, `shared/ui/AppLink.tsx` |
+| 화면 단위 컴포넌트 | `*Screen.tsx` | `features/store/ui/SettingsScreen.tsx` |
+| 훅 | `useXxx.ts` | `features/store/ui/useStoreSettings.ts`, `shared/lib/useApiResource.ts` |
+| 서버 서비스 | kebab-case `*-service.ts` | `features/staff/server/member-service.ts` |
+| 순수 규칙·타입 | kebab-case | `model/work-time.ts`, `model/member-types.ts` |
+| UI 라벨 상수 | kebab-case `*-labels.ts` | `features/staff/ui/member-labels.ts` |
+| 테스트 | 대상 옆 `*.test.ts` | `model/work-time.test.ts` |
+| 라우트 | Next 규칙 | `app/api/v1/stores/[storeId]/members/route.ts` |
+
+## 2. 식별자
+
+- 컴포넌트·타입·Zod 스키마: PascalCase (`MemberSummaryDto`, `CreateInvitationBody`, `MemberListQuery`).
+- 함수·변수: camelCase. 훅은 `use` 접두사.
+- 모듈 상수: UPPER_SNAKE (`ROLE_ORDER`, `NETWORK_ERROR_MESSAGE`, `ERROR_CODES`).
+- boolean: `is~`/`has~`/`can~` (`isWorking`, `hasTerms`, `canGoBack`).
+- 핸들러: 내부 `handleXxx`, props `onXxx` (`onClose`).
+- Zod 스키마 이름: 요청 body `XxxBody`, query `XxxQuery`, 공용 값 `KoreanMobilePhone`·`LocalDate`.
+- API 응답 타입: `XxxDto` (`model/*-types.ts`).
+
+## 3. 타입 위치
+
+| 범위 | 위치 |
+|------|------|
+| 한 파일 전용 | 그 파일 상단 |
+| 도메인 DTO·공용 타입 (서버·UI 공유) | `features/<domain>/model/<name>-types.ts` |
+| 요청 입력 타입 | `features/<domain>/schema.ts` 에서 `z.infer` |
+| 여러 도메인 공용 스키마 | `shared/schema/common.ts` |
+| DB 모델 | `@chulgeunkok/db` 의 Prisma 타입 (`import type { Membership } from '@chulgeunkok/db'`) |
+| 웹 ↔ 앱 메시지 | `packages/app-bridge/src/index.ts` |
+
+- `model/`은 React·DB에 의존하지 않는다 (서버·클라이언트 둘 다 import).
+- 타입 파일은 구현 파일을 import 하지 않는다 (순환 방지).

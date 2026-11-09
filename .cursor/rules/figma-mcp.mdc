@@ -1,0 +1,31 @@
+---
+description: >-
+  Figma 디자인을 출근콕 화면으로 옮길 때 — 로컬 Dev Mode MCP 우선, Seed 토큰으로 매핑, 값 지어내기 금지, 스크린샷 대조.
+  Figma URL·node-id 가 주어졌을 때만 적용.
+alwaysApply: false
+---
+
+# Figma MCP — 출근콕
+
+출근콕 저장소에는 고정된 Figma 파일이 없다. 사용자가 Figma URL·`node-id` 를 줄 때만 적용한다.
+
+## 1. 읽기 경로
+
+1. 로컬 **Figma Dev Mode MCP** (`http://127.0.0.1:3845/mcp`, Figma 데스크톱에서 Dev Mode MCP 켜기) — `get_design_context`, `get_screenshot`, `get_variable_defs`, `get_metadata`.
+2. 연결이 안 되면 사용자에게 Figma 앱·Dev Mode 기동을 요청하고, 동의하면 클라우드 Figma MCP 로 폴백.
+3. 사용자가 준 PNG 가 있으면 그것도 기준으로 쓴다.
+
+## 2. 매핑 (지어내지 않는다)
+
+- `get_design_context` 의 코드(대개 Tailwind/React)는 **참고용**. 그대로 붙이지 않고 Seed 로 옮긴다.
+- 색 → `--seed-color-*` / Seed `color` prop. 대응 토큰이 없으면 임의 Hex 를 쓰지 말고 사용자에게 묻거나 `globals.css` `:root` 에 이름 있는 변수로 (`design-system.mdc`).
+- 타이포 → Seed `textStyle` (`t4Regular`, `t5Bold`, `t8Bold` …). 가장 가까운 값을 고르고 차이를 보고한다.
+- 컴포넌트 → Seed / `shared/ui` 먼저 (`design-reuse-components.mdc`).
+- 아이콘·이미지: 저장소 `apps/web/public`·`assets/brand` 에 있는지 먼저 확인. 없으면 export 를 요청.
+- 디자인 placeholder 문구(`Lorem`, `텍스트`)는 실제 카피로 바꾸거나 묻는다.
+
+## 3. 검증
+
+1. `pnpm typecheck`
+2. 같은 node 의 `get_screenshot` 과 실제 화면(브라우저 또는 RN WebView)을 1회 대조
+3. 응답에 일치 항목·의도된 차이(Seed 토큰 근사, 480px 폭 등)를 짧게 적는다

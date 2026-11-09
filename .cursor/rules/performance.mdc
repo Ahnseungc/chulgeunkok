@@ -1,0 +1,31 @@
+---
+description: 출근콕 성능 규칙 — next/image, 클라이언트 경계 최소화, 무거운 의존성 지연 로드, 폴링 간격
+globs: "apps/web/src/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Performance — 출근콕
+
+측정 없이 최적화하지 않는다 (`ponytail.mdc`). 아래는 기본값이다.
+
+## 1. 이미지
+
+- `next/image` 사용 (`PunchScreen`, `MyScreen`, `OwnerLoginScreen`). `width`/`height` 로 자리를 먼저 잡는다.
+- 브랜드 에셋은 `apps/web/public/brand`.
+
+## 2. 번들
+
+- 새 의존성 전에 `es-toolkit`·표준 API(`Intl`, `URL`, `<dialog>`)로 되는지 본다.
+- 특정 화면에서만 쓰는 무거운 모듈은 `next/dynamic` 또는 동적 `import()` 를 검토한다. App Router 가 라우트별로 이미 나누므로, 한 화면 안의 조건부 큰 블록에만 적용.
+- 전역 CSS 는 `app/layout.tsx` 의 Seed `all.css` + `globals.css` 만.
+
+## 3. 데이터
+
+- 폴링은 `usePolling` (보일 때만). 간격은 화면 요구에 맞게 크게 — 근무 현황 같은 곳만.
+- 목록 쿼리는 서버에서 필요한 컬럼만 `select`/`include`. N+1 을 피하고 한 번에 가져온다 (`listMembers` 참고).
+- `keepAlive` 화면은 되살릴 때만 다시 조회 (`useOnRevive`).
+
+## 4. 렌더
+
+- `'use client'` 는 화면·조각 단위. `page.tsx`·`layout.tsx` 는 서버 컴포넌트로 둔다.
+- 큰 목록에 framer-motion `layout` 남발 금지.

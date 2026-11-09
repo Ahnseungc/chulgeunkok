@@ -1,0 +1,43 @@
+---
+description: 출근콕 화면의 로딩·에러·빈 상태 표시 규칙 (인라인 role=alert, ActionButton loading, phase 상태)
+globs: "apps/web/src/features/*/ui/**/*.tsx,apps/web/src/app/**/*.tsx"
+alwaysApply: false
+---
+
+# 로딩 · 에러 · 빈 상태 — 출근콕
+
+현재 `error.tsx`·`loading.tsx`·Suspense 경계·스켈레톤·토스트·전역 스피너는 **없다**. 아래 기존 패턴을 쓴다. 새 인프라(스켈레톤 지연 표시, 전역 오버레이 등)는 요청이 있거나 화면에서 문제가 보일 때 먼저 제안한다.
+
+## 1. 조회 중
+
+- `useApiResource` 의 `data` 가 `null` 이면 해당 블록을 그리지 않는다 (`data?.members.map(...)`). 화면 골격(제목·뒤로가기)은 바로 보인다.
+- 단계가 있는 화면은 `phase` 상태 (`'loading' | ...`) 로 분기하고 안내 문구를 보여 준다 (`PunchScreen`, `InviteScreen` 의 `<Center title="초대를 확인하고 있어요" />`).
+
+## 2. 액션 대기
+
+- 버튼에 Seed `ActionButton` 의 `loading={pending}` + 필요 시 `disabled`. 중복 제출은 `pending` 으로 막는다.
+- 화면 전체를 가리는 오버레이를 만들지 않는다.
+
+## 3. 오류
+
+- 조회 실패: `errorMessage` 를 화면 안에 표시.
+
+```tsx
+{errorMessage ? (
+  <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
+    {errorMessage}
+  </Text>
+) : null}
+```
+
+- 액션 실패: 훅의 `message` 상태 (`{ text, error }`) 를 버튼 근처에 표시. 성공 문구도 같은 자리 (`useStoreSettings`).
+- 문구는 서버 `ERROR_CODES` 가 정본 (`exception-handling.mdc`).
+- 재시도: 조회는 `reload()`, 펀치는 `retry-punch.ts` 처럼 정책이 있는 곳만.
+
+## 4. 빈 상태
+
+- 오류와 구분한다. `color="fg.neutralMuted"` 안내 + 다음 행동 제안 ("아직 직원이 없어요. 직원 등록 QR을 띄워 보세요.").
+
+## 5. 스택 화면
+
+- `keepAlive` 화면은 되살아날 때 이전 데이터를 보여 준 채 `useOnRevive(() => void reload())` 로 갱신한다 (`use-stack-router.mdc`).

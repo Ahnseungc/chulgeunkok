@@ -1,0 +1,18 @@
+---
+description: TSX 파일당 export 컴포넌트 하나. 파일 내부 전용 조각은 export 없이 허용.
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# 한 파일 — 한 컴포넌트 (export 기준)
+
+- `export default` 컴포넌트는 파일당 1개 (`page.tsx`·`layout.tsx` 포함).
+- 서로 다른 화면·위젯을 한 파일에서 여러 개 export 하지 않는다.
+
+## 허용
+
+- **파일 내부 전용 조각**: export 없이 메인 컴포넌트 아래에 둔다 (`MembersScreen.tsx` 의 `MemberBadges`, `PunchScreen.tsx` 의 `BottomAction`, `OwnerStackApp.tsx` 의 Activity 래퍼). 다른 파일에서 쓰게 되면 별도 파일로 뺀다.
+- 컴포넌트 + 그 컴포넌트 전용 훅을 함께 export 하는 공용 모듈 (`shared/ui/AppLink.tsx` 의 `AppLink`·`AppBackLink`·`useBackTo`) — 같은 개념의 한 묶음일 때만.
+- 타입·상수·유틸만 있는 `.ts`.
+
+관련: `logic-ui-separation.mdc`, `component-max-lines.mdc`.

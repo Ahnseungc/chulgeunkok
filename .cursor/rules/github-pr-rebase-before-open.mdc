@@ -1,0 +1,26 @@
+---
+description: PR 생성·갱신 전 head 브랜치를 origin/main 에 rebase 하고 force-with-lease push 한다. merge 커밋 금지.
+alwaysApply: false
+---
+
+# PR 전 rebase — base 는 main
+
+브랜치는 `main` + 기능 브랜치(예: `feat/webviewkit-stack`)다. PR base 는 기본 `main`.
+
+## 순서
+
+1. `git fetch origin main <head>`
+2. head 브랜치(또는 그 워크트리)에서 `git rebase origin/main`
+3. 충돌 → 수정 → `git add` → `git rebase --continue` (merge 커밋으로 해결하지 않는다)
+4. `git log origin/main..HEAD --oneline`, `git diff origin/main HEAD --stat` 로 PR 범위 확인
+5. 검증 (`git-push-build-first.mdc` 3단계)
+6. `git push --force-with-lease origin <head>`
+7. `gh pr create --base main` 또는 기존 PR 확인
+
+## 금지
+
+- PR head에 `Merge branch 'main' into ...` 커밋.
+- rebase 없이 오래된 head로 PR.
+- `main` 에 force push.
+
+스킬: `.cursor/skills/github-pr-rebase-before-open/SKILL.md`

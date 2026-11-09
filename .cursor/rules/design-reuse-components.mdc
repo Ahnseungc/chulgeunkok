@@ -1,0 +1,36 @@
+---
+description: >-
+  화면 구현 시 Seed 컴포넌트·shared/ui·기존 도메인 UI를 먼저 찾아 쓰고, 없을 때만 새 컴포넌트를 만든다.
+globs: "apps/web/src/**/*.tsx"
+alwaysApply: false
+---
+
+# 화면 구현 — 기존 컴포넌트 우선
+
+## 탐색 순서 (구현 전)
+
+1. **Seed** — `apps/web/node_modules/@seed-design/react/lib/components/` (`design-system.mdc`).
+2. **`apps/web/src/shared/ui/`** — `AppLink`/`AppBackLink`/`useBackTo`, `Sheet`(네이티브 `<dialog>` 하단 시트), `LabeledTextField`, `PeriodNav`, `QrImage`, `KokMark`.
+3. **같은 도메인 `features/<domain>/ui/`** — 조각 (`TermsSummary`, `ReviewSheet`, `StoreQrCard`, `InviteQrSheet`).
+4. **`globals.css` 기존 블록** — `.screen`, `.punch-bottom`, `.store-list`, `.badge`, `.segmented`, `.detail-section`, `.sheet` …
+
+`grep -rn "<이름>" apps/web/src` 로 확인한다.
+
+## 신규 허용
+
+- 위에서 역할이 맞는 것이 없을 때. 가장 가까운 Seed 컴포넌트를 베이스로 얇게 감싼다.
+
+## 배치
+
+| 쓰는 곳 | 위치 |
+|---------|------|
+| 한 도메인 | `features/<domain>/ui/` |
+| 두 도메인 이상 | `shared/ui/` 로 승격 (두 번째 사용처가 생길 때) |
+
+## 금지
+
+- Seed `ActionButton` 이 있는데 `<button>` + 새 CSS 로 같은 CTA 만들기.
+- 스택 안·밖 링크를 화면마다 직접 분기 — `AppLink` 를 쓴다.
+- `Sheet` 를 두고 화면마다 새 모달 구현.
+
+스킬: `.cursor/skills/design-reuse-first/SKILL.md`

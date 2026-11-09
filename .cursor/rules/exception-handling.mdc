@@ -1,0 +1,74 @@
+---
+description: >-
+  모든 로직에 예외 처리 필수: 실패 경로 분류(치명/복구/검증/빈 상태), 빈 catch 금지.
+  서버는 ApiError throw → defineRoute 변환, 클라이언트는 ApiRequestError → 화면 문구.
+globs: "**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# Exception Handling — 출근콕
+
+성공 경로만 구현하고 끝내지 않는다. 실패·검증 실패 경로를 같은 작업에서 처리한다.
+
+## 1. 흐름 (정본)
+
+```
+서비스 throw new ApiError('CODE')            features/<domain>/server/*-service.ts
+  → defineRoute 가 { error: { code, message, details } } 응답   server/http/define-route.ts
+  → apiFetch 가 ApiRequestError 로 throw     shared/lib/api-client.ts
+  → 화면이 error.message 를 그대로 보여 준다 (문구 정본: server/http/error-codes.ts)
+```
+
+- 사용자에게 보일 문구는 **서버 `ERROR_CODES`** 에서 온다. 클라이언트에서 코드별 문구를 다시 만들지 않는다.
+- 네트워크 실패(`fetch` TypeError)는 `errorMessageOf(error)` 가 `NETWORK_ERROR_MESSAGE` 로 바꾼다 (`shared/lib/useApiResource.ts`).
+
+## 2. 실패 유형
+
+| 유형 | 처리 |
+|------|------|
+| **조회 실패** | `useApiResource` 의 `errorMessage` 를 `<Text as="p" color="fg.critical" role="alert">` 로 표시 |
+| **미등록 기기** (`UNAUTHENTICATED`) | 사장님 화면은 `useApiResource` 가 `/owner/login` 으로 replace. 직원 화면은 `loginPath: null` 로 문구만 |
+| **액션 실패** (저장·승인 등) | 훅에서 `try/catch` → `errorMessageOf(error)` 를 상태(`message`)로 노출, `finally` 에서 `pending` 해제 (`useStoreSettings`) |
+| **확인이 필요한 실패** | `error.code` 로 분기해 확인 UI (예: `MINIMUM_WAGE_CONFIRM_REQUIRED` + `details`, `features/labor/ui/useTermsForm.ts`) |
+| **검증** | 서버 Zod → `400 VALIDATION_FAILED`. 클라이언트는 버튼 비활성·간단한 형식 체크까지만 |
+| **빈 상태** | 오류 아님. `fg.neutralMuted` 안내 문구 (`MembersScreen`) |
+
+토스트 시스템·전역 에러 페이지(`error.tsx`)는 **없다**. 새로 만들지 말고 위 인라인 패턴을 쓴다. 필요해지면 먼저 제안한다.
+
+## 3. 금지
+
+```ts
+// ❌ 빈 catch
+try { await save(); } catch {}
+
+// ❌ 로그만 하고 사용자 피드백 없음 (사용자 액션)
+} catch (e) { console.error(e); }
+
+// ❌ catch (e: any)
+// ❌ 서비스에서 실패를 null/undefined 로 숨기기 — ApiError 를 throw
+```
+
+## 4. 의도적 무시 (드묾)
+
+이유 주석을 남긴다.
+
+```ts
+} catch {
+  // JSON이 아닌 메시지는 이 계약 밖이다 (다른 스크립트의 postMessage)
+  return null;
+}
+```
+
+부가 동작 실패가 본 흐름을 막으면 안 될 때는 `console.warn('[모듈] ...', error)` + 이유 주석 (`notifyDeviceRegistered`).
+
+## 5. 완료 체크
+
+- [ ] 실패 유형을 골랐는가?
+- [ ] 빈 `catch` / 로그만 있는 사용자 액션 실패가 없는가?
+- [ ] 서버 실패는 `ApiError`(필요 시 새 코드는 `error-codes.ts` + 스펙 "에러 코드" 절)인가?
+- [ ] 관련 테스트에 실패 케이스가 있는가? (`testing.mdc`)
+
+## 6. 관련
+
+- 스킬: `.cursor/skills/exception-handling/SKILL.md`
+- `api-routes.mdc` · `zod-validation-first.mdc` · `error-loading.mdc`

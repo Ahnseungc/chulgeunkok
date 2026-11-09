@@ -1,0 +1,58 @@
+---
+description: 출근콕 코드 포맷·import 순서·컴포넌트·TypeScript 작성 관례 (lint·prettier 설정 없음, 기존 코드가 기준)
+globs: "**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# Code Style — 출근콕
+
+저장소에 ESLint·Prettier 설정이 **없다**. 포맷은 기존 파일을 그대로 따른다. 새 도구 도입은 요청이 있을 때만.
+
+## 1. 포맷 (기존 코드 기준)
+
+- 작은따옴표 `'`, 세미콜론 사용, 스페이스 2, LF.
+- 한 줄은 대략 120자까지 허용 (기존 서비스·스키마 파일 참고).
+- 후행 쉼표 사용.
+
+## 2. Import 순서
+
+그룹 사이에 빈 줄 한 줄:
+
+1. 외부 패키지 (`react`, `next/*`, `@seed-design/react`, `@ahnseungchan/webviewkit`, `zod`, `@chulgeunkok/*` 워크스페이스 패키지)
+2. 내부 alias `@/` (`@/shared/...`, `@/server/...`, `@/features/...`)
+3. 상대 경로 (`../model/...`, `./...`)
+
+타입만 가져오면 `import type`. 같은 모듈의 값+타입이면 `import { ApiError, type ApiErrorBody } from './api-error'`.
+
+```ts
+'use client';
+
+import { useOnRevive } from '@ahnseungchan/webviewkit';
+import { ActionButton, Text } from '@seed-design/react';
+
+import { useApiResource } from '@/shared/lib/useApiResource';
+
+import type { MemberSummaryDto } from '../model/member-types';
+```
+
+## 3. React
+
+- 화면·컴포넌트: `export default function MembersScreen(...)` 함수 선언. 파일 내부 전용 조각은 export 없이 같은 파일 아래쪽 `function MemberBadges(...)`.
+- 훅·유틸: named export (`export function useStoreSettings`).
+- Props는 컴포넌트 바로 위 `interface XxxProps`. `children`은 `React.ReactNode`.
+- 클라이언트 컴포넌트는 파일 첫 줄 `'use client';`.
+- 분기 렌더는 삼항 + `null`, 여러 값이면 `Record` 맵(`ROLE_LABEL[member.role]`). 중첩 삼항 금지.
+
+## 4. TypeScript
+
+- `strict` + `noUncheckedIndexedAccess` (`apps/web/tsconfig.json`). 인덱스 접근은 `undefined` 처리.
+- `any` 금지 → `unknown` + 좁히기. 불가피하면 이유 주석 (`define-route.ts`의 `ZodType<T, any, unknown>` 처럼).
+- non-null `!` 최소화.
+- 객체 모양은 `interface`, union·유틸은 `type`. Zod 스키마와 타입은 같은 이름 (`export const X = z...; export type X = z.infer<typeof X>`).
+- 라우트 문자열은 `typedRoutes` 대상이다. `href`는 `Route<T>` 로 받는다 (`AppLink`).
+
+## 5. 주석
+
+- 한국어. 함수 위 `/** ... */` 한 줄 요약 + 스펙 근거 (`/** GET /stores/:storeId/members — docs/specs/staff §5.1 */`).
+- 의도적 단순화는 `ponytail:` 주석 (`ponytail.mdc`).
+- `console.log` 금지. 실패를 삼키지 않고 남겨야 할 때만 `console.warn('[모듈] 설명', error)` (`shared/lib/app-shell.ts`).

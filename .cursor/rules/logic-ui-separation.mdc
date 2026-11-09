@@ -1,0 +1,29 @@
+---
+description: >-
+  화면 컴포넌트와 로직(조회·쓰기·가공) 분리. features/<domain>/ui 의 *Screen.tsx + useXxx.ts + model/ 배치.
+globs: "apps/web/src/features/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# 로직과 UI 분리 — 출근콕
+
+## 배치
+
+| 역할 | 위치 | 예 |
+|------|------|-----|
+| 화면 (조합·레이아웃) | `features/<domain>/ui/*Screen.tsx` | `SettingsScreen.tsx` |
+| 조회·쓰기·폼 상태 | `features/<domain>/ui/useXxx.ts` | `useStoreSettings.ts`, `useTermsForm.ts` |
+| 표시 조각 (props만) | `features/<domain>/ui/*.tsx` | `TermsSummary.tsx`, `StoreQrCard.tsx` |
+| 라벨·문구 맵 | `features/<domain>/ui/*-labels.ts` | `member-labels.ts` |
+| 순수 규칙·계산 | `features/<domain>/model/*.ts` | `work-time.ts`, `labor-rules.ts` |
+| 라우트 | `app/**/page.tsx` — params 풀고 `*Screen` 하나 렌더 | `app/owner/[storeId]/members/page.tsx` |
+
+- 화면에서 GET 하나면 `useApiResource` 직접 호출 OK (`MembersScreen`). 쓰기·여러 상태가 붙으면 `useXxx` 훅으로 뺀다.
+- 훅 안의 순수 변환(초기값, 토글, body 변환)은 named export 함수로 두어 테스트한다 (`initialTermsValues`, `toggleWeekday`).
+- 서버·클라이언트 공통 규칙(근무시간·야간 판정 등)은 `model/` 하나만 둔다. 화면에서 다시 계산하지 않는다.
+
+## 안티패턴
+
+- 화면 파일에 `apiFetch` + 여러 `useEffect` + 긴 핸들러를 함께 쌓기.
+- 표시 조각이 `apiFetch` 를 직접 호출.
+- `model/` 에서 React·Prisma import.

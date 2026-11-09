@@ -1,0 +1,41 @@
+---
+description: 출근콕 클라이언트 데이터·상태 규칙 (apiFetch, useApiResource, usePolling, 도메인 훅, useState 폼)
+globs: "apps/web/src/features/*/ui/**/*.{ts,tsx},apps/web/src/shared/lib/**/*.ts"
+alwaysApply: false
+---
+
+# State & Data — 출근콕
+
+TanStack Query·Zustand·react-hook-form 은 **쓰지 않는다**. 이유와 전환 시점은 `shared/lib/useApiResource.ts` 의 `ponytail:` 주석 (화면 수가 늘어 캐시·중복 요청이 문제가 되면 TanStack Query로).
+
+## 1. 서버 상태
+
+| 용도 | 도구 |
+|------|------|
+| 같은 출처 `/api/v1` 호출 | `apiFetch<T>(path, init)` — `shared/lib/api-client.ts`. 실패는 `ApiRequestError` |
+| 화면 GET | `useApiResource<T>(path, { loginPath? })` → `{ data, errorMessage, reload }` |
+| 주기 갱신 | `usePolling(reload, intervalMs)` — 보일 때만, 탭 복귀 시 즉시 |
+| 실패 문구 | `errorMessageOf(error)` |
+
+- `path` 가 `null` 이면 조회하지 않는다 (조건부 조회).
+- 쿼리 문자열은 `path` 에 포함 → 필터가 바뀌면 자동 재조회 (`MembersScreen` 의 `?status=`).
+- 쓰기(POST/PATCH)는 도메인 훅 안에서 `apiFetch` + `pending`/`message` 상태. 응답이 최신 리소스면 그대로 상태에 반영 (`useStoreSettings`), 아니면 `reload()`.
+
+## 2. 도메인 훅
+
+- 위치: `features/<domain>/ui/useXxx.ts` (`useStoreSettings`, `useInvite`, `usePunch`, `useTermsForm`, `useOwnerLogin`).
+- 화면 컴포넌트는 훅이 준 값·함수만 쓴다. 화면에서 `apiFetch` 를 여러 번 직접 부르지 않는다 (`logic-ui-separation.mdc`).
+- 순수 계산(폼 초기값·변환)은 훅 파일의 named export 함수 또는 `model/` 로 빼서 테스트한다 (`initialTermsValues`, `toggleWeekday`).
+
+## 3. 클라이언트 상태
+
+- `useState` / `useReducer`. 전역 스토어 없음.
+- 폼: 입력값은 문자열 상태로 두고 제출 시 body로 변환. 최종 검증은 서버 Zod.
+- URL에 남겨야 하는 필터는 query (`AttendancesScreen` 의 `initialMemberId`/`initialStatus` ← `useActivity().query`).
+- 스택 화면 상태 보존은 `keepAlive` 가 맡는다. 별도 캐시를 만들지 않는다.
+
+## 4. 금지
+
+- 화면마다 `fetch` 직접 호출 (`apiFetch` 경유).
+- 같은 리소스를 두 훅이 각자 상태로 들고 동기화.
+- 클라이언트 시각을 서버로 보내 근무 시각으로 쓰기 (스펙 §2.1).

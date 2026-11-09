@@ -1,0 +1,35 @@
+---
+description: >-
+  한 작업 단위(구현·수정·문서)를 마치면 검증(pnpm typecheck / pnpm test) 후 의도한 파일만 스테이징해
+  로컬 커밋을 남긴다. 푸시는 요청 시에만.
+alwaysApply: true
+---
+
+# 작업 단위 종료 — 검증 후 커밋
+
+## 순서
+
+1. **검증** — `clean-code-quality.mdc` §4: `pnpm typecheck`, 관련 `pnpm test`, DB 변경이면 `pnpm db:verify`. UI 변경이면 브라우저(필요 시 RN 앱)에서 한 번 본다.
+2. `git status` 로 범위 확인. 다른 에이전트·사용자가 같은 작업 트리에서 작업 중일 수 있다.
+3. **의도한 파일만** `git add <경로>`. `git add -A` / `git add .` 금지. `.env*` 는 절대 스테이징하지 않는다.
+4. 작성자 확인 — `commit-convention.mdc` §1 (`94547692+Ahnseungc@users.noreply.github.com`).
+5. 의도가 섞이면 나눠 커밋 (`git-incremental-commits.mdc`).
+6. `git commit` — 메시지는 `commit-convention.mdc`. 여러 줄은 heredoc:
+
+```bash
+git commit -F - <<'MSG'
+feat: 한글 설명
+
+Co-Authored-By: ...
+MSG
+```
+
+7. `index.lock` 충돌이면 잠시 기다렸다 다시 시도한다. lock 파일을 지우지 않는다.
+8. 커밋 해시·메시지를 한 줄로 알린다. **푸시는 요청받을 때만** (`git-push-build-first.mdc`).
+
+## 예외
+
+- 파일 변경이 없으면 커밋하지 않는다.
+- 사용자가 "커밋하지 마"라고 하면 따른다.
+
+스킬: `.cursor/skills/commit-after-task-complete/SKILL.md`

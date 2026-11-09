@@ -1,0 +1,51 @@
+---
+description: 출근콕 기술 스택·버전·도구 (pnpm 모노레포, Next 15, React 19, Seed Design, Prisma+PGlite, Zod, vitest, Expo)
+alwaysApply: true
+---
+
+# Technical Stack — 출근콕
+
+버전은 각 `package.json` 이 정본이다. 새 의존성은 `ponytail.mdc` 사다리를 거친 뒤 사용자에게 먼저 묻는다.
+
+## 1. 공통
+
+- **패키지 매니저**: pnpm 워크스페이스 (`pnpm-workspace.yaml`). 패키지 지정은 `pnpm --filter @chulgeunkok/<web|mobile|db|app-bridge> ...`
+- **언어**: TypeScript 5 (`strict`, `noUncheckedIndexedAccess`)
+- **검증**: Zod 3
+- **테스트**: vitest 3 (`apps/web`, `packages/app-bridge`)
+- **린트/포맷 도구 없음** — 기존 코드 스타일을 따른다 (`code-style.mdc`)
+
+## 2. apps/web
+
+| 영역 | 사용 |
+|------|------|
+| 프레임워크 | Next.js 15 App Router, React 19, `typedRoutes: true` |
+| UI | Seed Design (`@seed-design/react`, `@seed-design/css/all.css`) + 전역 CSS `src/app/globals.css`. **Tailwind 없음** |
+| 스택 네비게이션 | `@ahnseungchan/webviewkit` 2.3 (`use-stack-router.mdc`) |
+| 데이터 | `apiFetch` + `useApiResource` (자체 훅). **TanStack Query·Zustand·react-hook-form 없음** |
+| 모션 | framer-motion — 공용은 `src/shared/motion/` (`animation-reuse-first.mdc`) |
+| 유틸 | `es-toolkit` (`debounce`, `delay`, `withTimeout`), `qrcode` |
+| 시간 | `Intl.DateTimeFormat` + 매장 시간대 (`shared/lib/format-time.ts`, `features/payroll/model/work-time.ts`). 다른 시간대 지원 시 `@date-fns/tz` 로 바꾼다는 `ponytail` 메모가 있다 |
+| 서버 | Route Handler + `defineRoute`, Prisma (`@chulgeunkok/db`) |
+
+## 3. packages
+
+- `@chulgeunkok/db`: Prisma 6, 로컬·테스트는 PGlite (`createDbClient`, `@chulgeunkok/db/testing` 의 `createTestDb`). 확장 `btree_gist` 필요.
+- `@chulgeunkok/app-bridge`: 웹 ↔ 앱 메시지 Zod 스키마, `toAppPath`.
+
+## 4. apps/mobile
+
+- Expo SDK 58, React Native 0.88, `react-native-webview`, `expo-camera`(QR), `expo-secure-store`(기기 토큰), `expo-linking`(딥링크).
+- 화면은 전부 웹. 네이티브는 셸 역할만 (`webview-shell.mdc`).
+
+## 5. 명령 (루트)
+
+| 명령 | 내용 |
+|------|------|
+| `pnpm dev` | 웹 dev 서버 |
+| `pnpm build` | 웹 `next build` |
+| `pnpm typecheck` | 모든 패키지 `tsc --noEmit` |
+| `pnpm test` | 모든 패키지 vitest |
+| `pnpm db:dev` | PGlite 개발 DB + 데모 데이터 (dev 서버를 끈 상태에서) |
+| `pnpm db:migrate` / `db:validate` / `db:verify` | 마이그레이션 적용 / 스키마 검증 / 제약 동작 확인 |
+| `pnpm --filter @chulgeunkok/mobile ios` | Expo iOS 시뮬레이터 |

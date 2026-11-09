@@ -1,0 +1,44 @@
+---
+description: >-
+  출근콕 입력 검증 규칙. 요청 body/query, 외부 API 응답, WebView 메시지, 딥링크 URL,
+  env 등 신뢰 경계 값은 Zod로 검증한 뒤 쓴다.
+globs: "apps/web/src/**/*.{ts,tsx},packages/app-bridge/**/*.ts,apps/mobile/**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# Zod Validation First — 출근콕
+
+신뢰 경계에서 들어온 값은 Zod를 통과한 값만 쓴다.
+
+## 1. 경계와 위치
+
+| 경계 | 스키마 위치 | 사용 |
+|------|------------|------|
+| `/api/v1` 요청 body·query | `features/<domain>/schema.ts` | `defineRoute({ body, query })` — 실패 시 `400 VALIDATION_FAILED` |
+| 공용 값 (휴대폰·날짜·사유·멱등 키) | `shared/schema/common.ts` | `KoreanMobilePhone`, `LocalDate`, `Reason`, `IdempotencyKey` 재사용 |
+| 외부 API 응답 (카카오·국세청) | `server/integrations/*` | `safeParse` → 실패 시 도메인 ApiError |
+| 웹 ↔ 앱 메시지 | `packages/app-bridge` | `parseWebToApp` / `parseAppToWeb` — 받는 쪽에서 항상 검증 |
+| 딥링크·QR URL | `packages/app-bridge` `toAppPath` | 허용 경로 외 `null` |
+| 토큰 형식 | 도메인 `schema.ts` (`InvitationToken`) | 라우트 params 검증 |
+
+- 우리 서버 DTO 응답은 클라이언트에서 다시 검증하지 않는다 (`apiFetch` 의 `ponytail:` 주석). 외부 API만 검증.
+- 클라이언트 폼은 react-hook-form 없이 `useState`. 최종 검증은 서버 스키마가 정본이다. 클라이언트는 버튼 비활성·간단 체크만.
+
+## 2. 구현 규칙
+
+- 스키마와 타입은 같은 이름: `export const UpdateMemberBody = z.object(...)`; `export type UpdateMemberInput = z.infer<typeof UpdateMemberBody>`.
+- 정규화는 스키마에서 (`trim`, `transform` — 예: `KoreanMobilePhone` 이 E.164로 바꾼다).
+- 상호 조건은 `refine`/`superRefine`, 분기 모양은 `discriminatedUnion`.
+- 에러 문구는 사용자 노출 한국어 (`'휴대폰 번호를 확인해 주세요.'`).
+- query 값은 문자열로 들어온다. 숫자가 필요하면 `z.coerce.number()` 로 명시한다.
+
+## 3. 금지
+
+- `as` 캐스팅으로 외부 값 검증 우회.
+- `JSON.parse` 결과를 검증 없이 사용 (앱 메시지·스토리지).
+- 같은 규칙의 스키마를 도메인마다 복제 — `shared/schema/common.ts` 로 올린다.
+
+## 4. 관련
+
+- 스킬: `.cursor/skills/zod-validation-first/SKILL.md`
+- `api-routes.mdc`, `security-env.mdc`

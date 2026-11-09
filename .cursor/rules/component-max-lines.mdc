@@ -1,0 +1,22 @@
+---
+description: >-
+  React 컴포넌트 파일(TSX)은 300줄을 넘기지 않는다. 250줄 근처면 조각·훅·model 분리를 검토한다.
+globs: "**/*.tsx"
+alwaysApply: true
+---
+
+# 컴포넌트 파일 줄 수 (300줄)
+
+- TSX 파일을 수정·생성하기 전에 줄 수를 확인한다 (`wc -l`). 현재 가장 긴 화면은 약 220줄.
+- 파일 전체(import·타입·내부 조각 포함) **300줄 이하**. 250줄을 넘기면 이번 작업에서 분리를 검토한다.
+
+## 넘을 때
+
+- UI가 길면: 구역별 조각 파일 (`features/<domain>/ui/`), `component-one-per-file.mdc`.
+- 상태·핸들러가 길면: `useXxx.ts` 훅 (`logic-ui-separation.mdc`).
+- 순수 계산·상수: `model/` 또는 `*-labels.ts`.
+
+## 예외
+
+- 테스트 파일, 생성 코드.
+- 분리가 불가피하게 어색하면 커밋 본문에 이유를 남긴다.

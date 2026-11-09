@@ -1,0 +1,40 @@
+---
+description: 출근콕 framer-motion 인터랙션 타이밍·패턴·접근성 규칙
+globs: "apps/web/src/**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# Framer Motion — 출근콕
+
+구현 전 `animation-reuse-first.mdc` 로 `apps/web/src/shared/motion/` 를 먼저 확인한다.
+
+## 1. 원칙
+
+- 상태 전환(노출·숨김·성공·실패) 의미 전달이 우선. 장식 모션은 최소.
+- 짧고 명확하게. 출퇴근 펀치처럼 반복 동작 화면은 특히 짧게.
+
+## 2. 타이밍
+
+- 등장·퇴장 0.2~0.35s, 레이아웃 변화 0.2~0.3s.
+- ease `[0.22, 1, 0.36, 1]` 또는 `shared/motion/easing.ts` 의 값. spring은 bounce 낮게.
+
+## 3. 패턴
+
+- 노출·숨김: `AnimatePresence` + `motion.div`.
+- 높이 전환(아코디언·배너): `shared/motion/collapsibleHeightMotion.ts`·`CollapsibleExpandPanel`, 부모 `overflow: hidden`.
+- 모바일 우선 — `whileHover` 쓰지 않음, `whileTap` 은 최소.
+- 모션 로직은 화면에 쌓지 말고 역할이 드러나는 래퍼로 분리 (`*Motion.tsx`).
+- framer-motion 을 쓰는 파일은 `'use client'`.
+
+## 4. 접근성·성능
+
+- `useReducedMotion()` 이면 즉시 표시 (webviewkit 도 `prefers-reduced-motion` 에서 전환 0ms).
+- `transform`·`opacity` 우선. 레이아웃 시프트가 생기면 자리를 먼저 확보.
+- 긴 목록에 `layout` 남발 금지.
+
+## 5. 스타일 정합
+
+- 색·간격은 Seed 토큰 (`design-system.mdc`).
+- 하단 CTA·safe-area 를 깨지 않는지 RN WebView에서 확인 (`webview-shell.mdc`).
+
+스킬: `.cursor/skills/framer-motion-interaction/SKILL.md`

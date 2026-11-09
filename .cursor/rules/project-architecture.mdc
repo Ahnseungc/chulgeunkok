@@ -1,0 +1,52 @@
+---
+description: 출근콕 모노레포·apps/web 계층 구조 (app 라우트 → features/<domain>/{ui,server,model,schema.ts} → shared/server)
+alwaysApply: true
+---
+
+# Project Architecture — 출근콕
+
+## 1. 모노레포
+
+```
+apps/web         Next.js 15 App Router — 화면 + /api/v1 (RN 앱 WebView가 띄운다)
+apps/mobile      Expo 셸 — WebView·QR 스캐너·기기 토큰 보관 (docs/specs/auth §6)
+packages/db      Prisma 스키마·마이그레이션, createDbClient, 테스트용 createTestDb (PGlite)
+packages/app-bridge  웹 ↔ 앱 메시지 Zod 스키마·딥링크 경로 검증
+docs/specs/<domain>/README.md   기능 스펙 (정본)
+```
+
+## 2. apps/web/src
+
+| 경로 | 역할 |
+|------|------|
+| `app/**/page.tsx` | 라우트. 서버 컴포넌트, `params` 를 풀어 `features/*/ui/*Screen` 하나를 그린다. 로직 없음 |
+| `app/owner/[storeId]/layout.tsx` | 매장 하위 화면은 `OwnerStackApp` 이 스택으로 그린다. 하위 `page.tsx` 는 딥링크·새로고침용으로만 존재 |
+| `app/api/v1/**/route.ts` | `defineRoute` + 서비스 호출 (`api-routes.mdc`) |
+| `app/api/internal/jobs/[job]` | 배치 (CRON_SECRET) |
+| `features/<domain>/schema.ts` | 요청 Zod 스키마 |
+| `features/<domain>/model/` | DTO 타입·순수 규칙 (React·DB 무관, 서버·클라이언트 공용) |
+| `features/<domain>/server/` | 서비스 (`(db, input)`), DB 접근은 여기만 |
+| `features/<domain>/ui/` | `'use client'` 화면·조각·도메인 훅·라벨 |
+| `features/owner-stack/ui/OwnerStackApp.tsx` | 사장님 화면 스택 라우트 표 |
+| `server/` | `defineRoute`·`ApiError`·`error-codes`, 세션·권한(`auth/`), 외부 연동(`integrations/`), `db` |
+| `shared/lib/` | `apiFetch`, `useApiResource`, `app-shell`(RN 브리지), `format-time` |
+| `shared/ui/` | 공용 UI (`AppLink`, `Sheet`, `LabeledTextField`, `PeriodNav`, `QrImage`, `KokMark`) |
+| `shared/schema/common.ts` | 공용 Zod |
+| `shared/motion/` | 공용 모션 (framer-motion, `animation-reuse-first.mdc`) |
+| `app/globals.css` | 전역 CSS (Seed 토큰 사용) |
+
+도메인: `attendance`, `auth`, `dashboard`, `labor`, `payroll`, `staff`, `store` (스펙 폴더와 같은 이름).
+
+## 3. 의존 방향
+
+- `app` → `features` → `shared` / `server` / `@chulgeunkok/*`.
+- `ui` 는 `server` 를 import 하지 않는다 (서버 코드는 라우트로만 노출). 타입은 `model` 로 공유.
+- 도메인 간 서버 호출은 허용 (`member-service` → `labor/server/labor-context`). 순환이 생기면 `model` 로 내린다.
+- `packages/*` 는 `apps/*` 를 import 하지 않는다.
+
+## 4. 새 기능 순서
+
+1. `docs/specs/<domain>/README.md` 확인·갱신 (`docs-spec-by-feature.mdc`)
+2. 스키마 → 서비스(+테스트) → 라우트 → 훅 → 화면
+3. 매장 하위 화면이면 `OwnerStackApp` 에 Activity 추가 + `app/owner/[storeId]/.../page.tsx` 추가 (`use-stack-router.mdc`)
+4. DB 변경은 `packages/db/prisma` 마이그레이션 + README 마이그레이션 표

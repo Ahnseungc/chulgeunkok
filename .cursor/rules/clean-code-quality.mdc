@@ -1,0 +1,55 @@
+---
+description: >-
+  클린 코드 품질: 의미 있는 이름·매직 넘버 금지·함수 SRP/크기/인자 제한·조건 중첩 최소화·
+  완료 전 pnpm typecheck / pnpm test. TS/TSX 작성·리뷰·리팩터 시 적용.
+globs: "**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# Clean Code Quality — 출근콕
+
+네이밍 세부는 `naming-types.mdc`, 포맷은 `code-style.mdc`와 함께 본다.
+
+## 1. 네이밍·상수
+
+- 이름만으로 역할이 드러나야 한다. `tmp`, `data2`, `handleStuff` 금지.
+- 도메인 의미가 있는 숫자·문자열은 파일 상단 명명 상수로 (`const OWNER_LOGIN_PATH = '/owner/login'`, `ROLE_ORDER`).
+  - 법정 기준값(최저임금·야간 시간대 등)은 `features/labor/model/`·DB 규칙 버전에서 가져온다. 화면에 하드코딩 금지.
+  - 색은 Seed 토큰 (`design-system.mdc`). 임의 Hex 금지.
+  - `0`/`1`/`-1`·빈 길이 비교 같은 관용 리터럴은 예외.
+
+## 2. 함수
+
+- **SRP**: 조회 + 변환 + 화면 문구 + 이동을 한 함수에 넣지 않는다.
+- **크기**: 로직 함수(서비스 헬퍼·model 규칙·훅 내부)는 20~30줄 안팎. 넘으면 추출. 컴포넌트 JSX는 `component-max-lines.mdc`(300줄).
+- **인자**: 최대 3개. 서비스는 `(db, input)` 두 인자 패턴 — `input` 객체로 묶는다.
+
+```ts
+// ✅ 기존 서비스 시그니처
+export async function listMembers(
+  db: PrismaClient,
+  input: { storeId: string; actorUserId: string; status: 'ACTIVE' | 'INACTIVE' },
+): Promise<MemberSummaryDto[]>
+```
+
+## 3. 조건
+
+- 복잡한 `if/else`·`switch` 대신 `Record` 맵(`ROLE_LABEL`, `ERROR_CODES`).
+- 중첩 Depth ≤ 2. early return으로 평탄화.
+
+## 4. Definition of Done (완료 전 필수)
+
+| 단계 | 명령 (루트) | 비고 |
+|------|------------|------|
+| 타입 | `pnpm typecheck` | 전 워크스페이스 `tsc --noEmit` |
+| 테스트 | `pnpm test` 또는 `pnpm --filter @chulgeunkok/web test -- <path>` | 로직·서비스 변경 시 |
+| DB 제약 | `pnpm db:verify` | 마이그레이션·제약 변경 시 |
+
+- 린트 스크립트는 없다. 지어내서 실행하지 않는다.
+- 로직 변경은 `exception-handling.mdc` 실패 경로까지 처리해야 완료.
+- 검증을 건너뛰고 "완료"라고 하지 않는다. 못 돌렸으면 이유를 적는다.
+
+## 5. 관련
+
+- 스킬: `.cursor/skills/clean-code-quality/SKILL.md`
+- `ponytail.mdc` — 충돌 시 품질 가드(이름·상수·SRP·검증)는 유지하고 불필요한 추상화만 줄인다.

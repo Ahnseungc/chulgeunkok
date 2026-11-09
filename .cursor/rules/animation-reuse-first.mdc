@@ -1,0 +1,29 @@
+---
+description: >-
+  모션 작업 시 apps/web/src/shared/motion/ 공용 컴포넌트·프리셋을 먼저 확인하고, 없을 때만 새로 만든다.
+globs: "apps/web/src/**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# 애니메이션 — 공용 모션 우선
+
+공용 모션은 **`apps/web/src/shared/motion/`** (framer-motion) 한 곳에 둔다. 화면마다 같은 등장·카운트업을 복붙하지 않는다.
+
+## 탐색 순서 (구현 전)
+
+1. `ls apps/web/src/shared/motion/` — 컴포넌트(`Entrance`, `TitleEntrance`, `TextEntrance`, `StaggeredEntrance`, `CardStaggerList`, `AnimatedNumber`, `SmoothCountUpNumber`, `ExpandFadeReveal`, `CollapsibleExpandPanel`, `TabUnderline` …)와 프리셋(`easing.ts`, `entranceStyleMotion.ts`, `pageEntranceMotion.ts`, `collapsibleHeightMotion.ts`, `sheetMotion.ts` …). 구성은 정리 중일 수 있으니 매번 목록으로 확인한다.
+2. 도메인 전용 모션: `features/<domain>/ui/*Motion.tsx`. 두 번째 화면에서 쓰이면 `shared/motion/` 으로 올린다.
+3. 없으면 신규. 가능하면 `entranceStyleMotion`·`easing` 상수를 베이스로 얇게.
+
+## 먼저 물을 것
+
+- 스택 전환은 webviewkit 이 이미 한다 (`transition="slide"`). 화면 진입 모션을 겹치지 않는다.
+- CSS `transition` 한 줄로 되면 framer-motion 을 쓰지 않는다 (`ponytail.mdc`). Seed 토큰 `--seed-duration-*`, `--seed-timing-function-*` 사용 가능.
+
+## 금지
+
+- 화면 파일에 `motion.*`·`AnimatePresence` 를 길게 인라인.
+- Seed 컴포넌트 내부를 모션 때문에 덮어쓰기 (감싸서 적용).
+- `useReducedMotion` 무시.
+
+관련: `framer-motion-interaction.mdc`, 스킬 `.cursor/skills/animation-reuse-first/SKILL.md`

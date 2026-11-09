@@ -1,0 +1,42 @@
+---
+description: 출근콕 테스트 규칙 — vitest, 대상 옆 *.test.ts(x), 서비스는 createTestDb(PGlite), 순수 규칙은 model/ 단위 테스트, 렌더는 jsdom + RTL
+globs: "**/*.test.{ts,tsx},apps/web/src/features/**/*.ts,packages/**/*.ts"
+alwaysApply: false
+---
+
+# Testing — 출근콕
+
+## 1. 도구·실행
+
+- vitest 3. 설정: `apps/web/vitest.config.ts` (`include`, `environment` 확인), `packages/app-bridge`.
+- 전체: `pnpm test` / 웹만: `pnpm --filter @chulgeunkok/web test` / 파일: `pnpm --filter @chulgeunkok/web test -- src/features/staff/server/member-service.test.ts`
+- DB 제약: `pnpm db:verify`.
+- E2E(Playwright 등)·Storybook 은 없다.
+
+## 2. 무엇을 테스트하나
+
+| 대상 | 방식 | 예 |
+|------|------|-----|
+| 순수 규칙 (`model/`) | 입력→출력 단위 테스트, 경계값 | `work-time.test.ts`, `labor-rules.test.ts`, `payroll-csv.test.ts` |
+| 서버 서비스 | `createTestDb()` 로 실제 마이그레이션·제약 적용한 PGlite + 시드 → 서비스 호출 → 결과·`ApiError` 코드 | `member-service.test.ts`, `punch-service.test.ts` |
+| 스키마 | 정상·거부 케이스 | `labor/schema.test.ts`, `shared/schema/common.test.ts` |
+| HTTP 공통 | 래퍼·인증 단위 테스트 | `define-route.test.ts`, `cron-auth.test.ts` |
+| UI 쪽 순수 함수 | 훅 파일에서 export 한 변환 함수 | `retry-punch.test.ts` |
+| 웹 ↔ 앱 계약 | 메시지·경로 파싱 | `packages/app-bridge/src/index.test.ts` |
+| 컴포넌트 렌더 | `*.test.tsx` + 파일 맨 위 `/** @vitest-environment jsdom */` + `@testing-library/react` | `shared/motion/motion.test.tsx`, `motion-reduced.test.tsx` |
+
+- 기본 환경은 node (`vitest.config.ts`). DOM 이 필요한 파일만 jsdom 주석으로 바꾼다.
+- 렌더 테스트는 분기·접근성(role, `aria-*`)·reduced-motion 처럼 깨지기 쉬운 동작만. 로직은 순수 함수로 빼서 `.test.ts` 가 우선.
+
+## 3. 작성 규칙
+
+- 대상 옆에 `*.test.ts(x)`. `describe`/`it` 문장은 한국어 동작 설명.
+- 시각은 고정 (`const NOW = new Date('2026-11-04T01:00:00Z')`) — 서비스가 `now` 를 입력으로 받게 한다.
+- 성공 + **실패 케이스**(권한 `FORBIDDEN`, 다른 매장 `NOT_FOUND`, 상태 충돌)를 함께.
+- 법정 계산·금액은 스펙 예시 숫자를 그대로 테스트로 옮긴다.
+- 외부 API 는 실제 호출하지 않는다. 키 없음 → 개발용 응답 경로(`dev-fallback.ts`) 또는 주입한 fetch.
+- `beforeEach` 에서 DB 생성, `afterEach` 에서 `close()`.
+
+## 4. 최소 원칙
+
+비사소 로직은 깨지면 실패하는 테스트 하나를 남긴다 (`ponytail.mdc`). 한 줄짜리는 생략.

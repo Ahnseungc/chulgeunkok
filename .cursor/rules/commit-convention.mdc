@@ -1,0 +1,33 @@
+---
+description: 출근콕 커밋 메시지 규격(feat: 한글 설명)과 커밋 작성자 계정 고정 (Ahnseungc noreply, 회사 계정 금지)
+alwaysApply: true
+---
+
+# Commit Convention — 출근콕
+
+## 1. 작성자 계정 (필수)
+
+이 저장소(`github.com/Ahnseungc/chulgeunkok`)는 개인 저장소다. 커밋 작성자는 **반드시**:
+
+```
+안승찬 <94547692+Ahnseungc@users.noreply.github.com>
+```
+
+- 커밋 전 `git config user.name` / `git config user.email` 을 확인한다. 다르면 커밋하지 말고 사용자에게 알린다.
+- **회사 계정으로 커밋하지 않는다.** 전역 git 설정이 회사 계정이어도 이 저장소에서는 안 된다. 실수로 만들었으면 push 전에 사용자에게 알리고 작성자 수정을 제안한다.
+- `git config` 를 에이전트가 임의로 바꾸지 않는다 (사용자 요청 시에만, 로컬 `--local` 로).
+
+## 2. 형식
+
+```
+<type>: <한글 설명>
+
+[선택: 상세 설명]
+```
+
+- 타입: `feat` 기능 · `fix` 버그 · `docs` 문서 · `style` 포맷 · `refactor` 구조 · `test` 테스트 · `chore` 빌드·도구
+- 설명은 한글, 동작 중심, 마침표 없음. 기존 히스토리 톤을 따른다:
+  - `feat: webviewkit 2.3.0 으로 올리고 되살아난 목록을 다시 불러온다`
+  - `feat: 매장 설정 (이름·정산 시작일·사업장 규모·QR 재발급)`
+  - `docs: README 마이그레이션 표에 0002 추가`
+- AI 도구가 정한 `Co-Authored-By` 트레일러가 있으면 본문 끝 빈 줄 뒤에 둔다.

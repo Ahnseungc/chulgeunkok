@@ -1,0 +1,44 @@
+---
+description: 출근콕 접근성(a11y)·메타데이터 규칙 — 시맨틱 HTML, aria, role=alert, 포커스, alt, 줌 허용
+globs: "apps/web/src/**/*.tsx"
+alwaysApply: false
+---
+
+# Accessibility & Metadata — 출근콕
+
+## 1. 시맨틱
+
+- 화면 루트 `<main className="screen">`, 제목 `<Text as="h1">`, 목록 `ul`/`li`, 문단 `Text as="p"`.
+- 클릭 가능한 것은 `<a href>`(이동) 또는 `<button>`/`ActionButton`(동작). `div onClick` 금지.
+
+## 2. ARIA
+
+- 네이티브 시맨틱으로 되면 ARIA 없이.
+- 아이콘만 있는 버튼: `aria-label` 필수. 장식 아이콘·SVG: `aria-hidden="true"`.
+- 토글 그룹: `role="group" aria-label="직원 상태"` + 버튼 `aria-pressed` (`MembersScreen` 의 `.segmented`).
+- 오류 문구: `role="alert"`. 상태 변화 안내(저장됨)는 `role="status"`.
+- 시트·다이얼로그: `shared/ui/Sheet` (`<dialog>` + `aria-label`) — 포커스 가두기·ESC 를 브라우저가 맡는다.
+
+## 3. 이미지
+
+- `next/image`·`<img>` 에 의미 있는 `alt`. 장식은 `alt=""`.
+- QR 이미지(`QrImage`)는 용도를 `alt` 로 ("직원 등록 QR").
+
+## 4. 포커스·키보드
+
+- 포커스 링을 지우지 않는다. 바꿀 땐 `:focus-visible`.
+- 링크는 실제 `href` 를 유지한다 (`AppLink` — 수정키 클릭은 기본 동작).
+
+## 5. Viewport
+
+- `app/layout.tsx` 의 `viewport` 에 `maximumScale`·`userScalable: false` 를 넣지 않는다 (확대 허용).
+
+## 6. 색 대비
+
+- 보조 텍스트는 `fg.neutralMuted` 까지. 더 연한 색을 본문에 쓰지 않는다.
+- 상태 색만으로 의미를 전달하지 않는다 — 배지에 텍스트 라벨을 함께 (`근무 중`, `근로조건 필요`).
+
+## 7. 메타데이터
+
+- 기본 `title: '출근콕'` 은 `app/layout.tsx`. 화면별 제목이 필요하면 해당 `page.tsx` 에서 `metadata` export.
+- 사장님·직원 화면은 로그인 뒤 화면이라 SEO 대상이 아니다. 공개 페이지가 생기면 그때 `description`·OG 를 넣는다.

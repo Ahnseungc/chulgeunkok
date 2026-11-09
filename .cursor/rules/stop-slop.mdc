@@ -1,0 +1,14 @@
+---
+description: >-
+  UI 카피·스펙(`docs/specs/`)·PR·docs 문장에서 AI 슬롭을 줄인다. 코딩 전역에는 적용하지 않음.
+  스킬: .cursor/skills/stop-slop
+alwaysApply: false
+---
+
+# Stop Slop (요청 시에만)
+
+카피·문서·PR 본문을 **다듬을 때** `.cursor/skills/stop-slop/SKILL.md` 를 읽는다.
+
+- 예고 문구·not-X-but-Y·빈말 형용사 제거
+- 구체적 대상·경로·스펙 절(예: `docs/specs/staff §5.1`)
+- `communication-preferences`·PR/커밋 규격과 충돌하면 팀 규격 우선

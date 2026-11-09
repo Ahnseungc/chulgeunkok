@@ -1,0 +1,29 @@
+---
+description: >-
+  GitHub PR 본문 작성 규칙 — 실제 줄바꿈 마크다운(--body-file), 요약·스펙 링크·변경 사항·검증·스크린샷 섹션.
+alwaysApply: false
+---
+
+# GitHub PR 본문 — 출근콕
+
+PR 템플릿 파일은 없다. 아래 섹션 순서를 쓴다.
+
+## 규칙
+
+0. PR 전 rebase: `github-pr-rebase-before-open.mdc`.
+1. `gh pr create --body-file <파일>` — 본문에 리터럴 `\n` 금지.
+2. 변경 사항은 `- ` 불릿, 파일·명령·env 이름은 백틱.
+3. 관련 스펙 절을 링크한다 (`docs/specs/staff/README.md` §5).
+4. 새 환경 변수가 있으면 이름·용도와 `apps/web/.env.example` 갱신 여부를 적는다.
+5. DB 마이그레이션이 있으면 폴더 이름(`packages/db/prisma/migrations/000N_...`)을 적는다.
+
+## 섹션
+
+1. 요약 (필수)
+2. 스펙 (해당 시)
+3. 변경 사항 (필수)
+4. 검증 — 실행한 명령 (`pnpm typecheck`, `pnpm test`, `pnpm db:verify`)
+5. 마이그레이션·환경 변수 (해당 시)
+6. 스크린샷 (UI 변경 시, 브라우저·앱)
+
+스킬: `.cursor/skills/github-pr-description/SKILL.md`
