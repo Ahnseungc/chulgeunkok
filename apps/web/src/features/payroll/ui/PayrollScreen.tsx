@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnRevive } from '@ahnseungchan/webviewkit';
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
@@ -24,7 +25,9 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
   const [periodStart, setPeriodStart] = useState<string | undefined>();
   const [exportDetail, setExportDetail] = useState<boolean | null>(null);
   const query = periodStart ? `?periodStart=${periodStart}` : '';
-  const { data, errorMessage } = useApiResource<PayrollPreviewDto>(`/api/v1/stores/${storeId}/payroll/preview${query}`);
+  const { data, errorMessage, reload } = useApiResource<PayrollPreviewDto>(`/api/v1/stores/${storeId}/payroll/preview${query}`);
+  // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
+  useOnRevive(() => void reload());
 
   const exportUrl = (detail: boolean) =>
     `/api/v1/stores/${storeId}/payroll/export?periodStart=${data?.period.start ?? ''}${detail ? '&detail=1' : ''}`;

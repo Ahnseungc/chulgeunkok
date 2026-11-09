@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnRevive } from '@ahnseungchan/webviewkit';
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
@@ -32,6 +33,11 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
   });
   const list = useApiResource<AttendanceListDto>(`/api/v1/stores/${storeId}/attendances?${query}`);
   const members = useApiResource<{ members: MemberSummaryDto[] }>(`/api/v1/stores/${storeId}/members?status=ACTIVE`);
+  // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
+  useOnRevive(() => {
+    void list.reload();
+    void members.reload();
+  });
 
   return (
     <main className="screen">

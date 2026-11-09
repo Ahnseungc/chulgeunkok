@@ -12,7 +12,6 @@ import PayrollScreen from '@/features/payroll/ui/PayrollScreen';
 import MemberDetailScreen from '@/features/staff/ui/MemberDetailScreen';
 import MembersScreen from '@/features/staff/ui/MembersScreen';
 import SettingsScreen from '@/features/store/ui/SettingsScreen';
-import { InStackContext } from '@/shared/ui/AppLink';
 
 interface OwnerStackAppProps {
   storeId: string;
@@ -67,8 +66,6 @@ export default function OwnerStackApp({ storeId }: OwnerStackAppProps) {
   }, [base, storeId]);
 
   return (
-    <InStackContext.Provider value>
-      <StackRouterProvider initialActivity={initialActivity} Activities={activities} maxWidth="100%" />
-    </InStackContext.Provider>
+    <StackRouterProvider initialActivity={initialActivity} Activities={activities} maxWidth="100%" />
   );
 }

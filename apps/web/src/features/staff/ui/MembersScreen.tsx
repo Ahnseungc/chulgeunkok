@@ -1,5 +1,6 @@
 'use client';
 
+import { useOnRevive } from '@ahnseungchan/webviewkit';
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
@@ -24,6 +25,8 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
   const { data, errorMessage, reload } = useApiResource<{ members: MemberSummaryDto[] }>(
     `/api/v1/stores/${storeId}/members?status=${status}`,
   );
+  // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
+  useOnRevive(() => void reload());
 
   return (
     <main className="screen">

@@ -57,20 +57,14 @@ importers:
   apps/web:
     dependencies:
       '@ahnseungchan/webviewkit':
-        specifier: 2.2.0
-        version: 2.2.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 2.3.0
+        version: 2.3.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@chulgeunkok/app-bridge':
         specifier: workspace:*
         version: link:../../packages/app-bridge
       '@chulgeunkok/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@emotion/react':
-        specifier: ^11.14.0
-        version: 11.14.0(@types/react@19.3.0)(react@19.3.1)
-      '@emotion/styled':
-        specifier: ^11.14.1
-        version: 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(react@19.3.1)
       '@seed-design/css':
         specifier: ^3.1.0
         version: 3.1.0
@@ -170,12 +164,10 @@ packages:
       typescript:
         optional: true
 
-  '@ahnseungchan/webviewkit@2.2.0':
-    resolution: {integrity: sha512-kBgD4OD00X6sZbBKjI9WoaCsvmpQGQBocqFB2E9u7Et60PwrRazvdRfuhHAL4bZ9xlNZZhhhwCQw+EO6gJ4VIA==}
+  '@ahnseungchan/webviewkit@2.3.0':
+    resolution: {integrity: sha512-Z/hZz2mTz2fyBYZqPVrIIe9L4vucZckngwH6KmVP3brSJ6Sym5yXSRxIxvgZ/T38zCtBugRu9DcliaDzMIE8DQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@emotion/react': '>=11.0.0'
-      '@emotion/styled': '>=11.0.0'
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
@@ -3926,12 +3918,15 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@ahnseungchan/webviewkit@2.2.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@ahnseungchan/webviewkit@2.3.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.3.0)(react@19.3.1)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - supports-color
 
   '@babel/code-frame@7.29.7':
     dependencies:
