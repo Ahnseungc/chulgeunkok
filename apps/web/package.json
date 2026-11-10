@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ahnseungchan/webviewkit": "2.3.0",
+    "@ahnseungchan/webviewkit": "2.4.0",
     "@chulgeunkok/app-bridge": "workspace:*",
     "@chulgeunkok/db": "workspace:*",
     "@seed-design/css": "^3.1.0",

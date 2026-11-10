@@ -12,6 +12,7 @@ import PayrollScreen from '@/features/payroll/ui/PayrollScreen';
 import MemberDetailScreen from '@/features/staff/ui/MemberDetailScreen';
 import MembersScreen from '@/features/staff/ui/MembersScreen';
 import SettingsScreen from '@/features/store/ui/SettingsScreen';
+import { useIsIosApp } from '@/shared/lib/app-shell';
 
 interface OwnerStackAppProps {
   storeId: string;
@@ -64,8 +65,15 @@ export default function OwnerStackApp({ storeId }: OwnerStackAppProps) {
     ];
     return { initialActivity: dashboard, activities: list };
   }, [base, storeId]);
+  // iOS 앱은 엣지 스와이프 back 을 WKWebView 가 이미 슬라이드한다. popstate 전환까지 애니메이션하면 두 번 밀린다
+  const iosApp = useIsIosApp();
 
   return (
-    <StackRouterProvider initialActivity={initialActivity} Activities={activities} maxWidth="100%" />
+    <StackRouterProvider
+      initialActivity={initialActivity}
+      Activities={activities}
+      maxWidth="100%"
+      popStateTransition={iosApp ? 'none' : 'animate'}
+    />
   );
 }

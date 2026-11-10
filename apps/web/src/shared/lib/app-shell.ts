@@ -19,6 +19,18 @@ export function useIsInApp(): boolean {
   return inApp;
 }
 
+/**
+ * iOS 앱 안인지. 앱 WebView 는 엣지 스와이프 back(allowsBackForwardNavigationGestures)을 네이티브가 슬라이드해 준다.
+ * 마운트 뒤에 판단한다 (useIsInApp 과 같은 이유)
+ */
+export function useIsIosApp(): boolean {
+  const [iosApp, setIosApp] = useState(false);
+  useEffect(() => {
+    setIosApp(Boolean(window.ReactNativeWebView) && /iPhone|iPad|iPod/.test(navigator.userAgent));
+  }, []);
+  return iosApp;
+}
+
 export function postToApp(message: WebToAppMessage): void {
   window.ReactNativeWebView?.postMessage(JSON.stringify(message));
 }

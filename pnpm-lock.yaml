@@ -60,8 +60,8 @@ importers:
   apps/web:
     dependencies:
       '@ahnseungchan/webviewkit':
-        specifier: 2.3.0
-        version: 2.3.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 2.4.0
+        version: 2.4.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@chulgeunkok/app-bridge':
         specifier: workspace:*
         version: link:../../packages/app-bridge
@@ -179,8 +179,8 @@ packages:
       typescript:
         optional: true
 
-  '@ahnseungchan/webviewkit@2.3.0':
-    resolution: {integrity: sha512-Z/hZz2mTz2fyBYZqPVrIIe9L4vucZckngwH6KmVP3brSJ6Sym5yXSRxIxvgZ/T38zCtBugRu9DcliaDzMIE8DQ==}
+  '@ahnseungchan/webviewkit@2.4.0':
+    resolution: {integrity: sha512-gUUqptZVyJPJoCvLgeUntwC5wJ2jcq//HD/gXwyAXGyUquYEEumjsbgQE5GD0bnxVZSQ42KL1s3O/wxTUTdCbg==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
@@ -4117,7 +4117,7 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  '@ahnseungchan/webviewkit@2.3.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@ahnseungchan/webviewkit@2.4.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@emotion/react': 11.14.0(@types/react@19.3.0)(react@19.3.1)
       '@emotion/styled': 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(react@19.3.1)
