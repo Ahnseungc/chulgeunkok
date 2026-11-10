@@ -1,4 +1,7 @@
 import '@seed-design/css/all.css';
+// 한글 웹폰트. 기기에 한글 시스템 폰트가 없어도(일부 Android WebView·iOS 시뮬레이터) 같은 글꼴로 보인다.
+// dynamic subset 이라 화면에 나온 글자 묶음만 받는다
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 
 import type { Metadata, Viewport } from 'next';

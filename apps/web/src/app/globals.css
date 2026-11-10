@@ -8,7 +8,7 @@ body {
   margin: 0;
   background: var(--seed-color-bg-layer-default);
   color: var(--seed-color-fg-neutral);
-  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  font-family: 'Pretendard Variable', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
