@@ -71,9 +71,7 @@ export const DEV_SCREEN_GROUPS: DevScreenGroup[] = [
   },
 ];
 
-/** dev 로그인 후 path 로 보내는 주소 */
-export function devLoginHref(screen: Pick<DevScreen, 'path' | 'as'>): string {
-  const params = new URLSearchParams({ next: screen.path });
-  if (screen.as) params.set('as', screen.as);
-  return `/api/dev/login?${params.toString()}`;
+/** dev 로그인 API 주소 (POST). `as` 가 없으면 로그아웃 */
+export function devLoginUrl(as: DevUserId | null): string {
+  return as ? `/api/dev/login?as=${as}` : '/api/dev/login';
 }
