@@ -71,4 +71,45 @@
 
 법령 해석은 설계 단계의 가정이라 출시 전에 공인노무사 검토를 받는다.
 
-Next.js 15 · React 19 · TypeScript · Expo · Prisma · PostgreSQL
+## 기술
+
+Next.js 15 · React 19 · TypeScript · Expo · Prisma · PostgreSQL · Zod · Vitest
+
+```
+apps/web          Next.js. 화면과 /api/v1
+apps/mobile       Expo 셸. WebView, QR 스캐너, 기기 토큰 보관
+packages/db       Prisma 스키마, 마이그레이션, 테스트용 PGlite DB
+packages/app-bridge  웹과 앱이 주고받는 메시지 스키마
+```
+
+### 앱은 WebView 셸로 만들었다
+
+- 화면은 전부 Next.js로 만들고 Expo 앱이 WebView로 띄운다. 화면 전환은 직접 만든 [WebViewKit](https://www.npmjs.com/package/@ahnseungchan/webviewkit)으로 네이티브 스택처럼 넘긴다.
+- 웹과 앱은 `packages/app-bridge`의 Zod 스키마 하나를 같이 쓰고, 메시지를 받는 쪽에서 매번 검증한다. 앱은 `/p/…`, `/invite/…` 경로만 열고 나머지 URL은 무시한다.
+- 기기 토큰은 JS에 넘기지 않는다. 웹이 60초짜리 일회용 코드를 앱에 주면 앱이 그 코드를 토큰으로 바꿔 Keychain·Keystore에 둔다.
+- 위치는 WebView geolocation 대신 앱이 네이티브로 받아 웹에 넘긴다. iOS가 앱 권한과 사이트 권한을 두 번 묻지 않게 하려고.
+
+### 출퇴근은 서버가 정한다
+
+- 직원이 출근/퇴근을 고르지 않는다. 서버가 열린 근무가 있는지 보고 다음 동작을 정해서 잘못 누를 수가 없다.
+- 찍기 요청에는 `Idempotency-Key` 헤더가 필수다. 전파가 약한 매장에서 재시도해도 한 번만 기록된다.
+- 근무 시각은 서버가 받은 시각만 쓴다. 휴대폰 시계를 바꿔도 소용없다.
+
+### 규칙은 DB에서도 막는다
+
+- 직원 한 명에게 열린 근무는 하나만 (부분 유니크 인덱스)
+- 퇴근 시각은 출근 시각 뒤, 시급은 0보다 크게 (CHECK)
+- 같은 직원의 근로조건 기간은 겹칠 수 없음 (`btree_gist` EXCLUDE 제약)
+
+서비스 코드가 놓쳐도 DB가 거절한다. Prisma 스키마로 표현이 안 되는 제약은 SQL 마이그레이션으로 따로 뒀다.
+
+### 정산과 노무 계산
+
+- 근무시간·급여 계산은 순수 함수로 분리해 테스트한다. 초 단위 정수로 계산하고, 직원별 정산 기간 합계에서 원 미만을 한 번만 올린다.
+- 최저임금 같은 기준은 연도별 규칙(`LaborRuleSet`)으로 DB에 넣었다. 검토 안내에는 사유 코드와 규칙 버전을 남겨서 같은 안내가 반복해서 뜨지 않는다.
+- 퇴근 누락 전환(10분마다)과 결근·야간·연장 재평가(매일 06:00)는 외부 스케줄러가 부르는 배치 API다.
+
+### 테스트
+
+- Vitest 테스트 파일 46개. DB가 걸린 서비스 테스트는 PGlite(Node에서 도는 Postgres) 위에 실제 마이그레이션을 올려서 제약까지 같이 확인한다.
+- 로컬 개발도 Postgres 설치 없이 PGlite 파일 DB로 돌아간다. 데모 매장·직원·QR이 같이 들어간다.
