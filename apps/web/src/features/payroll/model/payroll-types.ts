@@ -9,7 +9,7 @@ export interface PayrollMemberDto {
   recognizedSeconds: number;
   basePayEstimate: number;
   byWage: { hourlyWage: number; recognizedSeconds: number }[];
-  /** 예상 주휴·가산수당 (docs/specs/payroll §3.6) */
+  /** 예상 주휴·가산·유급휴일수당 (docs/specs/payroll §3.6·§3.7) */
   allowances: AllowanceEstimate;
   /** 정산에 들어간(CLOSED) 근무 수 */
   attendanceCount: number;
@@ -34,7 +34,7 @@ export interface PayrollPreviewDto {
 }
 
 /** 정산 화면 하단 고지 (docs/specs/payroll §6) */
-export const PAYROLL_DISCLAIMER = '예상 금액이에요. 공제는 빠져 있고, 주휴수당은 끝난 주만 넣었어요.';
+export const PAYROLL_DISCLAIMER = '예상 금액이에요. 공제는 빠져 있고, 주휴·유급휴일수당은 지난 날만 넣었어요.';
 /** 가산수당을 계산하지 않은 기간 안내 (PRD §5.6) */
 export const PREMIUM_NOT_APPLIED_NOTE = {
   UNDER_5: '5인 미만 사업장은 연장·야간·휴일 가산수당을 넣지 않았어요.',
@@ -50,9 +50,10 @@ const ALLOWANCE_LABELS = [
   ['연장', 'overtimePremium'],
   ['야간', 'nightPremium'],
   ['휴일', 'holidayPremium'],
+  ['유급휴일', 'paidHolidayPay'],
 ] as const;
 
-/** 0원이 아닌 주휴·가산 항목만 "주휴 80,000원 · 연장 10,000원" */
+/** 0원이 아닌 주휴·가산·유급휴일 항목만 "주휴 80,000원 · 연장 10,000원" */
 export const formatAllowanceBreakdown = (allowances: AllowanceEstimate) =>
   ALLOWANCE_LABELS.filter(([, key]) => allowances[key] > 0)
     .map(([label, key]) => `${label} ${formatWon(allowances[key])}`)

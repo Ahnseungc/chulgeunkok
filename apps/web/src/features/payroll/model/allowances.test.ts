@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { closedWeekStarts, estimateAllowances, type AllowanceTerms, type AllowanceWork } from './allowances';
+import { isPaidHoliday } from './public-holidays';
 import { toLocalDate, toSegments } from './work-time';
 
 const kst = (local: string) => new Date(`${local}+09:00`);
@@ -34,14 +35,18 @@ const work = (clockIn: string, clockOut: string, terms = fullTime): AllowanceWor
 /** 11/2(월)~11/6(금) 소정대로 근무 */
 const fullWeek = ['02', '03', '04', '05', '06'].map((day) => work(`2026-11-${day}T09:00:00`, `2026-11-${day}T18:00:00`));
 
-const estimate = (works: AllowanceWork[], options: { fiveOrMore?: boolean; today?: string; terms?: AllowanceTerms } = {}) =>
+const estimate = (
+  works: AllowanceWork[],
+  options: { fiveOrMore?: boolean; today?: string; terms?: AllowanceTerms; period?: { start: string; end: string } } = {},
+) =>
   estimateAllowances({
-    period: PERIOD,
+    period: options.period ?? PERIOD,
     today: options.today ?? '2026-11-20',
     terms: [options.terms ?? fullTime],
     attendedDates: new Set(works.map((item) => toLocalDate(item.clockInAt))),
     works,
     isFiveOrMore: () => options.fiveOrMore ?? false,
+    isPaidHoliday: (localDate) => isPaidHoliday(localDate, options.fiveOrMore ?? false),
   });
 
 describe('closedWeekStarts', () => {
@@ -108,5 +113,33 @@ describe('가산수당 (5인 이상)', () => {
     // 월 소정 5h, 7h 근무 → 연장 2h. 소정 없는 화요일 3h → 전부 연장
     const works = [work('2026-11-02T09:00:00', '2026-11-02T16:00:00', partTime), work('2026-11-03T09:00:00', '2026-11-03T12:00:00', partTime)];
     expect(estimate(works, { fiveOrMore: true, terms: partTime }).overtimeSeconds).toBe(5 * 3600);
+  });
+});
+
+describe('유급휴일 (payroll §3.7)', () => {
+  const OCTOBER = { start: '2026-10-01', end: '2026-11-01' };
+  /** 10/5(월) 개천절 대체공휴일·10/9(금) 한글날은 쉬고 10/6~10/8 근무 */
+  const holidayWeek = ['06', '07', '08'].map((day) => work(`2026-10-${day}T09:00:00`, `2026-10-${day}T18:00:00`));
+
+  it('5인 이상이면 소정 근무일인 공휴일은 쉬어도 소정근로분을 받고, 주휴 개근도 깨지지 않는다', () => {
+    const result = estimate(holidayWeek, { fiveOrMore: true, period: OCTOBER, today: '2026-10-20' });
+    expect([result.paidHolidayDays, result.paidHolidayPay, result.weeklyHolidayPay]).toEqual([2, 160000, 80000]);
+  });
+
+  it('5인 미만이면 공휴일은 유급휴일이 아니고, 쉰 날은 결근이다', () => {
+    const result = estimate(holidayWeek, { fiveOrMore: false, period: OCTOBER, today: '2026-10-20' });
+    expect([result.paidHolidayPay, result.weeklyHolidayPay]).toEqual([0, 0]);
+  });
+
+  it('노동절은 5인 미만이어도 유급휴일', () => {
+    const terms = { ...fullTime, effectiveFrom: kst('2026-01-01T00:00:00') };
+    const result = estimate([], { fiveOrMore: false, terms, period: { start: '2026-05-01', end: '2026-06-01' }, today: '2026-05-20' });
+    expect([result.paidHolidayDays, result.paidHolidayPay]).toEqual([1, 80000]);
+  });
+
+  it('5인 이상 공휴일 근무는 휴일근로로 가산하고 연장으로 세지 않는다', () => {
+    const result = estimate([work('2026-10-09T09:00:00', '2026-10-09T20:00:00')], { fiveOrMore: true, period: OCTOBER, today: '2026-10-20' });
+    // 11h − 휴게 1h = 10h → 8h×50% + 2h×100%
+    expect([result.holidaySeconds, result.holidayPremium, result.overtimeSeconds]).toEqual([10 * 3600, 60000, 0]);
   });
 });

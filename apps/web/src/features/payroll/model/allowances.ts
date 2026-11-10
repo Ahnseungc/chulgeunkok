@@ -1,5 +1,5 @@
 /**
- * 예상 주휴수당·가산수당 (순수 함수). 정본: docs/specs/payroll §3.6
+ * 예상 주휴수당·가산수당·유급휴일수당 (순수 함수). 정본: docs/specs/payroll §3.6·§3.7
  * 기준값은 노무사 검증 전 설계 가정 (인덱스 Q6). 모두 "예상"이며 실제 지급액이 아니다.
  */
 
@@ -21,6 +21,7 @@ import {
 import { localMidnight, type PayPeriod, type WorkSegment } from './work-time';
 
 const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
 const SECONDS_PER_HOUR = 3600;
 const DAY_MS = 24 * SECONDS_PER_HOUR * 1000;
 const WEEK_DAYS = 7;
@@ -59,6 +60,8 @@ export interface AllowanceInput {
   works: readonly AllowanceWork[];
   /** 그날 사업장 규모 신고가 5인 이상인가 */
   isFiveOrMore: (localDate: string) => boolean;
+  /** 그날 유급휴일(공휴일·노동절)인가. 규모에 따른 적용은 부르는 쪽에서 판단한다 (§3.7) */
+  isPaidHoliday: (localDate: string) => boolean;
 }
 
 export interface AllowanceEstimate {
@@ -70,7 +73,10 @@ export interface AllowanceEstimate {
   nightSeconds: number;
   holidayPremium: number;
   holidaySeconds: number;
-  /** 네 항목 합 (원) */
+  /** 쉬어도 받는 유급휴일(공휴일·노동절) 소정근로분 */
+  paidHolidayPay: number;
+  paidHolidayDays: number;
+  /** 다섯 항목 합 (원) */
   total: number;
 }
 
@@ -80,6 +86,8 @@ interface DayWork {
   /** 그날 마지막 근무의 시급·근로조건 (ponytail: 하루 안에서 시급이 바뀌는 경우는 마지막 값으로 본다) */
   hourlyWage: number;
   terms: AllowanceTerms;
+  /** 주휴일·유급휴일 근무 → 휴일근로 (연장으로 세지 않는다) */
+  holiday: boolean;
 }
 
 /** 가산 금액 분자: 초 × 시급 × 퍼센트 */
@@ -99,6 +107,12 @@ const isShortTime = (terms: AllowanceTerms) => {
 };
 const isWeeklyHoliday = (localDate: string, terms: AllowanceTerms) =>
   terms.weeklyHolidayWeekday === weekdayOfLocalDate(localDate);
+/** 그날 소정근로분 (휴게 제외). 소정 요일이 아니거나 주마다 다르면 0 */
+const scheduledLaborMinutesOn = (localDate: string, terms: AllowanceTerms) => {
+  if (terms.scheduleVaries) return 0;
+  const schedule = terms.schedules.find((candidate) => candidate.weekday === weekdayOfLocalDate(localDate));
+  return schedule ? dailyLaborMinutes(schedule) : 0;
+};
 
 /** 그날 00:00에 유효한 근로조건 */
 function termsOn(terms: readonly AllowanceTerms[], localDate: string): AllowanceTerms | undefined {
@@ -109,7 +123,10 @@ function termsOn(terms: readonly AllowanceTerms[], localDate: string): Allowance
 }
 
 /** 근무를 날짜별로 모은다. 야간은 그 구간의 22:00–06:00 겹침을 인정 시간 안으로 자른다 */
-export function groupByDay(works: readonly AllowanceWork[]): Map<string, DayWork> {
+export function groupByDay(
+  works: readonly AllowanceWork[],
+  isPaidHoliday: (localDate: string) => boolean,
+): Map<string, DayWork> {
   const days = new Map<string, DayWork>();
   const ordered = [...works].sort((a, b) => a.clockInAt.getTime() - b.clockInAt.getTime());
   for (const work of ordered) {
@@ -125,6 +142,7 @@ export function groupByDay(works: readonly AllowanceWork[]): Map<string, DayWork
         nightSeconds: (previous?.nightSeconds ?? 0) + night,
         hourlyWage: segment.hourlyWage,
         terms: work.terms,
+        holiday: isWeeklyHoliday(segment.localDate, work.terms) || isPaidHoliday(segment.localDate),
       });
     }
   }
@@ -133,13 +151,11 @@ export function groupByDay(works: readonly AllowanceWork[]): Map<string, DayWork
 
 /** 그날 연장 초. 휴일은 휴일근로로 따로 센다. 단시간근로자는 그날 소정근로를 넘는 시간 (기간제법 §6③) */
 export function dailyOvertimeSeconds(localDate: string, day: DayWork): number {
-  if (isWeeklyHoliday(localDate, day.terms)) return 0;
+  if (day.holiday) return 0;
   if (!isShortTime(day.terms)) return Math.max(0, day.recognizedSeconds - DAILY_LIMIT_SECONDS);
   // ponytail: 주마다 다른 단시간근로자는 그날 소정을 모르므로 일 단위 연장을 세지 않는다
   if (day.terms.scheduleVaries) return 0;
-  const schedule = day.terms.schedules.find((candidate) => candidate.weekday === weekdayOfLocalDate(localDate));
-  const scheduledSeconds = schedule ? dailyLaborMinutes(schedule) * SECONDS_PER_MINUTE : 0;
-  return Math.max(0, day.recognizedSeconds - scheduledSeconds);
+  return Math.max(0, day.recognizedSeconds - scheduledLaborMinutesOn(localDate, day.terms) * SECONDS_PER_MINUTE);
 }
 
 /** 기간 안 날짜의 연장·야간·휴일 가산. 5인 이상 신고일만 (PRD §6.3) */
@@ -154,7 +170,7 @@ function tallyDaily(days: Map<string, DayWork>, input: AllowanceInput) {
     overtime.numerator += overtimeSeconds * day.hourlyWage * PREMIUM_PERCENT;
     night.seconds += day.nightSeconds;
     night.numerator += day.nightSeconds * day.hourlyWage * PREMIUM_PERCENT;
-    if (!isWeeklyHoliday(localDate, day.terms)) continue;
+    if (!day.holiday) continue;
     const withinLimit = Math.min(day.recognizedSeconds, HOLIDAY_LIMIT_SECONDS);
     holiday.seconds += day.recognizedSeconds;
     holiday.numerator +=
@@ -178,7 +194,7 @@ const weekDates = (monday: string) => Array.from({ length: WEEK_DAYS }, (_, inde
 function weeklyOvertimeSeconds(dates: string[], days: Map<string, DayWork>): { seconds: number; hourlyWage: number } {
   const worked = dates.flatMap((localDate) => {
     const day = days.get(localDate);
-    return day && !isWeeklyHoliday(localDate, day.terms) ? [{ localDate, day }] : [];
+    return day && !day.holiday ? [{ localDate, day }] : [];
   });
   const last = worked.at(-1)?.day;
   if (!last || isShortTime(last.terms)) return { seconds: 0, hourlyWage: 0 };
@@ -189,13 +205,13 @@ function weeklyOvertimeSeconds(dates: string[], days: Map<string, DayWork>): { s
   return { seconds: Math.max(0, nonDailyOvertime - WEEKLY_LIMIT_SECONDS), hourlyWage: last.hourlyWage };
 }
 
-/** 그 주 소정 근무일에 모두 출근했나. 주마다 다르면 소정일을 모르므로 한 번이라도 출근했으면 개근으로 본다 */
+/** 그 주 소정 근무일에 모두 출근했나. 유급휴일은 쉬어도 된다. 주마다 다르면 소정일을 모르므로 한 번이라도 출근했으면 개근으로 본다 */
 function attendedAllScheduledDays(dates: string[], input: AllowanceInput, weekTerms: AllowanceTerms): boolean {
   if (weekTerms.scheduleVaries) return dates.some((localDate) => input.attendedDates.has(localDate));
   return dates.every((localDate) => {
     const terms = termsOn(input.terms, localDate);
     const scheduled = terms?.schedules.some((schedule) => schedule.weekday === weekdayOfLocalDate(localDate));
-    return !scheduled || input.attendedDates.has(localDate);
+    return !scheduled || input.isPaidHoliday(localDate) || input.attendedDates.has(localDate);
   });
 }
 
@@ -208,9 +224,27 @@ function weeklyHolidayNumerator(dates: string[], input: AllowanceInput): number 
   return Math.min(weeklyMinutes, FULL_TIME_WEEKLY_MINUTES) * weekTerms.hourlyWage;
 }
 
-/** 직원 1명의 기간 예상 주휴·가산수당. 항목마다 기간 합계에서 1회 원 미만 올림 */
+/**
+ * 기간 안 지난 유급휴일의 소정근로분 (분 × 시급). 출근 여부와 상관없이 받는다 (근로했으면 임금·가산은 따로).
+ * 주휴일과 겹치면 주휴수당으로 이미 받으므로 소정 요일이 아니어서 0이 된다.
+ */
+function tallyPaidHolidays(input: AllowanceInput): { days: number; numerator: number } {
+  const tally = { days: 0, numerator: 0 };
+  for (let localDate = input.period.start; localDate < input.period.end && localDate < input.today; localDate = addDays(localDate, 1)) {
+    if (!input.isPaidHoliday(localDate)) continue;
+    const terms = termsOn(input.terms, localDate);
+    const minutes = terms ? scheduledLaborMinutesOn(localDate, terms) : 0;
+    if (!terms || minutes === 0) continue;
+    tally.days += 1;
+    tally.numerator += minutes * terms.hourlyWage;
+  }
+  return tally;
+}
+
+/** 직원 1명의 기간 예상 주휴·가산·유급휴일수당. 항목마다 기간 합계에서 1회 원 미만 올림 */
 export function estimateAllowances(input: AllowanceInput): AllowanceEstimate {
-  const days = groupByDay(input.works);
+  const days = groupByDay(input.works, input.isPaidHoliday);
+  const paidHolidays = tallyPaidHolidays(input);
   const { overtime, night, holiday } = tallyDaily(days, input);
   let weeklyHolidayNumeratorSum = 0;
   let weeklyHolidayWeeks = 0;
@@ -233,9 +267,16 @@ export function estimateAllowances(input: AllowanceInput): AllowanceEstimate {
     nightSeconds: night.seconds,
     holidayPremium: premiumWon(holiday),
     holidaySeconds: holiday.seconds,
+    paidHolidayPay: Math.ceil(paidHolidays.numerator / MINUTES_PER_HOUR),
+    paidHolidayDays: paidHolidays.days,
   };
   return {
     ...estimate,
-    total: estimate.weeklyHolidayPay + estimate.overtimePremium + estimate.nightPremium + estimate.holidayPremium,
+    total:
+      estimate.weeklyHolidayPay +
+      estimate.overtimePremium +
+      estimate.nightPremium +
+      estimate.holidayPremium +
+      estimate.paidHolidayPay,
   };
 }

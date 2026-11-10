@@ -28,7 +28,7 @@ export interface DashboardDto {
     recognizedSeconds: number;
     /** 권한(PAYROLL)이 없으면 null */
     basePayEstimate: number | null;
-    /** 예상 주휴·가산수당 합 (docs/specs/payroll §3.6). 권한(PAYROLL)이 없으면 null */
+    /** 예상 주휴·가산·유급휴일수당 합 (docs/specs/payroll §3.6·§3.7). 권한(PAYROLL)이 없으면 null */
     allowanceEstimate: number | null;
   };
 }

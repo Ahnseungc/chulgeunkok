@@ -155,13 +155,13 @@ async function summarizeCurrentPeriod(
   input: { storeId: string; today: string; payPeriod: PayPeriodConfig },
 ) {
   const period = getStorePayPeriod(input.today, input.payPeriod);
-  const { rows, allowancesFor, workedMemberIds } = await loadPeriodWithAllowances(db, { ...input, period });
+  const { rows, allowancesFor, memberIds } = await loadPeriodWithAllowances(db, { ...input, period });
   const summary = summarizePeriod(rows.flatMap((row) => row.segments), period);
   return {
     start: period.start,
     end: period.end,
     recognizedSeconds: summary.recognizedSeconds,
     basePayEstimate: summary.basePayEstimate,
-    allowanceEstimate: workedMemberIds.reduce((sum, memberId) => sum + allowancesFor(memberId).total, 0),
+    allowanceEstimate: memberIds.reduce((sum, memberId) => sum + allowancesFor(memberId).total, 0),
   };
 }
