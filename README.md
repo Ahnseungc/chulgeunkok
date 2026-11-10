@@ -76,9 +76,9 @@
 Next.js 15 · React 19 · TypeScript · Expo · Prisma · PostgreSQL · Zod · Vitest
 
 ```
-apps/web          Next.js. 화면과 /api/v1
-apps/mobile       Expo 셸. WebView, QR 스캐너, 기기 토큰 보관
-packages/db       Prisma 스키마, 마이그레이션, 테스트용 PGlite DB
+apps/web             Next.js. 화면과 /api/v1
+apps/mobile          Expo 셸. WebView, QR 스캐너, 기기 토큰 보관
+packages/db          Prisma 스키마, 마이그레이션, 테스트용 PGlite DB
 packages/app-bridge  웹과 앱이 주고받는 메시지 스키마
 ```
 
