@@ -106,12 +106,14 @@ describe('getDashboard', () => {
       end: '2026-12-01',
       recognizedSeconds: 4.5 * 3600,
       basePayEstimate: 46440,
+      allowanceEstimate: 0,
     });
   });
 
   it('권한 없는 Manager에게는 금액과 검토 수를 숨긴다', async () => {
     const { currentPeriod, todo } = await dashboard('manager');
-    expect([currentPeriod.basePayEstimate, todo.laborReviews, currentPeriod.recognizedSeconds]).toEqual([
+    expect([currentPeriod.basePayEstimate, currentPeriod.allowanceEstimate, todo.laborReviews, currentPeriod.recognizedSeconds]).toEqual([
+      null,
       null,
       null,
       4.5 * 3600,

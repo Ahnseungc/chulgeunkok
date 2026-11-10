@@ -41,3 +41,19 @@ export const PREMIUM_NOT_APPLIED_NOTE = {
   UNKNOWN: '사업장 규모를 알려주시면 가산수당도 계산해 드려요.',
   FIVE_OR_MORE: null,
 } as const;
+
+/** 원 단위 금액 표시 `80,000원` */
+export const formatWon = (amount: number) => `${amount.toLocaleString('ko-KR')}원`;
+
+const ALLOWANCE_LABELS = [
+  ['주휴', 'weeklyHolidayPay'],
+  ['연장', 'overtimePremium'],
+  ['야간', 'nightPremium'],
+  ['휴일', 'holidayPremium'],
+] as const;
+
+/** 0원이 아닌 주휴·가산 항목만 "주휴 80,000원 · 연장 10,000원" */
+export const formatAllowanceBreakdown = (allowances: AllowanceEstimate) =>
+  ALLOWANCE_LABELS.filter(([, key]) => allowances[key] > 0)
+    .map(([label, key]) => `${label} ${formatWon(allowances[key])}`)
+    .join(' · ');

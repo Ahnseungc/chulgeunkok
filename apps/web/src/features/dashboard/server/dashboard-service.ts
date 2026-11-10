@@ -12,7 +12,7 @@ import {
   toLocalDate,
   type PayPeriodConfig,
 } from '@/features/payroll/model/work-time';
-import { loadPeriodAttendances } from '@/features/payroll/server/period-attendances';
+import { loadPeriodWithAllowances } from '@/features/payroll/server/allowance-service';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
 
@@ -45,6 +45,7 @@ export async function getDashboard(
     currentPeriod: {
       ...currentPeriod,
       basePayEstimate: canAccessStore(actor, 'PAYROLL') ? currentPeriod.basePayEstimate : null,
+      allowanceEstimate: canAccessStore(actor, 'PAYROLL') ? currentPeriod.allowanceEstimate : null,
     },
   };
 }
@@ -148,13 +149,19 @@ async function countSheetReviews(db: PrismaClient, input: { storeId: string; tod
   return reviews.filter((review) => reviewPresentation(review.type, band) === 'SHEET').length;
 }
 
-/** 이번 정산 기간 합계. 정산 화면과 같은 함수로 계산한다 (docs/specs/dashboard §5) */
+/** 이번 정산 기간 합계. 정산 화면과 같은 함수로 계산한다 (docs/specs/dashboard §5, payroll §3.6) */
 async function summarizeCurrentPeriod(
   db: PrismaClient,
   input: { storeId: string; today: string; payPeriod: PayPeriodConfig },
 ) {
   const period = getStorePayPeriod(input.today, input.payPeriod);
-  const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period });
+  const { rows, allowancesFor, workedMemberIds } = await loadPeriodWithAllowances(db, { ...input, period });
   const summary = summarizePeriod(rows.flatMap((row) => row.segments), period);
-  return { start: period.start, end: period.end, recognizedSeconds: summary.recognizedSeconds, basePayEstimate: summary.basePayEstimate };
+  return {
+    start: period.start,
+    end: period.end,
+    recognizedSeconds: summary.recognizedSeconds,
+    basePayEstimate: summary.basePayEstimate,
+    allowanceEstimate: workedMemberIds.reduce((sum, memberId) => sum + allowancesFor(memberId).total, 0),
+  };
 }

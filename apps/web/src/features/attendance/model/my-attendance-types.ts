@@ -1,3 +1,4 @@
+import type { AllowanceEstimate } from '@/features/payroll/model/allowances';
 import type { PeriodWithNav } from '@/features/payroll/model/work-time';
 
 import type { AttendanceRowDto, CorrectionType } from './attendance-admin-types';
@@ -7,7 +8,7 @@ export interface MyAttendancesDto {
   store: { id: string; name: string };
   period: PeriodWithNav;
   working: { attendanceId: string; clockInAt: string } | null;
-  summary: { recognizedSeconds: number; basePayEstimate: number; workDays: number };
+  summary: { recognizedSeconds: number; basePayEstimate: number; allowances: AllowanceEstimate; workDays: number };
   rows: (AttendanceRowDto & { pendingCorrection: CorrectionType | null })[];
 }
 
