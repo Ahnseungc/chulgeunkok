@@ -43,7 +43,7 @@ alwaysApply: false
 - `pullToRefreshEnabled`: 당겨서 새로고침 = 페이지 리로드. 스택은 URL 로 복원된다 (`use-stack-router.mdc`).
 - `allowsBackForwardNavigationGestures`: iOS 스와이프 백 = history back.
 - `sharedCookiesEnabled`: 세션은 쿠키 (`ck_device`).
-- `geolocationEnabled`: 출퇴근 위치 확인용.
+- 위치: WebView `geolocationEnabled` 는 쓰지 않는다 (iOS 가 앱·웹사이트 권한을 두 번 묻는다). 앱이 `expo-location` 으로 받아 `REQUEST_LOCATION`→`LOCATION` 브릿지로 넘기고, 웹은 `requestAppLocation`(`shared/lib/app-shell.ts`)으로 받는다.
 
 ## 6. 확인
 

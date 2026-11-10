@@ -121,7 +121,7 @@ production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에**
 | NFC | 네이티브 | NDEF URI 레코드를 읽어 QR과 같은 처리 |
 | 딥링크 | 네이티브 | 유니버설 링크·앱 링크 `<APP_ORIGIN>/p/*`, `/invite/*` → 앱이 열리고 WebView가 그 경로로 이동. 앱이 없으면 브라우저로 같은 웹 화면 |
 | 기기 토큰 보관 | 네이티브 | 아래 §6.2 |
-| 위치 | 웹 | WebView의 `navigator.geolocation` (네이티브 권한 위임) |
+| 위치 | 앱 | 앱이 `expo-location`으로 받아 브릿지(`REQUEST_LOCATION`→`LOCATION`)로 웹에 넘긴다. WebView 위치 권한까지 두 번 묻지 않게. 앱 밖(브라우저)은 `navigator.geolocation` |
 
 ### 6.2 기기 토큰 흐름 (일회용 연결 코드)
 
