@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 
 import type { MeDto } from '@/features/auth/model/me-types';
 import { apiFetch, ApiRequestError } from '@/shared/lib/api-client';
+import { CardStaggerList } from '@/shared/motion/CardStaggerList';
+import InlineAlert from '@/shared/ui/InlineAlert';
 
 const ROLE_LABEL = {
   OWNER: '사장님',
@@ -41,28 +43,25 @@ export default function MyStoresScreen() {
       <Text as="h1" textStyle="t8Bold">
         {me?.user.name ? `${me.user.name}님의 매장` : '내 매장'}
       </Text>
-      {errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage} />
       {me && stores.length === 0 ? (
         <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
           아직 등록한 매장이 없어요. 가게를 검색해서 1분 만에 만들 수 있어요.
         </Text>
       ) : null}
-      <ul className="store-list">
-        {stores.map((store) => (
-          <li key={store.storeId}>
-            <Link className="store-list__item" href={`/owner/${store.storeId}`}>
-              <Text textStyle="t5Bold">{store.storeName}</Text>
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                {ROLE_LABEL[store.role]}
-              </Text>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <CardStaggerList
+        className="store-list"
+        items={stores}
+        getKey={(store) => store.storeId}
+        renderItem={(store) => (
+          <Link className="store-list__item" href={`/owner/${store.storeId}`}>
+            <Text textStyle="t5Bold">{store.storeName}</Text>
+            <Text textStyle="t4Regular" color="fg.neutralMuted">
+              {ROLE_LABEL[store.role]}
+            </Text>
+          </Link>
+        )}
+      />
       {me ? (
         <div className="punch-bottom">
           <ActionButton asChild variant="neutralSolid" size="large" flexGrow>

@@ -15,6 +15,7 @@ import type { CorrectionDto } from '../model/attendance-admin-types';
 
 import { CORRECTION_TYPE_LABEL } from './correction-labels';
 import { AppLink } from '@/shared/ui/AppLink';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const NOTE_MAX_LENGTH = 200;
@@ -43,11 +44,7 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
       <Text as="h1" textStyle="t8Bold">
         수정 요청
       </Text>
-      {errorMessage || actionError ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {errorMessage ?? actionError}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage ?? actionError} />
       {data && data.requests.length === 0 ? (
         <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
           확인할 요청이 없어요

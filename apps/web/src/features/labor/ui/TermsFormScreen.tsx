@@ -5,8 +5,11 @@ import { useEffect, useState } from 'react';
 
 import type { MemberDetailDto } from '@/features/staff/model/member-types';
 import { useApiResource } from '@/shared/lib/useApiResource';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 import Sheet from '@/shared/ui/Sheet';
+import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 import type { LaborReviewDto } from '../model/labor-types';
 import { WEEKDAY_LABELS } from '../model/review-copy';
@@ -39,72 +42,78 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
     if (member.data && !values) setValues(initialTermsValues(member.data.currentTerms));
   }, [member.data, values]);
 
-  if (!values || !member.data) {
-    return <main className="screen">{member.errorMessage ? <Text color="fg.critical">{member.errorMessage}</Text> : null}</main>;
-  }
-
-  const update = (patch: Partial<TermsFormValues>) => setValues({ ...values, ...patch });
+  const memberName = member.data?.name;
+  const update = (patch: Partial<TermsFormValues>) => setValues((prev) => (prev ? { ...prev, ...patch } : prev));
   const submit = async (confirmBelowMinimumWage = false) => {
+    if (!values) return;
     const result = await saver.save(values, confirmBelowMinimumWage);
     if (!result) return;
     const sheetReviews = result.reviews.filter((review) => review.presentation !== 'LIST');
     if (sheetReviews.length > 0) setSavedReviews(sheetReviews);
     else backTo(detailPath);
   };
-  const wage = Number(values.hourlyWage);
+  const wage = Number(values?.hourlyWage ?? 0);
   const belowMinimum = rule.data && wage > 0 && wage < rule.data.minimumHourlyWage;
   const canSubmit =
-    wage > 0 && (values.scheduleVaries ? Number(values.averageWeeklyHours) > 0 : values.schedules.length > 0);
+    values !== null && wage > 0 && (values.scheduleVaries ? Number(values.averageWeeklyHours) > 0 : values.schedules.length > 0);
+  // 직원 이름이 오기 전에도 같은 줄 수로 제목을 그려 아래 폼이 밀리지 않는다
+  const title = memberName ? `${memberName}님 근로조건` : '근로조건';
 
   return (
     <main className="screen">
-      <ScreenHeader backHref={detailPath} backLabel={member.data.name} title={`${member.data.name}님 근로조건`} />
+      <ScreenHeader backHref={detailPath} backLabel={memberName ?? '직원 정보'} title={title} />
       <Text as="h1" textStyle="t8Bold">
-        {member.data.name}님 근로조건
+        {title}
       </Text>
+      <InlineAlert message={member.errorMessage} />
 
-      <LabeledTextField
-        label="시급 (원)"
-        value={values.hourlyWage}
-        onValueChange={(hourlyWage) => update({ hourlyWage: hourlyWage.replace(/\D/g, '') })}
-        inputMode="numeric"
-        placeholder={rule.data ? `${rule.data.minimumHourlyWage.toLocaleString('ko-KR')} 이상` : ''}
-      />
-      {rule.data ? (
-        <Text as="p" textStyle="t4Regular" color={belowMinimum ? 'fg.critical' : 'fg.neutralMuted'}>
-          올해 최저임금은 {rule.data.minimumHourlyWage.toLocaleString('ko-KR')}원이에요
-        </Text>
+      {values ? (
+        <PageStaggerEntrance className="motion-contents">
+          <PageStaggerEntranceItem className="screen-stack">
+            <LabeledTextField
+              label="시급 (원)"
+              value={values.hourlyWage}
+              onValueChange={(hourlyWage) => update({ hourlyWage: hourlyWage.replace(/\D/g, '') })}
+              inputMode="numeric"
+              placeholder={rule.data ? `${rule.data.minimumHourlyWage.toLocaleString('ko-KR')} 이상` : ''}
+            />
+            {/* 최저임금은 폼보다 늦게 와서 줄을 먼저 잡아 둔다 */}
+            <Text as="p" textStyle="t4Regular" color={belowMinimum ? 'fg.critical' : 'fg.neutralMuted'}>
+              {rule.data ? `올해 최저임금은 ${rule.data.minimumHourlyWage.toLocaleString('ko-KR')}원이에요` : TEXT_PLACEHOLDER}
+            </Text>
+          </PageStaggerEntranceItem>
+
+          <PageStaggerEntranceItem className="screen-stack">
+            <ScheduleEditor values={values} onChange={update} />
+          </PageStaggerEntranceItem>
+
+          <PageStaggerEntranceItem className="screen-stack">
+            <label className="labeled-field">
+              <Text as="span" textStyle="t4Medium">
+                주휴일
+              </Text>
+              <select
+                className="native-select"
+                value={values.weeklyHolidayWeekday ?? ''}
+                onChange={(event) => update({ weeklyHolidayWeekday: event.target.value === '' ? null : Number(event.target.value) })}
+              >
+                <option value="">아직 정하지 않았어요</option>
+                {WEEKDAY_LABELS.map((label, weekday) => (
+                  <option key={label} value={weekday}>
+                    {label}요일
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <LabeledTextField label="계약 시작일" type="date" value={values.contractStartDate} onValueChange={(contractStartDate) => update({ contractStartDate })} />
+            <LabeledTextField label="계약 종료일 (없으면 비워 두세요)" type="date" value={values.contractEndDate} onValueChange={(contractEndDate) => update({ contractEndDate })} />
+            <LabeledTextField label="이 근로조건 적용 시작일" type="date" value={values.effectiveFrom} onValueChange={(effectiveFrom) => update({ effectiveFrom })} />
+          </PageStaggerEntranceItem>
+        </PageStaggerEntrance>
       ) : null}
 
-      <ScheduleEditor values={values} onChange={update} />
-
-      <label className="labeled-field">
-        <Text as="span" textStyle="t4Medium">
-          주휴일
-        </Text>
-        <select
-          className="native-select"
-          value={values.weeklyHolidayWeekday ?? ''}
-          onChange={(event) => update({ weeklyHolidayWeekday: event.target.value === '' ? null : Number(event.target.value) })}
-        >
-          <option value="">아직 정하지 않았어요</option>
-          {WEEKDAY_LABELS.map((label, weekday) => (
-            <option key={label} value={weekday}>
-              {label}요일
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <LabeledTextField label="계약 시작일" type="date" value={values.contractStartDate} onValueChange={(contractStartDate) => update({ contractStartDate })} />
-      <LabeledTextField label="계약 종료일 (없으면 비워 두세요)" type="date" value={values.contractEndDate} onValueChange={(contractEndDate) => update({ contractEndDate })} />
-      <LabeledTextField label="이 근로조건 적용 시작일" type="date" value={values.effectiveFrom} onValueChange={(effectiveFrom) => update({ effectiveFrom })} />
-
-      {saver.errorMessage ? (
-        <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-          {saver.errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={saver.errorMessage} textStyle="t4Regular" />
       <div className="punch-bottom">
         <ActionButton variant="neutralSolid" size="large" flexGrow loading={saver.pending} disabled={!canSubmit} onClick={() => void submit()}>
           저장

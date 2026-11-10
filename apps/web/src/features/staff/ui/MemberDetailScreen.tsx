@@ -11,6 +11,8 @@ import TermsSummary from '@/features/labor/ui/TermsSummary';
 import { apiFetch } from '@/shared/lib/api-client';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
 import { ExpandFadeReveal } from '@/shared/motion/ExpandFadeReveal';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert, { FLOW_REVEAL_CLASS, FLOW_REVEAL_GAP_PX } from '@/shared/ui/InlineAlert';
 import Sheet from '@/shared/ui/Sheet';
 
 import type { MemberDetailDto } from '../model/member-types';
@@ -19,6 +21,7 @@ import InviteQrSheet from './InviteQrSheet';
 import { ROLE_LABEL } from './member-labels';
 import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
+import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 interface MemberDetailScreenProps {
   storeId: string;
@@ -51,92 +54,98 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
   return (
     <main className="screen">
       <ScreenHeader backHref={`/owner/${storeId}/members`} backLabel="직원" title={detail?.name} />
-      {member.errorMessage ? <ErrorText message={member.errorMessage} /> : null}
+      {/* 이름·역할 줄은 데이터 전에도 자리를 잡아, 값이 와도 아래가 밀리지 않는다 */}
+      <header className="member-header">
+        <Text as="h1" textStyle="t8Bold">
+          {detail?.name ?? TEXT_PLACEHOLDER}
+        </Text>
+        <Text textStyle="t4Regular" color="fg.neutralMuted">
+          {detail
+            ? `${ROLE_LABEL[detail.role]}${detail.status === 'INACTIVE' ? ' · 퇴사' : ''}${detail.isWorking ? ' · 근무 중' : ''}`
+            : TEXT_PLACEHOLDER}
+        </Text>
+      </header>
+      <InlineAlert message={member.errorMessage} textStyle="t4Regular" />
       {detail ? (
         <>
-          <header className="member-header">
-            <Text as="h1" textStyle="t8Bold">
-              {detail.name}
-            </Text>
-            <Text textStyle="t4Regular" color="fg.neutralMuted">
-              {ROLE_LABEL[detail.role]}
-              {detail.status === 'INACTIVE' ? ' · 퇴사' : ''}
-              {detail.isWorking ? ' · 근무 중' : ''}
-            </Text>
-          </header>
-
-          {detail.role !== 'OWNER' ? (
-            <section className="detail-section" aria-labelledby="terms-heading">
-              <Text as="h2" id="terms-heading" textStyle="t6Bold">
-                근로조건
-              </Text>
-              {!detail.canReadTerms ? (
-                <Text textStyle="t4Regular" color="fg.neutralMuted">
-                  근로조건은 사장님이나 권한 있는 매니저만 볼 수 있어요.
-                </Text>
-              ) : detail.currentTerms ? (
-                <TermsSummary terms={detail.currentTerms} />
-              ) : (
-                <Text textStyle="t4Regular" color="fg.critical">
-                  근로조건이 없어서 아직 출근할 수 없어요.
-                </Text>
-              )}
-              {detail.canEditTerms ? (
-                <ActionButton asChild variant="neutralWeak" size="medium">
-                  <AppLink href={termsPath}>{detail.currentTerms ? '근로조건 수정' : '근로조건 등록'}</AppLink>
-                </ActionButton>
-              ) : null}
-            </section>
-          ) : null}
-
-          {/* 안내는 직원 정보보다 늦게 와서, 툭 밀지 않고 펼치며 나타난다. 다 확인하면 접혀 사라진다 */}
-          <AnimatePresence>
-            {reviews.data && reviews.data.reviews.length > 0 ? (
-              <ExpandFadeReveal key="reviews">
-                <section className="detail-section" aria-labelledby="reviews-heading">
-                  <Text as="h2" id="reviews-heading" textStyle="t6Bold">
-                    확인할 안내 {reviews.data.reviews.length}건
+          <PageStaggerEntrance className="motion-contents">
+            {detail.role !== 'OWNER' ? (
+              <PageStaggerEntranceItem>
+                <section className="detail-section" aria-labelledby="terms-heading">
+                  <Text as="h2" id="terms-heading" textStyle="t6Bold">
+                    근로조건
                   </Text>
-                  <ul className="review-list">
-                    {reviews.data.reviews.map((review) => (
-                      <li key={review.id} className={`review-list__item review-list__item--${review.presentation.toLowerCase()}`}>
-                        <Text as="h3" textStyle="t5Bold">
-                          {review.title}
-                        </Text>
-                        <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
-                          {review.presentation === 'BADGE' ? UNDER_FIVE_BADGE_TEXT : review.body}
-                        </Text>
-                      </li>
-                    ))}
-                  </ul>
-                  <ActionButton variant="neutralWeak" size="medium" onClick={() => setReviewSheetOpen(true)}>
-                    확인하기
-                  </ActionButton>
+                  {!detail.canReadTerms ? (
+                    <Text textStyle="t4Regular" color="fg.neutralMuted">
+                      근로조건은 사장님이나 권한 있는 매니저만 볼 수 있어요.
+                    </Text>
+                  ) : detail.currentTerms ? (
+                    <TermsSummary terms={detail.currentTerms} />
+                  ) : (
+                    <Text textStyle="t4Regular" color="fg.critical">
+                      근로조건이 없어서 아직 출근할 수 없어요.
+                    </Text>
+                  )}
+                  {detail.canEditTerms ? (
+                    <ActionButton asChild variant="neutralWeak" size="medium">
+                      <AppLink href={termsPath}>{detail.currentTerms ? '근로조건 수정' : '근로조건 등록'}</AppLink>
+                    </ActionButton>
+                  ) : null}
                 </section>
-              </ExpandFadeReveal>
+              </PageStaggerEntranceItem>
             ) : null}
-          </AnimatePresence>
 
-          {detail.role !== 'OWNER' ? (
-            <section className="detail-section" aria-labelledby="device-heading">
-              <Text as="h2" id="device-heading" textStyle="t6Bold">
-                휴대폰
-              </Text>
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                {detail.status === 'INACTIVE'
-                  ? '다시 일하게 되면 기기 재등록 QR을 찍게 해 주세요. 이전 기록이 이어져요.'
-                  : '휴대폰을 바꿨다면 새 휴대폰으로 기기 재등록 QR을 찍게 해 주세요.'}
-              </Text>
-              <ActionButton variant="neutralWeak" size="medium" onClick={() => setReregisterOpen(true)}>
-                기기 재등록 QR
-              </ActionButton>
-              {detail.status === 'ACTIVE' ? (
-                <ActionButton variant="ghost" size="medium" onClick={() => setDeactivateOpen(true)}>
-                  퇴사 처리
-                </ActionButton>
+            {/* 안내는 직원 정보보다 늦게 와서, 툭 밀지 않고 펼치며 나타난다. 다 확인하면 접혀 사라진다 */}
+            <AnimatePresence>
+              {reviews.data && reviews.data.reviews.length > 0 ? (
+                <ExpandFadeReveal key="reviews" className={FLOW_REVEAL_CLASS} revealTopPadding={FLOW_REVEAL_GAP_PX}>
+                  <section className="detail-section" aria-labelledby="reviews-heading">
+                    <Text as="h2" id="reviews-heading" textStyle="t6Bold">
+                      확인할 안내 {reviews.data.reviews.length}건
+                    </Text>
+                    <ul className="review-list">
+                      {reviews.data.reviews.map((review) => (
+                        <li key={review.id} className={`review-list__item review-list__item--${review.presentation.toLowerCase()}`}>
+                          <Text as="h3" textStyle="t5Bold">
+                            {review.title}
+                          </Text>
+                          <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
+                            {review.presentation === 'BADGE' ? UNDER_FIVE_BADGE_TEXT : review.body}
+                          </Text>
+                        </li>
+                      ))}
+                    </ul>
+                    <ActionButton variant="neutralWeak" size="medium" onClick={() => setReviewSheetOpen(true)}>
+                      확인하기
+                    </ActionButton>
+                  </section>
+                </ExpandFadeReveal>
               ) : null}
-            </section>
-          ) : null}
+            </AnimatePresence>
+
+            {detail.role !== 'OWNER' ? (
+              <PageStaggerEntranceItem>
+                <section className="detail-section" aria-labelledby="device-heading">
+                  <Text as="h2" id="device-heading" textStyle="t6Bold">
+                    휴대폰
+                  </Text>
+                  <Text textStyle="t4Regular" color="fg.neutralMuted">
+                    {detail.status === 'INACTIVE'
+                      ? '다시 일하게 되면 기기 재등록 QR을 찍게 해 주세요. 이전 기록이 이어져요.'
+                      : '휴대폰을 바꿨다면 새 휴대폰으로 기기 재등록 QR을 찍게 해 주세요.'}
+                  </Text>
+                  <ActionButton variant="neutralWeak" size="medium" onClick={() => setReregisterOpen(true)}>
+                    기기 재등록 QR
+                  </ActionButton>
+                  {detail.status === 'ACTIVE' ? (
+                    <ActionButton variant="ghost" size="medium" onClick={() => setDeactivateOpen(true)}>
+                      퇴사 처리
+                    </ActionButton>
+                  ) : null}
+                </section>
+              </PageStaggerEntranceItem>
+            ) : null}
+          </PageStaggerEntrance>
 
           <InviteQrSheet
             open={reregisterOpen}

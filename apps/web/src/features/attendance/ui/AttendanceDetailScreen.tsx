@@ -12,7 +12,10 @@ import {
   toLocalDateTimeInput,
 } from '@/shared/lib/format-time';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
+import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 import type { AttendanceDetailDto, AttendanceSnapshot } from '../model/attendance-admin-types';
 
@@ -41,41 +44,44 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
         backLabel="근태 기록"
         title={data ? `${data.name} · ${formatLocalDate(data.localDate)}` : undefined}
       />
-      {detail.errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {detail.errorMessage}
+      {/* 제목·시각 줄은 데이터 전에도 자리를 잡아, 값이 와도 아래가 밀리지 않는다 */}
+      <header className="member-header">
+        <Text as="h1" textStyle="t8Bold">
+          {data ? `${data.name} · ${formatLocalDate(data.localDate)}` : TEXT_PLACEHOLDER}
         </Text>
-      ) : null}
+        <Text textStyle="t5Regular">
+          {data ? `${formatClock(data.clockInAt)} ~ ${data.clockOutAt ? formatClock(data.clockOutAt) : '퇴근 기록 없음'}` : TEXT_PLACEHOLDER}
+        </Text>
+        {data?.status === 'CLOSED' ? (
+          <Text textStyle="t4Regular" color="fg.neutralMuted">
+            근무 {formatDuration(data.workedSeconds * SECOND_MS)} · 휴게 {formatDuration(data.breakSeconds * SECOND_MS)} · 인정{' '}
+            {formatDuration(data.recognizedSeconds * SECOND_MS)}
+          </Text>
+        ) : null}
+        {data ? <AttendanceBadges row={data} /> : null}
+      </header>
+      <InlineAlert message={detail.errorMessage} />
       {data ? (
-        <>
-          <header className="member-header">
-            <Text as="h1" textStyle="t8Bold">
-              {data.name} · {formatLocalDate(data.localDate)}
-            </Text>
-            <Text textStyle="t5Regular">
-              {formatClock(data.clockInAt)} ~ {data.clockOutAt ? formatClock(data.clockOutAt) : '퇴근 기록 없음'}
-            </Text>
-            {data.status === 'CLOSED' ? (
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                근무 {formatDuration(data.workedSeconds * SECOND_MS)} · 휴게 {formatDuration(data.breakSeconds * SECOND_MS)} · 인정{' '}
-                {formatDuration(data.recognizedSeconds * SECOND_MS)}
-              </Text>
-            ) : null}
-            <AttendanceBadges row={data} />
-          </header>
+        <PageStaggerEntrance className="motion-contents">
           {data.corrections.some((correction) => correction.status === 'PENDING') ? (
-            <AppLink href={`/owner/${storeId}/corrections`} className="dash-card unresolved-banner">
-              <Text textStyle="t5Bold" color="fg.warning">
-                직원이 수정을 요청했어요
-              </Text>
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                눌러서 승인하거나 반려해 주세요
-              </Text>
-            </AppLink>
+            <PageStaggerEntranceItem>
+              <AppLink href={`/owner/${storeId}/corrections`} className="dash-card unresolved-banner">
+                <Text textStyle="t5Bold" color="fg.warning">
+                  직원이 수정을 요청했어요
+                </Text>
+                <Text textStyle="t4Regular" color="fg.neutralMuted">
+                  눌러서 승인하거나 반려해 주세요
+                </Text>
+              </AppLink>
+            </PageStaggerEntranceItem>
           ) : null}
-          {data.status !== 'VOID' ? <EditForm detail={data} path={path} onSaved={detail.reload} /> : null}
-          <RevisionList detail={data} />
-        </>
+          <PageStaggerEntranceItem>
+            {data.status !== 'VOID' ? <EditForm detail={data} path={path} onSaved={detail.reload} /> : null}
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <RevisionList detail={data} />
+          </PageStaggerEntranceItem>
+        </PageStaggerEntrance>
       ) : null}
     </main>
   );
@@ -138,11 +144,12 @@ function EditForm({ detail, path, onSaved }: EditFormProps) {
         maxLength={REASON_MAX_LENGTH}
         placeholder="예: 퇴근 찍는 걸 잊었어요"
       />
-      {message ? (
-        <Text as="p" textStyle="t4Regular" color={message.error ? 'fg.critical' : 'fg.positive'} role="status">
-          {message.text}
-        </Text>
-      ) : null}
+      <InlineAlert
+        message={message?.text}
+        textStyle="t4Regular"
+        color={message?.error ? 'fg.critical' : 'fg.positive'}
+        role="status"
+      />
       <div className="sheet__actions">
         <ActionButton
           variant="criticalSolid"

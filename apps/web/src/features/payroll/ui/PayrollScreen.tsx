@@ -2,10 +2,17 @@
 
 import { useOnRevive } from '@ahnseungchan/webviewkit';
 import { ActionButton, Text } from '@seed-design/react';
+import { AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
 import { formatDuration } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
+import { CardStaggerList } from '@/shared/motion/CardStaggerList';
+import { ExpandFadeReveal } from '@/shared/motion/ExpandFadeReveal';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import { SmoothCountUpNumber } from '@/shared/motion/SmoothCountUpNumber';
+import { useIntroCountUp } from '@/shared/motion/useIntroCountUp';
+import InlineAlert, { FLOW_REVEAL_CLASS, FLOW_REVEAL_GAP_PX } from '@/shared/ui/InlineAlert';
 import PeriodNav from '@/shared/ui/PeriodNav';
 import Sheet from '@/shared/ui/Sheet';
 
@@ -29,6 +36,8 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
   const { data, errorMessage, reload } = useApiResource<PayrollPreviewDto>(`/api/v1/stores/${storeId}/payroll/preview${query}`);
   // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
   useOnRevive(() => void reload());
+  // 처음 받은 합계만 카운트업. 되살아남 재조회·기간 이동으로 바뀐 값은 바로 바꾼다
+  const basePayIntro = useIntroCountUp(data?.totals.basePayEstimate);
 
   const exportUrl = (detail: boolean) =>
     `/api/v1/stores/${storeId}/payroll/export?periodStart=${data?.period.start ?? ''}${detail ? '&detail=1' : ''}`;
@@ -48,43 +57,51 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
       <Text as="h1" textStyle="t8Bold">
         정산
       </Text>
-      {errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage} />
+      {/* 기간은 합계와 같이 오지만 자리는 먼저 잡는다 */}
+      <PeriodNav period={data?.period ?? null} onChange={setPeriodStart} />
       {data ? (
         <>
-          <PeriodNav period={data.period} onChange={setPeriodStart} />
-          {data.unresolved.missingClockOut > 0 ? (
-            <AppLink
-              className="dash-card unresolved-banner"
-              href={`/owner/${storeId}/attendances?status=MISSING_CLOCK_OUT&periodStart=${data.period.start}`}
-            >
-              <Text textStyle="t5Bold" color="fg.critical">
-                퇴근 누락 {data.unresolved.missingClockOut}건이 정산에서 빠져 있어요
-              </Text>
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                눌러서 퇴근 시각을 넣어 주세요
-              </Text>
-            </AppLink>
-          ) : null}
-          <section className="dash-card" aria-label="합계">
-            <Text textStyle="t4Regular" color="fg.neutralMuted">
-              {data.totals.memberCount}명 · 인정 {formatDuration(data.totals.recognizedSeconds * SECOND_MS)}
-            </Text>
-            <Text textStyle="t8Bold">{won(data.totals.basePayEstimate)}</Text>
-            <Text textStyle="t3Regular" color="fg.neutralMuted">
-              {PAYROLL_DISCLAIMER}
-            </Text>
-          </section>
-          <ul className="store-list">
-            {data.members.map((member) => (
-              <li key={member.memberId}>
-                <MemberRow storeId={storeId} periodStart={data.period.start} member={member} />
-              </li>
-            ))}
-          </ul>
+          {/* 기간을 옮겨 누락이 생기거나 사라져도 합계 카드를 툭 밀지 않는다 */}
+          <AnimatePresence initial={false}>
+            {data.unresolved.missingClockOut > 0 ? (
+              <ExpandFadeReveal key="missing-banner" className={FLOW_REVEAL_CLASS} revealTopPadding={FLOW_REVEAL_GAP_PX}>
+                <AppLink
+                  className="dash-card unresolved-banner"
+                  href={`/owner/${storeId}/attendances?status=MISSING_CLOCK_OUT&periodStart=${data.period.start}`}
+                >
+                  <Text textStyle="t5Bold" color="fg.critical">
+                    퇴근 누락 {data.unresolved.missingClockOut}건이 정산에서 빠져 있어요
+                  </Text>
+                  <Text textStyle="t4Regular" color="fg.neutralMuted">
+                    눌러서 퇴근 시각을 넣어 주세요
+                  </Text>
+                </AppLink>
+              </ExpandFadeReveal>
+            ) : null}
+          </AnimatePresence>
+          {/* 첫 조회 때만 내려온다. keepAlive 로 되살아나 재조회해도 다시 마운트되지 않아 재생하지 않는다 */}
+          <PageStaggerEntrance className="motion-contents">
+            <PageStaggerEntranceItem>
+              <section className="dash-card" aria-label="합계">
+                <Text textStyle="t4Regular" color="fg.neutralMuted">
+                  {data.totals.memberCount}명 · 인정 {formatDuration(data.totals.recognizedSeconds * SECOND_MS)}
+                </Text>
+                <Text textStyle="t8Bold">
+                  <SmoothCountUpNumber value={data.totals.basePayEstimate} {...basePayIntro} />원
+                </Text>
+                <Text textStyle="t3Regular" color="fg.neutralMuted">
+                  {PAYROLL_DISCLAIMER}
+                </Text>
+              </section>
+            </PageStaggerEntranceItem>
+          </PageStaggerEntrance>
+          <CardStaggerList
+            className="store-list"
+            items={data.members}
+            getKey={(member) => member.memberId}
+            renderItem={(member) => <MemberRow storeId={storeId} periodStart={data.period.start} member={member} />}
+          />
           <div className="sheet__actions">
             <ActionButton variant="neutralWeak" size="large" flexGrow onClick={() => requestExport(true)}>
               근무별 CSV

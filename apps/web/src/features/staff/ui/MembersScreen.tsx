@@ -12,6 +12,7 @@ import type { MemberSummaryDto } from '../model/member-types';
 import InviteQrSheet from './InviteQrSheet';
 import { ROLE_LABEL } from './member-labels';
 import { AppLink } from '@/shared/ui/AppLink';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 interface MembersScreenProps {
@@ -49,11 +50,7 @@ export default function MembersScreen({ storeId }: MembersScreenProps) {
           </ActionButton>
         ))}
       </div>
-      {errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage} />
       {data && data.members.length === 0 ? (
         <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
           {status === 'ACTIVE' ? '아직 직원이 없어요. 직원 등록 QR을 띄워 보세요.' : '퇴사한 직원이 없어요.'}

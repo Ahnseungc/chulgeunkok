@@ -16,7 +16,9 @@ interface PageStaggerEntranceProps {
 
 /**
  * 화면 본문 블록을 위→아래로 연속 등장시키는 프리셋.
- * ponytail: 스택 화면은 push 슬라이드가 이미 있으니 스택 밖 화면(로그인·직원 화면)에서만 쓴다.
+ * 스택 화면은 push 슬라이드가 이미 있으니 바로 보이는 골격(제목·뒤로가기)엔 쓰지 않고, 데이터가 와서 처음 그려지는 블록에만 쓴다.
+ * 마운트할 때 한 번만 재생한다 — 되살아남(keepAlive)·폴링으로 값이 바뀌어도 다시 재생하지 않는다.
+ * `.screen` 의 gap 을 그대로 쓰려면 `className="motion-contents"` (display: contents).
  */
 export function PageStaggerEntrance({
   children,

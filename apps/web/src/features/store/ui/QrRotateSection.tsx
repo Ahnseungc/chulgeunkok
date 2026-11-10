@@ -5,7 +5,6 @@ import { useState } from 'react';
 
 import { apiFetch } from '@/shared/lib/api-client';
 import { errorMessageOf } from '@/shared/lib/useApiResource';
-import { EntrancePanel } from '@/shared/motion/Entrance';
 import Sheet from '@/shared/ui/Sheet';
 
 import StoreQrCard from './StoreQrCard';
@@ -45,10 +44,8 @@ export default function QrRotateSection({ storeId, storeName, qrIssuedAt }: QrRo
         매장 QR
       </Text>
       {newUrl ? (
-        // 시트가 내려간 뒤 새 QR이 제자리에 살짝 내려오며 나타난다
-        <EntrancePanel>
-          <StoreQrCard storeName={storeName} url={newUrl} />
-        </EntrancePanel>
+        // 시트가 내려간 뒤 새 QR이 제자리에서 나타난다 (등장 모션은 StoreQrCard 가 맡는다)
+        <StoreQrCard storeName={storeName} url={newUrl} />
       ) : (
         <>
           <Text textStyle="t4Regular" color="fg.neutralMuted">

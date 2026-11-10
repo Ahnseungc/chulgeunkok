@@ -4,6 +4,8 @@ import { ActionButton, Text } from '@seed-design/react';
 import { useEffect, useState } from 'react';
 
 import { formatLocalDate, formatPeriodRange, toStoreLocalDate } from '@/shared/lib/format-time';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 
 import { HEADCOUNT_LABEL, type HeadcountBandValue, type StoreSettingsDto } from '../model/store-settings-types';
@@ -28,23 +30,29 @@ export default function SettingsScreen({ storeId }: { storeId: string }) {
       <Text as="h1" textStyle="t8Bold">
         매장 설정
       </Text>
-      {store.errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {store.errorMessage}
-        </Text>
-      ) : null}
-      {store.message ? (
-        <Text as="p" textStyle="t4Regular" color={store.message.error ? 'fg.critical' : 'fg.positive'} role="status">
-          {store.message.text}
-        </Text>
-      ) : null}
+      <InlineAlert message={store.errorMessage} />
+      {/* 저장 결과는 화면 위에 생겨도 아래 칸을 툭 밀지 않고 펼친다 */}
+      <InlineAlert
+        message={store.message?.text}
+        textStyle="t4Regular"
+        color={store.message?.error ? 'fg.critical' : 'fg.positive'}
+        role="status"
+      />
       {settings ? (
-        <>
-          <NameSection settings={settings} pending={store.pending} onSave={store.saveName} />
-          <StartDaySection settings={settings} pending={store.pending} onSave={store.saveStartDay} />
-          <HeadcountSection settings={settings} pending={store.pending} onSave={store.declareHeadcount} />
-          <QrRotateSection storeId={storeId} storeName={settings.name} qrIssuedAt={settings.qrIssuedAt} />
-        </>
+        <PageStaggerEntrance className="motion-contents">
+          <PageStaggerEntranceItem>
+            <NameSection settings={settings} pending={store.pending} onSave={store.saveName} />
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <StartDaySection settings={settings} pending={store.pending} onSave={store.saveStartDay} />
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <HeadcountSection settings={settings} pending={store.pending} onSave={store.declareHeadcount} />
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <QrRotateSection storeId={storeId} storeName={settings.name} qrIssuedAt={settings.qrIssuedAt} />
+          </PageStaggerEntranceItem>
+        </PageStaggerEntrance>
       ) : null}
     </main>
   );

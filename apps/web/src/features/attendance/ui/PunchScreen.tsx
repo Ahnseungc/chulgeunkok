@@ -6,13 +6,16 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { formatClock, formatDuration } from '@/shared/lib/format-time';
+import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from '@/shared/motion/SuccessEntrance';
 import KokMark from '@/shared/ui/KokMark';
+import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 import type { PunchAction, PunchPreviewDto } from '../model/punch-types';
 
 import { usePunch, type PunchState } from './usePunch';
 
 const CLOCK_TICK_MS = 15_000;
+const noop = () => {};
 
 const ACTION_LABEL = {
   CLOCK_IN: '출근',
@@ -43,7 +46,13 @@ interface PunchBodyProps {
 
 function PunchBody({ state, onSubmit, onReload }: PunchBodyProps) {
   if (state.phase === 'loading') {
-    return <CenterMessage title="QR을 확인하고 있어요" />;
+    // 하단 버튼 자리를 먼저 잡아, 준비되면 같은 자리에서 버튼이 살아난다 (가운데 문구가 위로 밀리지 않게)
+    return (
+      <>
+        <CenterMessage title="QR을 확인하고 있어요" />
+        <BottomAction label="확인 중" loading disabled onClick={noop} />
+      </>
+    );
   }
   if (state.phase === 'error') {
     return (
@@ -95,11 +104,10 @@ function PunchReady({ preview, pending, pendingLabel, onSubmit }: PunchReadyProp
             {formatDuration(now.getTime() - new Date(working.clockInAt).getTime())} 근무 중
           </Text>
         ) : null}
-        {pendingLabel ? (
-          <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
-            {pendingLabel}
-          </Text>
-        ) : null}
+        {/* 확인 중 문구 줄은 늘 잡아 두어, 생길 때 시각이 위로 밀리지 않게 한다 */}
+        <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
+          {pendingLabel ?? TEXT_PLACEHOLDER}
+        </Text>
       </section>
       <BottomAction label={`${label}하기`} loading={pending} onClick={onSubmit} />
     </>
@@ -119,17 +127,28 @@ function PunchDone({ state }: { state: Extract<PunchState, { phase: 'done' }> })
   return (
     <>
       <section className="punch-center" aria-live="polite">
-        <KokMark />
-        <Text as="h1" textStyle="t10Bold">
-          콕! {label} 완료
-        </Text>
-        <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-          {state.storeName}
-        </Text>
-        <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-          {punchedAt ? `${formatClock(punchedAt)} ${label}` : `${label}이 기록됐어요`}
-          {workedMs != null ? ` · ${formatDuration(workedMs)} 근무` : null}
-        </Text>
+        {/* 상태가 바뀐 순간 한 번 — 마크가 톡 커지고 문구가 이어서 올라온다. 아래 확인 버튼은 바로 누를 수 있다 */}
+        <SuccessEntrance>
+          <SuccessEntranceMark>
+            <KokMark />
+          </SuccessEntranceMark>
+          <SuccessEntranceItem>
+            <Text as="h1" textStyle="t10Bold">
+              콕! {label} 완료
+            </Text>
+          </SuccessEntranceItem>
+          <SuccessEntranceItem>
+            <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
+              {state.storeName}
+            </Text>
+          </SuccessEntranceItem>
+          <SuccessEntranceItem>
+            <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
+              {punchedAt ? `${formatClock(punchedAt)} ${label}` : `${label}이 기록됐어요`}
+              {workedMs != null ? ` · ${formatDuration(workedMs)} 근무` : null}
+            </Text>
+          </SuccessEntranceItem>
+        </SuccessEntrance>
       </section>
       {/* 퇴근하면 휴게를 못 쓴 날을 바로 알릴 수 있게 (docs/specs/attendance §3.4·§7.2) */}
       {state.action === 'CLOCK_OUT' && attendance ? (
@@ -165,13 +184,14 @@ interface BottomActionProps {
   label: string;
   onClick: () => void;
   loading?: boolean;
+  disabled?: boolean;
   variant?: 'neutralSolid' | 'neutralWeak';
 }
 
-function BottomAction({ label, onClick, loading, variant = 'neutralSolid' }: BottomActionProps) {
+function BottomAction({ label, onClick, loading, disabled, variant = 'neutralSolid' }: BottomActionProps) {
   return (
     <div className="punch-bottom">
-      <ActionButton variant={variant} size="large" flexGrow loading={loading} onClick={onClick}>
+      <ActionButton variant={variant} size="large" flexGrow loading={loading} disabled={disabled} onClick={onClick}>
         {label}
       </ActionButton>
     </div>

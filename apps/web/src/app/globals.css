@@ -44,8 +44,14 @@ body {
   text-align: center;
 }
 
-.punch-center > svg {
+.punch-center > svg,
+.punch-center__mark {
   margin-bottom: 24px;
+}
+
+/* 등장 모션용 마크 칸 (shared/motion/SuccessEntrance). svg 밑 글줄 여백이 생기지 않게 */
+.punch-center__mark {
+  display: flex;
 }
 
 .punch-bottom {
@@ -494,6 +500,29 @@ body {
 }
 
 /* 공통 모션 (shared/motion) */
+/* 등장 스태거 루트. 상자를 만들지 않아 자식이 부모(.screen·.punch-center) 의 flex gap·정렬을 그대로 쓴다 */
+.motion-contents {
+  display: contents;
+}
+
+/* 여러 블록을 한 칸으로 등장시킬 때 .screen 과 같은 간격 */
+.screen-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 내용이 없는 칸(0건이라 숨긴 카드)은 gap 도 차지하지 않게 */
+.motion-contents > :empty {
+  display: none;
+}
+
+/* 뒤늦게 펼쳐지는 블록(InlineAlert·검색 결과). 부모 flex gap(12px 이하)만큼 끌어올리고 같은 값을 펼침 여백으로 줘서,
+   높이 0 일 때 간격만 먼저 생겨 아래가 툭 밀리지 않게 한다. 다 펼치면 래퍼가 없을 때와 같은 자리다 */
+.flow-reveal {
+  margin-top: -12px;
+}
+
 .gpu-layer {
   transform: translateZ(0);
   will-change: transform;

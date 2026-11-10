@@ -3,6 +3,7 @@
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
+import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from '@/shared/motion/SuccessEntrance';
 import KokMark from '@/shared/ui/KokMark';
 import QrImage from '@/shared/ui/QrImage';
 
@@ -17,31 +18,42 @@ export default function StoreQrCard({ storeName, url }: StoreQrCardProps) {
 
   return (
     <section className="punch-center" aria-live="polite">
-      <KokMark size={64} />
-      <Text as="h1" textStyle="t8Bold">
-        {storeName} 준비 완료
-      </Text>
-      <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-        QR을 출력해 매장에 붙여 주세요
-      </Text>
-      <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-        직원이 찍으면 바로 출퇴근돼요
-      </Text>
-      <div className="store-qr">
-        <QrImage value={url} alt={`${storeName} 출근 QR`} onReady={setDataUrl} />
-      </div>
-      <div className="store-qr__actions">
-        <ActionButton variant="neutralWeak" size="medium" onClick={() => window.print()}>
-          인쇄하기
-        </ActionButton>
-        {dataUrl ? (
-          <ActionButton asChild variant="neutralWeak" size="medium">
-            <a href={dataUrl} download={`${storeName}-출근QR.png`}>
-              이미지 저장
-            </a>
+      {/* 매장을 만든 직후·QR 재발급 직후 한 번 */}
+      <SuccessEntrance>
+        <SuccessEntranceMark>
+          <KokMark size={64} />
+        </SuccessEntranceMark>
+        <SuccessEntranceItem>
+          <Text as="h1" textStyle="t8Bold">
+            {storeName} 준비 완료
+          </Text>
+        </SuccessEntranceItem>
+        <SuccessEntranceItem>
+          <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
+            QR을 출력해 매장에 붙여 주세요
+          </Text>
+        </SuccessEntranceItem>
+        <SuccessEntranceItem>
+          <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
+            직원이 찍으면 바로 출퇴근돼요
+          </Text>
+        </SuccessEntranceItem>
+        <SuccessEntranceItem className="store-qr">
+          <QrImage value={url} alt={`${storeName} 출근 QR`} onReady={setDataUrl} />
+        </SuccessEntranceItem>
+        <SuccessEntranceItem className="store-qr__actions">
+          <ActionButton variant="neutralWeak" size="medium" onClick={() => window.print()}>
+            인쇄하기
           </ActionButton>
-        ) : null}
-      </div>
+          {dataUrl ? (
+            <ActionButton asChild variant="neutralWeak" size="medium">
+              <a href={dataUrl} download={`${storeName}-출근QR.png`}>
+                이미지 저장
+              </a>
+            </ActionButton>
+          ) : null}
+        </SuccessEntranceItem>
+      </SuccessEntrance>
     </section>
   );
 }

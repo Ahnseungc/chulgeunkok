@@ -1,9 +1,13 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
+import { AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { ExpandFadeReveal } from '@/shared/motion/ExpandFadeReveal';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert, { FLOW_REVEAL_CLASS, FLOW_REVEAL_GAP_PX } from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 
 import type { PlaceDto } from '../model/place-types';
@@ -57,106 +61,122 @@ export default function NewStoreScreen() {
 
   return (
     <main className="screen">
-      <Text as="h1" textStyle="t8Bold">
-        어떤 가게인가요?
-      </Text>
+      {/* 처음 열 때 한 번 위→아래로 이어서 내려온다. 검색 결과·확인 결과는 아래 칸을 툭 밀지 않고 펼친다 */}
+      <PageStaggerEntrance className="motion-contents">
+        <PageStaggerEntranceItem>
+          <Text as="h1" textStyle="t8Bold">
+            어떤 가게인가요?
+          </Text>
+        </PageStaggerEntranceItem>
 
-      <LabeledTextField
-        label="가게 검색"
-        value={search.query}
-        onValueChange={search.changeQuery}
-        placeholder="가게 이름으로 검색 (예: 골목카페)"
-      />
-      {search.errorMessage ? <ErrorText message={search.errorMessage} /> : null}
-      {!place && search.places.length > 0 ? (
-        <ul className="place-list" aria-label="검색 결과">
-          {search.places.map((result) => (
-            <li key={result.placeId}>
-              <button type="button" className="place-list__item" onClick={() => choosePlace(result)}>
-                <Text textStyle="t5Bold">{result.name}</Text>
+        <PageStaggerEntranceItem>
+          <LabeledTextField
+            label="가게 검색"
+            value={search.query}
+            onValueChange={search.changeQuery}
+            placeholder="가게 이름으로 검색 (예: 골목카페)"
+          />
+        </PageStaggerEntranceItem>
+        <InlineAlert message={search.errorMessage} textStyle="t4Regular" />
+        <AnimatePresence initial={false}>
+          {!place && search.places.length > 0 ? (
+            <ExpandFadeReveal key="places" className={FLOW_REVEAL_CLASS} revealTopPadding={FLOW_REVEAL_GAP_PX}>
+              <ul className="place-list" aria-label="검색 결과">
+                {search.places.map((result) => (
+                  <li key={result.placeId}>
+                    <button type="button" className="place-list__item" onClick={() => choosePlace(result)}>
+                      <Text textStyle="t5Bold">{result.name}</Text>
+                      <Text textStyle="t4Regular" color="fg.neutralMuted">
+                        {[result.category, result.roadAddress ?? result.address].filter(Boolean).join(' · ')}
+                      </Text>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </ExpandFadeReveal>
+          ) : null}
+          {place ? (
+            <ExpandFadeReveal key="selected" className={FLOW_REVEAL_CLASS} revealTopPadding={FLOW_REVEAL_GAP_PX}>
+              <div className="selected-place">
                 <Text textStyle="t4Regular" color="fg.neutralMuted">
-                  {[result.category, result.roadAddress ?? result.address].filter(Boolean).join(' · ')}
+                  {place.roadAddress ?? place.address}
                 </Text>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {place ? (
-        <div className="selected-place">
-          <Text textStyle="t4Regular" color="fg.neutralMuted">
-            {place.roadAddress ?? place.address}
-          </Text>
-          <ActionButton type="button" variant="ghost" size="small" onClick={() => setPlace(null)}>
-            다른 가게 선택
-          </ActionButton>
-        </div>
-      ) : null}
+                <ActionButton type="button" variant="ghost" size="small" onClick={() => setPlace(null)}>
+                  다른 가게 선택
+                </ActionButton>
+              </div>
+            </ExpandFadeReveal>
+          ) : null}
+        </AnimatePresence>
 
-      <LabeledTextField
-        label="매장 이름 (직원에게 보여요)"
-        value={name}
-        onValueChange={setName}
-        maxLength={STORE_NAME_MAX_LENGTH}
-        placeholder="검색하지 않고 직접 입력해도 돼요"
-      />
+        <PageStaggerEntranceItem>
+          <LabeledTextField
+            label="매장 이름 (직원에게 보여요)"
+            value={name}
+            onValueChange={setName}
+            maxLength={STORE_NAME_MAX_LENGTH}
+            placeholder="검색하지 않고 직접 입력해도 돼요"
+          />
+        </PageStaggerEntranceItem>
 
-      <div className="business-number">
-        <LabeledTextField
-          label="사업자등록번호 (선택)"
-          value={businessNumber}
-          onValueChange={(value) => {
-            setBusinessNumber(value);
-            business.reset();
-          }}
-          inputMode="numeric"
-          placeholder="000-00-00000"
-        />
-        <ActionButton
-          type="button"
-          variant="neutralWeak"
-          size="medium"
-          loading={business.pending}
-          disabled={businessNumber.replace(/\D/g, '').length !== 10}
-          onClick={() => business.verify(businessNumber)}
-        >
-          확인
-        </ActionButton>
-      </div>
-      {business.result ? (
-        <Text
-          as="p"
-          textStyle="t4Regular"
-          color={business.result.status === 'ACTIVE' ? 'fg.positive' : 'fg.critical'}
-        >
-          {BUSINESS_STATUS_LABEL[business.result.status]}
-        </Text>
-      ) : null}
-      {business.errorMessage ? <ErrorText message={business.errorMessage} /> : null}
-
-      <fieldset className="headcount">
-        <legend>
-          <Text as="span" textStyle="t4Medium">
-            함께 일하는 사람 수 (사장님 포함, 지난 1개월 평균)
-          </Text>
-        </legend>
-        <div className="headcount__options">
-          {HEADCOUNT_OPTIONS.map((option) => (
+        <PageStaggerEntranceItem>
+          <div className="business-number">
+            <LabeledTextField
+              label="사업자등록번호 (선택)"
+              value={businessNumber}
+              onValueChange={(value) => {
+                setBusinessNumber(value);
+                business.reset();
+              }}
+              inputMode="numeric"
+              placeholder="000-00-00000"
+            />
             <ActionButton
-              key={option.band}
               type="button"
+              variant="neutralWeak"
               size="medium"
-              variant={headcountBand === option.band ? 'neutralSolid' : 'neutralWeak'}
-              aria-pressed={headcountBand === option.band}
-              onClick={() => setHeadcountBand(option.band)}
+              loading={business.pending}
+              disabled={businessNumber.replace(/\D/g, '').length !== 10}
+              onClick={() => business.verify(businessNumber)}
             >
-              {option.label}
+              확인
             </ActionButton>
-          ))}
-        </div>
-      </fieldset>
+          </div>
+        </PageStaggerEntranceItem>
+        <InlineAlert
+          message={business.result ? BUSINESS_STATUS_LABEL[business.result.status] : null}
+          textStyle="t4Regular"
+          color={business.result?.status === 'ACTIVE' ? 'fg.positive' : 'fg.critical'}
+          role="status"
+        />
+        <InlineAlert message={business.errorMessage} textStyle="t4Regular" />
 
-      {store.errorMessage ? <ErrorText message={store.errorMessage} /> : null}
+        <PageStaggerEntranceItem>
+          <fieldset className="headcount">
+            <legend>
+              <Text as="span" textStyle="t4Medium">
+                함께 일하는 사람 수 (사장님 포함, 지난 1개월 평균)
+              </Text>
+            </legend>
+            <div className="headcount__options">
+              {HEADCOUNT_OPTIONS.map((option) => (
+                <ActionButton
+                  key={option.band}
+                  type="button"
+                  size="medium"
+                  variant={headcountBand === option.band ? 'neutralSolid' : 'neutralWeak'}
+                  aria-pressed={headcountBand === option.band}
+                  onClick={() => setHeadcountBand(option.band)}
+                >
+                  {option.label}
+                </ActionButton>
+              ))}
+            </div>
+          </fieldset>
+        </PageStaggerEntranceItem>
+
+        <InlineAlert message={store.errorMessage} textStyle="t4Regular" />
+      </PageStaggerEntrance>
       <div className="punch-bottom">
         <ActionButton
           variant="neutralSolid"
@@ -173,13 +193,5 @@ export default function NewStoreScreen() {
         </ActionButton>
       </div>
     </main>
-  );
-}
-
-function ErrorText({ message }: { message: string }) {
-  return (
-    <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-      {message}
-    </Text>
   );
 }

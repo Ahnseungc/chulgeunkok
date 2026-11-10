@@ -6,8 +6,11 @@ import { useState } from 'react';
 import { apiFetch } from '@/shared/lib/api-client';
 import { formatClock, formatDuration, formatLocalDate, fromLocalDateTimeInput, toLocalDateTimeInput } from '@/shared/lib/format-time';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
+import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
+import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 import type { AttendanceDetailDto } from '../model/attendance-admin-types';
 import { DEFAULT_BREAK_WAIVED_REASON } from '../model/my-attendance-types';
@@ -28,30 +31,31 @@ export default function MyAttendanceScreen({ attendanceId }: { attendanceId: str
   return (
     <main className="screen">
       <ScreenHeader backHref="/me" backLabel="내 근무" title={data ? formatLocalDate(data.localDate) : undefined} />
-      {detail.errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {detail.errorMessage}
+      {/* 날짜·시각 줄은 데이터 전에도 자리를 잡아, 값이 와도 아래가 밀리지 않는다 */}
+      <header className="member-header">
+        <Text as="h1" textStyle="t8Bold">
+          {data ? formatLocalDate(data.localDate) : TEXT_PLACEHOLDER}
         </Text>
-      ) : null}
+        <Text textStyle="t5Regular">
+          {data ? `${formatClock(data.clockInAt)} ~ ${data.clockOutAt ? formatClock(data.clockOutAt) : '퇴근 기록 없음'}` : TEXT_PLACEHOLDER}
+        </Text>
+        {data?.status === 'CLOSED' ? (
+          <Text textStyle="t4Regular" color="fg.neutralMuted">
+            휴게 {formatDuration(data.breakSeconds * SECOND_MS)} 빼고 {formatDuration(data.recognizedSeconds * SECOND_MS)} 인정
+          </Text>
+        ) : null}
+        {data ? <AttendanceBadges row={data} /> : null}
+      </header>
+      <InlineAlert message={detail.errorMessage} />
       {data ? (
-        <>
-          <header className="member-header">
-            <Text as="h1" textStyle="t8Bold">
-              {formatLocalDate(data.localDate)}
-            </Text>
-            <Text textStyle="t5Regular">
-              {formatClock(data.clockInAt)} ~ {data.clockOutAt ? formatClock(data.clockOutAt) : '퇴근 기록 없음'}
-            </Text>
-            {data.status === 'CLOSED' ? (
-              <Text textStyle="t4Regular" color="fg.neutralMuted">
-                휴게 {formatDuration(data.breakSeconds * SECOND_MS)} 빼고 {formatDuration(data.recognizedSeconds * SECOND_MS)} 인정
-              </Text>
-            ) : null}
-            <AttendanceBadges row={data} />
-          </header>
-          {pending ? null : <RequestForms detail={data} onDone={detail.reload} />}
-          <CorrectionHistory detail={data} onChanged={detail.reload} />
-        </>
+        <PageStaggerEntrance className="motion-contents">
+          <PageStaggerEntranceItem className="screen-stack">
+            {pending ? null : <RequestForms detail={data} onDone={detail.reload} />}
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <CorrectionHistory detail={data} onChanged={detail.reload} />
+          </PageStaggerEntranceItem>
+        </PageStaggerEntrance>
       ) : null}
     </main>
   );
@@ -137,11 +141,7 @@ function RequestForms({ detail, onDone }: { detail: AttendanceDetailDto; onDone:
           사장님께 요청하기
         </ActionButton>
       </section>
-      {errorMessage ? (
-        <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage} textStyle="t4Regular" />
     </>
   );
 }
@@ -182,11 +182,7 @@ function CorrectionHistory({ detail, onChanged }: { detail: AttendanceDetailDto;
           </li>
         ))}
       </ul>
-      {errorMessage ? (
-        <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={errorMessage} textStyle="t4Regular" />
     </section>
   );
 }

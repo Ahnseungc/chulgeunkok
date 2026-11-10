@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CardStaggerList } from './CardStaggerList';
 import { EntrancePanel } from './Entrance';
 import { SmoothCountUpNumber } from './SmoothCountUpNumber';
+import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from './SuccessEntrance';
 import { useIntroCountUp } from './useIntroCountUp';
 
 // framer-motion 은 처음 쓸 때 한 번 matchMedia 를 읽어 둔다. 이 파일 전체를 "모션 줄이기" 기기로 만든다
@@ -47,5 +48,20 @@ describe('모션 줄이기', () => {
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(rows[0]?.style.opacity).toBe('');
+  });
+
+  it('SuccessEntrance 는 마크·문구를 숨긴 채 시작하지 않는다', () => {
+    render(
+      <SuccessEntrance>
+        <SuccessEntranceMark>
+          <span>마크</span>
+        </SuccessEntranceMark>
+        <SuccessEntranceItem>
+          <span>콕! 출근 완료</span>
+        </SuccessEntranceItem>
+      </SuccessEntrance>,
+    );
+    expect(screen.getByText('마크').parentElement?.style.opacity).toBe('1');
+    expect(screen.getByText('콕! 출근 완료').parentElement?.style.opacity).toBe('1');
   });
 });

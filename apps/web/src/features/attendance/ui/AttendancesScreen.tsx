@@ -12,6 +12,7 @@ import PeriodNav from '@/shared/ui/PeriodNav';
 
 import type { AttendanceListDto, AttendanceRowDto } from '../model/attendance-admin-types';
 import { AppLink } from '@/shared/ui/AppLink';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const SECOND_MS = 1000;
@@ -47,7 +48,8 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
       <Text as="h1" textStyle="t8Bold">
         근태 기록
       </Text>
-      {list.data ? <PeriodNav period={list.data.period} onChange={setPeriodStart} /> : null}
+      {/* 기간은 목록과 같이 오지만 자리는 먼저 잡아, 아래 필터가 밀리지 않게 한다 */}
+      <PeriodNav period={list.data?.period ?? null} onChange={setPeriodStart} />
       <div className="filters">
         <select className="native-select" aria-label="직원" value={memberId} onChange={(event) => setMemberId(event.target.value)}>
           <option value="">전체 직원</option>
@@ -66,11 +68,7 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
           퇴근 누락만
         </ActionButton>
       </div>
-      {list.errorMessage ? (
-        <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
-          {list.errorMessage}
-        </Text>
-      ) : null}
+      <InlineAlert message={list.errorMessage} />
       {list.data && list.data.rows.length === 0 ? (
         <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
           이 기간에는 기록이 없어요

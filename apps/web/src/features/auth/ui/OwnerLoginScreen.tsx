@@ -4,12 +4,16 @@ import { ActionButton, Text } from '@seed-design/react';
 import Image from 'next/image';
 import { useState } from 'react';
 
+import { TextEntrance } from '@/shared/motion/TextEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 
 import { useOwnerLogin, type OwnerLoginStep } from './useOwnerLogin';
 
 const CODE_LENGTH = 6;
 const NAME_MAX_LENGTH = 20;
+/** 제목 다음에 입력칸이 이어서 올라오게 */
+const FIELDS_ENTRANCE_DELAY_S = 0.05;
 
 const TITLE = {
   phone: '사장님 휴대폰 번호를 알려 주세요',
@@ -25,9 +29,12 @@ export default function OwnerLoginScreen() {
   return (
     <main className="screen">
       <Image src="/brand/wordmark.png" alt="출근콕" width={104} height={40} priority />
-      <Text as="h1" textStyle="t8Bold">
-        {TITLE[state.step]}
-      </Text>
+      {/* 단계가 바뀔 때마다 제목·입력칸이 살짝 올라오며 바뀐다 (입력은 바로 된다) */}
+      <TextEntrance key={state.step}>
+        <Text as="h1" textStyle="t8Bold">
+          {TITLE[state.step]}
+        </Text>
+      </TextEntrance>
       {state.step === 'phone' ? <PhoneStep {...login} /> : null}
       {state.step === 'code' ? <CodeStep {...login} phone={state.phone} devCode={state.devCode} /> : null}
       {state.step === 'name' ? <NameStep {...login} /> : null}
@@ -136,14 +143,10 @@ function StepForm({ pending, errorMessage, submitLabel, canSubmit, onSubmit, chi
         if (canSubmit && !pending) onSubmit();
       }}
     >
-      <div className="step-form__fields">
+      <TextEntrance className="step-form__fields" delay={FIELDS_ENTRANCE_DELAY_S}>
         {children}
-        {errorMessage ? (
-          <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-            {errorMessage}
-          </Text>
-        ) : null}
-      </div>
+        <InlineAlert message={errorMessage} textStyle="t4Regular" />
+      </TextEntrance>
       <div className="punch-bottom">
         <ActionButton
           type="submit"

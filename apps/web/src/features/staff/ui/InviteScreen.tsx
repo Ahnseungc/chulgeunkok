@@ -4,6 +4,8 @@ import { ActionButton, Text, TextField } from '@seed-design/react';
 import Image from 'next/image';
 import { useId, useState } from 'react';
 
+import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from '@/shared/motion/SuccessEntrance';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import KokMark from '@/shared/ui/KokMark';
 
 import type { InvitationInfoDto } from '../model/invitation-types';
@@ -34,18 +36,38 @@ interface InviteBodyProps {
 }
 
 function InviteBody({ state, onAccept }: InviteBodyProps) {
-  if (state.phase === 'loading') return <Center title="초대를 확인하고 있어요" />;
+  if (state.phase === 'loading') {
+    // 하단 버튼 자리를 먼저 잡아, 폼이 와도 가운데 문구가 위로 밀리지 않게 한다
+    return (
+      <>
+        <Center title="초대를 확인하고 있어요" />
+        <div className="punch-bottom">
+          <ActionButton variant="neutralSolid" size="large" flexGrow loading disabled>
+            확인 중
+          </ActionButton>
+        </div>
+      </>
+    );
+  }
   if (state.phase === 'invalid') return <Center title="초대를 열 수 없어요" description={state.message} />;
   if (state.phase === 'done') {
     return (
       <section className="punch-center" aria-live="polite">
-        <KokMark />
-        <Text as="h1" textStyle="t10Bold">
-          등록됐어요
-        </Text>
-        <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-          이제 {state.result.storeName} QR을 찍으면 바로 출근할 수 있어요.
-        </Text>
+        <SuccessEntrance>
+          <SuccessEntranceMark>
+            <KokMark />
+          </SuccessEntranceMark>
+          <SuccessEntranceItem>
+            <Text as="h1" textStyle="t10Bold">
+              등록됐어요
+            </Text>
+          </SuccessEntranceItem>
+          <SuccessEntranceItem>
+            <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
+              이제 {state.result.storeName} QR을 찍으면 바로 출근할 수 있어요.
+            </Text>
+          </SuccessEntranceItem>
+        </SuccessEntrance>
       </section>
     );
   }
@@ -114,11 +136,7 @@ function InviteForm({ info, pending, errorMessage, onAccept }: InviteFormProps) 
             </TextField.Root>
           </div>
         ) : null}
-        {errorMessage ? (
-          <Text as="p" textStyle="t4Regular" color="fg.critical" role="alert">
-            {errorMessage}
-          </Text>
-        ) : null}
+        <InlineAlert message={errorMessage} textStyle="t4Regular" />
       </section>
       <div className="punch-bottom">
         <ActionButton
