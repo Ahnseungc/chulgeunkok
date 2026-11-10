@@ -12,6 +12,9 @@ export const APP_SCHEME = 'chulgeunkok';
 /** 앱이 열 수 있는 웹 경로. 그 밖의 URL은 무시한다 (임의 사이트를 WebView로 열지 않게) */
 const APP_PATH_PATTERN = /^\/(p|invite)\/[A-Za-z0-9_-]{20,64}$/;
 
+/** 위치 요청 ↔ 응답을 짝짓는 값 (웹이 만든 UUID 등) */
+const RequestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
+
 export const WebToAppMessage = z.discriminatedUnion('type', [
   /** 웹 화면의 "QR 찍기" */
   z.object({ type: z.literal('OPEN_SCANNER') }),
@@ -20,12 +23,30 @@ export const WebToAppMessage = z.discriminatedUnion('type', [
    * 토큰 자체는 JS에 노출하지 않는다 (docs/specs/auth §6.2)
    */
   z.object({ type: z.literal('DEVICE_REGISTERED'), handoffCode: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }),
+  /**
+   * 출퇴근 위치. 앱 안에서는 WebView geolocation 대신 앱이 네이티브로 받아 `LOCATION` 으로 답한다
+   * (iOS 가 앱 권한 + 사이트 권한을 두 번 묻지 않게)
+   */
+  z.object({ type: z.literal('REQUEST_LOCATION'), requestId: RequestId }),
 ]);
 export type WebToAppMessage = z.infer<typeof WebToAppMessage>;
 
-export const AppToWebMessage = z.discriminatedUnion('type', [
+/** 좌표·실패 사유 둘 다 `LOCATION` 이라 discriminatedUnion 대신 union 으로 받는다 */
+export const AppToWebMessage = z.union([
   /** 스캔한 QR이 앱 경로가 아니었을 때 웹이 안내를 띄운다 */
   z.object({ type: z.literal('SCAN_REJECTED') }),
+  /** `REQUEST_LOCATION` 응답 — 좌표 */
+  z.object({
+    type: z.literal('LOCATION'),
+    requestId: RequestId,
+    coords: z.object({
+      latitude: z.number().min(-90).max(90),
+      longitude: z.number().min(-180).max(180),
+      accuracy: z.number().nonnegative(),
+    }),
+  }),
+  /** `REQUEST_LOCATION` 응답 — 권한 거부(DENIED) 또는 못 받음(UNAVAILABLE) */
+  z.object({ type: z.literal('LOCATION'), requestId: RequestId, error: z.enum(['DENIED', 'UNAVAILABLE']) }),
 ]);
 export type AppToWebMessage = z.infer<typeof AppToWebMessage>;
 
@@ -40,9 +61,15 @@ export function parseWebToApp(raw: string): WebToAppMessage | null {
   }
 }
 
+/** 앱 → 웹 메시지 검증. WebView `postMessage` 는 문자열로 오므로 JSON 문자열도 받는다 */
 export function parseAppToWeb(raw: unknown): AppToWebMessage | null {
-  const parsed = AppToWebMessage.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  try {
+    const parsed = AppToWebMessage.safeParse(typeof raw === 'string' ? JSON.parse(raw) : raw);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    // JSON이 아닌 메시지는 이 계약 밖이다 (다른 스크립트의 postMessage)
+    return null;
+  }
 }
 
 /**

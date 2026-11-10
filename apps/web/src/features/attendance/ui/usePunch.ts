@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiFetch, ApiRequestError } from '@/shared/lib/api-client';
+import { requestAppLocation } from '@/shared/lib/app-shell';
 
 import type { AttendanceDto, PunchAction, PunchPreviewDto, PunchResultDto } from '../model/punch-types';
 
@@ -10,6 +11,8 @@ import { retryPunch } from './retry-punch';
 
 const LOCATION_TIMEOUT_MS = 5000;
 const LOCATION_MAX_AGE_MS = 60_000;
+/** 앱 위치는 권한 팝업을 누르는 시간까지 포함하므로 브라우저보다 길게 기다린다 */
+const APP_LOCATION_TIMEOUT_MS = 30_000;
 const NETWORK_ERROR_MESSAGE = '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 
 /** 다시 시도해도 결과가 같은 오류. 새 QR을 찍거나 초대 링크로 기기를 등록해야 한다 */
@@ -127,7 +130,19 @@ export function usePunch(qrToken: string) {
   return { state, submit, reload: loadPreview };
 }
 
-function requestLocation(onLocation: (value: PunchLocation) => void) {
+/**
+ * 위치를 받을 수 있으면 받는다. 앱 안이면 앱(네이티브)에 요청해 권한을 한 번만 묻고, 브라우저면 navigator.geolocation.
+ * 위치 거부·실패는 출근을 막지 않는다 (docs/specs/attendance §3.1)
+ */
+export function requestLocation(onLocation: (value: PunchLocation) => void) {
+  if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+    requestAppLocation(APP_LOCATION_TIMEOUT_MS).then(
+      (coords) => onLocation({ latitude: coords.latitude, longitude: coords.longitude, accuracyM: Math.round(coords.accuracy) }),
+      // 위치 없이 진행한다. 거부·측위 실패·응답 없음 모두 같다
+      (error: unknown) => console.warn('[usePunch] 앱 위치 없이 진행', error),
+    );
+    return;
+  }
   if (typeof navigator === 'undefined' || !navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(
     (position) =>
@@ -136,7 +151,6 @@ function requestLocation(onLocation: (value: PunchLocation) => void) {
         longitude: position.coords.longitude,
         accuracyM: Math.round(position.coords.accuracy),
       }),
-    // 위치 거부·실패는 출근을 막지 않는다 (docs/specs/attendance §3.1)
     () => undefined,
     { timeout: LOCATION_TIMEOUT_MS, maximumAge: LOCATION_MAX_AGE_MS },
   );
