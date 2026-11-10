@@ -10,7 +10,9 @@ alwaysApply: false
 
 ## 1. 조회 중
 
-- `useApiResource` 의 `data` 가 `null` 이면 해당 블록을 그리지 않는다 (`data?.members.map(...)`). 화면 골격(제목·뒤로가기)은 바로 보인다.
+- `useApiResource` 의 `data` 가 `null` 이면 해당 블록을 그리지 않는다 (`data?.members.map(...)`). 화면 골격(`ScreenHeader`·제목·하단 CTA)은 바로 보인다.
+- 데이터보다 **위에** 있거나 나중에 나타나 아래를 미는 요소는 자리를 먼저 잡는다: 제목 한 줄은 `shared/ui/text-placeholder.ts`(줄 높이 유지 공백), 기간 이동은 `PeriodNav period={null}`(높이 유지·버튼 비활성), 하단 CTA 는 비활성 `loading` 버튼.
+- 늦게 오는 오류·상태 문구는 `shared/ui/InlineAlert` 로 펼쳐 보여 준다 (그냥 끼워 넣어 아래를 밀지 않는다).
 - 단계가 있는 화면은 `phase` 상태 (`'loading' | ...`) 로 분기하고 안내 문구를 보여 준다 (`PunchScreen`, `InviteScreen` 의 `<Center title="초대를 확인하고 있어요" />`).
 
 ## 2. 액션 대기
