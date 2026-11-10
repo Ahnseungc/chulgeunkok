@@ -9,37 +9,23 @@
   <img src="apps/web/public/brand/wordmark.png" width="220" alt="출근콕" />
 </picture>
 
-### 매장에 QR 스티커 하나 붙이면, 출퇴근부터 월말 정산까지
+<br /><br />
 
-작은 음식점·카페·주점 사장님을 위한 근태관리 서비스입니다.<br />
-직원은 휴대폰으로 매장 QR을 **콕** 찍어 출퇴근하고, 사장님은 근무시간과 예상 급여를 한 화면에서 확인합니다.
-
-![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=nextdotjs&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![Expo](https://img.shields.io/badge/Expo-000020?style=flat-square&logo=expo&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat-square&logo=prisma&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+작은 가게 사장님이 직원 출퇴근과 급여를 챙기는 앱.<br />
+매장에 QR 스티커를 붙여 두면 직원이 휴대폰으로 찍고 출근한다.
 
 </div>
 
----
-
-## 이렇게 씁니다
+## 쓰는 흐름
 
 <table>
 <tr>
 <td width="34%" align="center"><img src="assets/brand/%EC%B6%9C%EA%B7%BC%EC%BD%95-QR%EC%8A%A4%ED%8B%B0%EC%BB%A4.png" width="200" alt="매장 QR 스티커" /></td>
 <td>
 
-**1. 사장님이 매장에 QR 스티커를 붙입니다**<br />
-휴대폰 인증 후 가게를 검색해 매장을 만들면 매장 전용 QR이 나옵니다. 별도 단말기는 필요 없습니다.
-
-**2. 직원은 초대 링크로 한 번만 기기를 등록합니다**<br />
-그다음부터는 QR을 찍고 버튼 하나로 출근·퇴근. 지금 상태를 서버가 판단해 출근/퇴근이 자동으로 바뀌어 잘못 누를 일이 없습니다.
-
-**3. 근무시간과 예상 급여가 자동으로 정리됩니다**<br />
-정산 기간별 근무시간·예상 기본급을 계산하고, 퇴근 누락·휴게 미설정·근로조건 누락처럼 사장님이 챙겨야 할 일을 먼저 알려 줍니다.
+1. 사장님이 휴대폰 인증을 하고 가게를 검색해 매장을 만든다. 매장 QR을 뽑아 카운터에 붙인다.
+2. 직원은 초대 링크로 자기 휴대폰을 한 번 등록한다. 그 뒤로는 QR을 찍고 버튼 하나만 누른다. 출근해 있으면 퇴근 버튼이 뜬다.
+3. 사장님 화면에 오늘 일하는 사람, 이번 달 근무시간과 예상 기본급이 쌓인다. 퇴근을 안 찍었거나 근로조건이 비어 있으면 처리할 일로 올라온다.
 
 </td>
 </tr>
@@ -49,14 +35,14 @@
 
 <table>
 <tr>
-<td align="center"><img src="docs/screenshots/employee-qr.png" width="220" alt="QR 찍고 출근하기" /></td>
-<td align="center"><img src="docs/screenshots/employee-clock-in.png" width="220" alt="콕! 출근 완료" /></td>
+<td align="center"><img src="docs/screenshots/employee-qr.png" width="220" alt="QR을 찍고 들어온 출근 화면" /></td>
+<td align="center"><img src="docs/screenshots/employee-clock-in.png" width="220" alt="출근 완료 화면" /></td>
 <td align="center"><img src="docs/screenshots/employee-my-work.png" width="220" alt="내 근무 기록과 예상 급여" /></td>
 </tr>
 <tr>
-<td align="center">QR 찍고 출근하기</td>
-<td align="center">콕! 출근 완료</td>
-<td align="center">내 근무 · 예상 급여</td>
+<td align="center">QR 찍고 출근</td>
+<td align="center">출근 완료</td>
+<td align="center">내 근무와 예상 급여</td>
 </tr>
 </table>
 
@@ -64,25 +50,25 @@
 
 <table>
 <tr>
-<td align="center"><img src="docs/screenshots/owner-home.png" width="220" alt="매장 대시보드" /></td>
+<td align="center"><img src="docs/screenshots/owner-home.png" width="220" alt="매장 홈" /></td>
 <td align="center"><img src="docs/screenshots/owner-attendances.png" width="220" alt="근태 기록" /></td>
-<td align="center"><img src="docs/screenshots/owner-payroll.png" width="220" alt="정산과 CSV 내보내기" /></td>
+<td align="center"><img src="docs/screenshots/owner-payroll.png" width="220" alt="정산" /></td>
 </tr>
 <tr>
-<td align="center">지금 근무 중 · 처리할 일</td>
-<td align="center">직원별 근태 기록</td>
-<td align="center">정산 · CSV 내보내기</td>
+<td align="center">매장 홈</td>
+<td align="center">근태 기록</td>
+<td align="center">정산과 CSV</td>
 </tr>
 </table>
 
-## 주요 기능
+## 기능
 
-| | 기능 |
-|---|---|
-| ⏱️ | **QR 출퇴근** — 매장 QR + 등록된 기기로만 기록, 재시도해도 중복 없음(Idempotency-Key) |
-| 📋 | **근태 관리** — 퇴근 누락 자동 전환, 근무 수정 요청·승인 |
-| 💰 | **정산** — 요일별 근로조건·시급 이력 기준 예상 기본급, 근무별·직원별 CSV |
-| ⚖️ | **노무 검토 안내** — 최저임금·법정 휴게·야간·연장·결근 의심을 검토 시점에 알림 (사업장 규모에 따라 문구 분기) |
-| 📱 | **앱 셸** — Expo 앱이 WebView로 웹 화면을 띄우고 QR 스캔·기기 토큰 보관을 맡음 |
+- QR 출퇴근: 등록한 기기로만 찍힌다. 네트워크가 끊겨 다시 보내도 두 번 기록되지 않는다.
+- 근태: 퇴근을 안 찍으면 일정 시간 뒤 퇴근 누락으로 바뀐다. 직원이 수정 요청을 보내면 사장님이 승인한다.
+- 정산: 요일별 근무 스케줄과 시급 이력으로 예상 기본급을 계산하고 CSV로 내려받는다.
+- 노무 안내: 최저임금, 휴게, 야간·연장, 결근 의심을 확인해야 할 때 알려 준다. 5인 미만 매장은 문구를 달리한다.
+- 앱: Expo 앱이 웹 화면을 WebView로 띄우고, QR 스캔과 기기 토큰 저장을 맡는다.
 
-> 법령 해석은 설계용 가정이며, 출시 전 공인노무사 검토가 필요합니다. 서비스는 노무 판단을 대신하지 않고 "검토가 필요한 시점"을 안내합니다.
+법령 해석은 설계 단계의 가정이라 출시 전에 공인노무사 검토를 받는다.
+
+Next.js 15 · React 19 · TypeScript · Expo · Prisma · PostgreSQL
