@@ -16,7 +16,12 @@ import InlineAlert, { FLOW_REVEAL_CLASS, FLOW_REVEAL_GAP_PX } from '@/shared/ui/
 import PeriodNav from '@/shared/ui/PeriodNav';
 import Sheet from '@/shared/ui/Sheet';
 
-import { PAYROLL_DISCLAIMER, type PayrollMemberDto, type PayrollPreviewDto } from '../model/payroll-types';
+import {
+  PAYROLL_DISCLAIMER,
+  PREMIUM_NOT_APPLIED_NOTE,
+  type PayrollMemberDto,
+  type PayrollPreviewDto,
+} from '../model/payroll-types';
 import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 
@@ -28,6 +33,19 @@ interface PayrollScreenProps {
 
 const won = (amount: number) => `${amount.toLocaleString('ko-KR')}원`;
 
+const ALLOWANCE_LABELS = [
+  ['주휴', 'weeklyHolidayPay'],
+  ['연장', 'overtimePremium'],
+  ['야간', 'nightPremium'],
+  ['휴일', 'holidayPremium'],
+] as const;
+
+/** 0원이 아닌 주휴·가산 항목만 "주휴 80,000원 · 연장 10,000원" */
+const allowanceSummary = ({ allowances }: PayrollMemberDto) =>
+  ALLOWANCE_LABELS.filter(([, key]) => allowances[key] > 0)
+    .map(([label, key]) => `${label} ${won(allowances[key])}`)
+    .join(' · ');
+
 /** `/owner/[storeId]/payroll` — docs/specs/payroll §6 */
 export default function PayrollScreen({ storeId }: PayrollScreenProps) {
   const [periodStart, setPeriodStart] = useState<string | undefined>();
@@ -37,7 +55,8 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
   // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
   useOnRevive(() => void reload());
   // 처음 받은 합계만 카운트업. 되살아남 재조회·기간 이동으로 바뀐 값은 바로 바꾼다
-  const basePayIntro = useIntroCountUp(data?.totals.basePayEstimate);
+  const estimateTotal = data ? data.totals.basePayEstimate + data.totals.allowanceEstimate : undefined;
+  const totalIntro = useIntroCountUp(estimateTotal);
 
   const exportUrl = (detail: boolean) =>
     `/api/v1/stores/${storeId}/payroll/export?periodStart=${data?.period.start ?? ''}${detail ? '&detail=1' : ''}`;
@@ -88,10 +107,13 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
                   {data.totals.memberCount}명 · 인정 {formatDuration(data.totals.recognizedSeconds * SECOND_MS)}
                 </Text>
                 <Text textStyle="t8Bold">
-                  <SmoothCountUpNumber value={data.totals.basePayEstimate} {...basePayIntro} />원
+                  <SmoothCountUpNumber value={estimateTotal ?? 0} {...totalIntro} />원
+                </Text>
+                <Text textStyle="t4Regular" color="fg.neutralMuted">
+                  기본급 {won(data.totals.basePayEstimate)} · 주휴·가산 {won(data.totals.allowanceEstimate)}
                 </Text>
                 <Text textStyle="t3Regular" color="fg.neutralMuted">
-                  {PAYROLL_DISCLAIMER}
+                  {PAYROLL_DISCLAIMER} {PREMIUM_NOT_APPLIED_NOTE[data.headcountBand] ?? ''}
                 </Text>
               </section>
             </PageStaggerEntranceItem>
@@ -142,7 +164,7 @@ function MemberRow({ storeId, periodStart, member }: { storeId: string; periodSt
     <AppLink className="store-list__item" href={`/owner/${storeId}/attendances?memberId=${member.memberId}&periodStart=${periodStart}`}>
       <div className="payroll-row">
         <Text textStyle="t5Bold">{member.name}</Text>
-        <Text textStyle="t5Bold">{won(member.basePayEstimate)}</Text>
+        <Text textStyle="t5Bold">{won(member.basePayEstimate + member.allowances.total)}</Text>
       </div>
       <Text textStyle="t4Regular" color="fg.neutralMuted">
         {member.recognizedSeconds === 0
@@ -151,6 +173,11 @@ function MemberRow({ storeId, periodStart, member }: { storeId: string; periodSt
               .map((wage) => won(wage.hourlyWage))
               .join(' → ')}`}
       </Text>
+      {member.allowances.total > 0 ? (
+        <Text textStyle="t4Regular" color="fg.neutralMuted">
+          기본급 {won(member.basePayEstimate)} · {allowanceSummary(member)}
+        </Text>
+      ) : null}
       {flags.length > 0 ? (
         <div className="badges">
           {flags.map((flag) => (

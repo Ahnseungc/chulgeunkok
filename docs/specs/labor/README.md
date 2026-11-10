@@ -21,7 +21,7 @@
 
 | 포함 (P0) | 제외 |
 | --- | --- |
-| 근로조건 등록·이력 | 수당 **금액** 계산 (P1) |
+| 근로조건 등록·이력 | 수당 **금액** 계산 (`payroll` §3.6에서 예상액만) |
 | `MINIMUM_WAGE`, `BREAK_SHORTAGE`, `WEEKLY_HOLIDAY`, `SHORT_TIME_OVERTIME` | `HOLIDAY_WORK`, `SEVERANCE`, `ANNUAL_LEAVE` (P1) |
 | `NIGHT_WORK`, `OVERTIME`, `ABSENCE_SUSPECTED` (근무 기록 트리거) | 근로계약서 전자 작성 |
 | 바텀시트·검토 목록 | 노무사 상담 연결 (P2) |
