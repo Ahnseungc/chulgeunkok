@@ -4,7 +4,10 @@
 
 <br /><br />
 
-<img src="apps/web/public/brand/wordmark.png" width="220" alt="출근콕" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/%EC%B6%9C%EA%B7%BC%EC%BD%95-%EC%9B%8C%EB%93%9C%EB%A7%88%ED%81%AC-%ED%99%94%EC%9D%B4%ED%8A%B8.png" />
+  <img src="apps/web/public/brand/wordmark.png" width="220" alt="출근콕" />
+</picture>
 
 ### 매장에 QR 스티커 하나 붙이면, 출퇴근부터 월말 정산까지
 
