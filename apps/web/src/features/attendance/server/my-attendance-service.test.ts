@@ -64,7 +64,8 @@ describe('getMyAttendances', () => {
       result.working?.attendanceId,
       result.summary.basePayEstimate,
       result.summary.workDays,
-    ]).toEqual([['a2', 'a1'], 'a2', 30960, 1]);
+      result.summary.allowances.total,
+    ]).toEqual([['a2', 'a1'], 'a2', 30960, 1, 0]);
   });
 
   it('대기 중인 수정 요청을 근무 옆에 표시한다', async () => {

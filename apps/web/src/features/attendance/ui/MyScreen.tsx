@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import type { MeDto } from '@/features/auth/model/me-types';
-import { PAYROLL_DISCLAIMER } from '@/features/payroll/model/payroll-types';
+import { PAYROLL_DISCLAIMER, formatAllowanceBreakdown, formatWon } from '@/features/payroll/model/payroll-types';
 import { postToApp, useIsInApp } from '@/shared/lib/app-shell';
 import { formatClock, formatDuration, formatLocalDate } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
@@ -39,7 +39,8 @@ export default function MyScreen() {
   const data = mine.data;
   const inApp = useIsInApp();
   // 처음 받은 예상 금액만 카운트업. 기간을 옮겨 바뀐 값은 바로 바꾼다
-  const basePayIntro = useIntroCountUp(data?.summary.basePayEstimate);
+  const estimateTotal = data ? data.summary.basePayEstimate + data.summary.allowances.total : undefined;
+  const estimateIntro = useIntroCountUp(estimateTotal);
 
   return (
     <main className="screen">
@@ -98,8 +99,13 @@ export default function MyScreen() {
                   {data.summary.workDays}일 · 인정 {formatDuration(data.summary.recognizedSeconds * SECOND_MS)}
                 </Text>
                 <Text textStyle="t8Bold">
-                  예상 <SmoothCountUpNumber value={data.summary.basePayEstimate} {...basePayIntro} />원
+                  예상 <SmoothCountUpNumber value={estimateTotal ?? 0} {...estimateIntro} />원
                 </Text>
+                {data.summary.allowances.total > 0 ? (
+                  <Text textStyle="t4Regular" color="fg.neutralMuted">
+                    기본급 {formatWon(data.summary.basePayEstimate)} · {formatAllowanceBreakdown(data.summary.allowances)}
+                  </Text>
+                ) : null}
                 <Text textStyle="t3Regular" color="fg.neutralMuted">
                   {PAYROLL_DISCLAIMER} 실제 급여는 사장님이 정해요.
                 </Text>

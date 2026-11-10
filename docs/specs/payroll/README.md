@@ -22,7 +22,7 @@
 | --- | --- |
 | 정산 기간 계산 | 공휴일·근로자의 날 유급휴일 |
 | 인정 근무시간, 예상 기본급 | 세금·4대보험 공제 |
-| 예상 주휴수당, 연장·야간·휴일 가산수당 (§3.6) | 직원 본인 화면의 주휴·가산 표시 |
+| 예상 주휴수당, 연장·야간·휴일 가산수당 (§3.6) | |
 | 미해결 항목 요약 | 정산 확정·잠금 (P1. MVP는 수정 기한 35일로 대체) |
 | CSV 내보내기 | 임금명세서 (P1) |
 
@@ -108,7 +108,7 @@ basePayEstimate = Math.ceil(
 
 ### 3.6 예상 주휴수당·가산수당 (PRD §6.3)
 
-`model/allowances.ts` `estimateAllowances`. 직원·기간마다 항목별 합계에서 1회 원 미만 올림. 기준값은 노무사 검증 전 설계 가정이고 모두 "예상"이다.
+`model/allowances.ts` `estimateAllowances`. 근태·근로조건·규모 신고 조회는 `server/allowance-service.ts` `loadPeriodWithAllowances` 하나로 정산 미리보기·직원 본인(`/me`)·대시보드가 같이 쓴다. 직원·기간마다 항목별 합계에서 1회 원 미만 올림. 기준값은 노무사 검증 전 설계 가정이고 모두 "예상"이다.
 
 **주 단위 항목은 그 주 일요일이 속한 기간에 넣는다.** 끝난 주(일요일 < 오늘)만 센다. 그래서 기간 첫 주 월요일부터 근태를 읽는다.
 
@@ -175,7 +175,7 @@ interface PayrollPreview {
 
 - 대상 직원: 기간 안에 구간이 있거나 기간 중 ACTIVE였던 직원.
 - `OPEN`, `MISSING_CLOCK_OUT`, `VOID` 근태는 합계에서 빼고 `flags`에만 센다.
-- 직원 본인용 `GET /attendance/me/payroll?storeId=&periodStart=` 는 같은 기본급 계산을 본인 1명으로 (주휴·가산 제외).
+- 직원 본인용 `GET /attendance/me/payroll?storeId=&periodStart=` 는 같은 계산(기본급 + §3.6)을 본인 1명으로. 응답 `allowances`는 미리보기 `members[].allowances`와 같은 모양.
 
 ## 5. CSV
 

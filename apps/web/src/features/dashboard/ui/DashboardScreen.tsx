@@ -41,7 +41,9 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
   // 처음 받은 숫자만 카운트업. 30초 폴링·되살아남 재조회로 바뀐 값은 바로 바꾼다
   const workingIntro = useIntroCountUp(data?.working.length);
   const clockedInIntro = useIntroCountUp(data?.today.clockedInCount);
-  const basePayIntro = useIntroCountUp(data?.currentPeriod.basePayEstimate);
+  const { basePayEstimate, allowanceEstimate } = data?.currentPeriod ?? {};
+  const laborCost = basePayEstimate == null ? basePayEstimate : basePayEstimate + (allowanceEstimate ?? 0);
+  const laborCostIntro = useIntroCountUp(laborCost);
 
   return (
     <main className="screen">
@@ -126,10 +128,10 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
               ) : (
                 <Text textStyle="t5Bold">
                   근무 {formatDuration(data.currentPeriod.recognizedSeconds * SECOND_MS)}
-                  {data.currentPeriod.basePayEstimate !== null ? (
+                  {laborCost != null ? (
                     <>
-                      {' · 예상 기본급 '}
-                      <SmoothCountUpNumber value={data.currentPeriod.basePayEstimate} {...basePayIntro} />원
+                      {' · 예상 인건비 '}
+                      <SmoothCountUpNumber value={laborCost} {...laborCostIntro} />원
                     </>
                   ) : null}
                 </Text>

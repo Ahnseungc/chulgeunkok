@@ -30,7 +30,7 @@
 | 2 | 지금 근무 중 | 인원 수 + 이름·출근 시각·경과 시간. "매장 밖" 배지 | 근태 상세 |
 | 3 | 오늘 | 출근 n명 / 오늘 소정 근무자 m명. **아직 출근 전**: 소정 시작 시각이 지났는데 출근 기록이 없는 직원 | 직원 상세 |
 | 4 | 처리할 일 | 아래 §4 표 순서, 0건인 카드는 숨김 | 각 목록 |
-| 5 | 이번 정산 기간 | 기간, 총 인정 시간, 예상 기본급 (`PAYROLL_READ` 없으면 시간만) | 정산 화면 |
+| 5 | 이번 정산 기간 | 기간, 총 인정 시간, 예상 인건비 = 기본급 + 주휴·가산(`payroll` §3.6) (`PAYROLL_READ` 없으면 시간만) | 정산 화면 |
 | 6 | 메뉴 | 직원 · 근태 기록 · 정산 · 매장 설정 (아직 없는 화면은 "준비 중") | 각 화면 |
 
 전부 0건이고 근무자도 없으면 2~4 대신 빈 상태: "오늘도 준비 완료예요" + QR 출력 버튼.
@@ -76,6 +76,7 @@ interface Dashboard {
     start: string; end: string;
     recognizedSeconds: number;
     basePayEstimate: number | null; // PAYROLL_READ 없으면 null
+    allowanceEstimate: number | null; // 예상 주휴·가산 합. PAYROLL_READ 없으면 null
   };
 }
 ```
@@ -89,6 +90,6 @@ interface Dashboard {
 
 - [ ] 직원이 출근하면 30초 안에 "지금 근무 중"에 나타난다.
 - [ ] 소정 18:00 직원이 18:10까지 출근 안 하면 "아직 출근 전"에 보인다. 스케줄 없는 요일엔 보이지 않는다.
-- [ ] Manager(권한 없음)에게 `laborReviews`, `basePayEstimate`가 `null`이고 해당 카드가 숨겨진다.
+- [ ] Manager(권한 없음)에게 `laborReviews`, `basePayEstimate`, `allowanceEstimate`가 `null`이고 해당 카드가 숨겨진다.
 - [ ] 처리할 일이 모두 0이면 카드 영역이 사라진다.
-- [ ] 대시보드 예상 기본급이 정산 화면 같은 기간 합계와 같다.
+- [ ] 대시보드 예상 기본급·주휴·가산 합이 정산 화면 같은 기간 합계와 같다.

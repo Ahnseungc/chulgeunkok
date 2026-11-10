@@ -19,6 +19,8 @@ import Sheet from '@/shared/ui/Sheet';
 import {
   PAYROLL_DISCLAIMER,
   PREMIUM_NOT_APPLIED_NOTE,
+  formatAllowanceBreakdown,
+  formatWon as won,
   type PayrollMemberDto,
   type PayrollPreviewDto,
 } from '../model/payroll-types';
@@ -30,21 +32,6 @@ const SECOND_MS = 1000;
 interface PayrollScreenProps {
   storeId: string;
 }
-
-const won = (amount: number) => `${amount.toLocaleString('ko-KR')}원`;
-
-const ALLOWANCE_LABELS = [
-  ['주휴', 'weeklyHolidayPay'],
-  ['연장', 'overtimePremium'],
-  ['야간', 'nightPremium'],
-  ['휴일', 'holidayPremium'],
-] as const;
-
-/** 0원이 아닌 주휴·가산 항목만 "주휴 80,000원 · 연장 10,000원" */
-const allowanceSummary = ({ allowances }: PayrollMemberDto) =>
-  ALLOWANCE_LABELS.filter(([, key]) => allowances[key] > 0)
-    .map(([label, key]) => `${label} ${won(allowances[key])}`)
-    .join(' · ');
 
 /** `/owner/[storeId]/payroll` — docs/specs/payroll §6 */
 export default function PayrollScreen({ storeId }: PayrollScreenProps) {
@@ -175,7 +162,7 @@ function MemberRow({ storeId, periodStart, member }: { storeId: string; periodSt
       </Text>
       {member.allowances.total > 0 ? (
         <Text textStyle="t4Regular" color="fg.neutralMuted">
-          기본급 {won(member.basePayEstimate)} · {allowanceSummary(member)}
+          기본급 {won(member.basePayEstimate)} · {formatAllowanceBreakdown(member.allowances)}
         </Text>
       ) : null}
       {flags.length > 0 ? (
