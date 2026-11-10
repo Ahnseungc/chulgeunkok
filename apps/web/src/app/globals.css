@@ -501,3 +501,26 @@ body {
     transition: none;
   }
 }
+
+/* 개발 전용: 화면 바로가기 (/dev) */
+.dev-screens__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 하단 CTA를 가리지 않게 우상단 (화면 헤더는 왼쪽 back 링크·제목이라 오른쪽이 비어 있다) */
+.dev-menu-button {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 2147483000;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 70%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}

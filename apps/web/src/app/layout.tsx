@@ -6,6 +6,8 @@ import './globals.css';
 
 import type { Metadata, Viewport } from 'next';
 
+import DevMenuButton from '@/shared/ui/DevMenuButton';
+
 export const metadata: Metadata = {
   title: '출근콕',
   description: '스티커 하나로 시작하는, 작은 가게를 위한 직원 관리',
@@ -27,7 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="color-scheme" content="light" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {process.env.NODE_ENV !== 'production' && <DevMenuButton />}
+      </body>
     </html>
   );
 }

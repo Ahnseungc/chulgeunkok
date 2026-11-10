@@ -3,6 +3,8 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
+  // 앱(WebView)에서 개발 표시(N 버튼)가 하단 CTA를 가린다. 화면 이동은 우상단 DEV 버튼(/dev)으로 한다
+  devIndicators: false,
   // 워크스페이스 TS 패키지는 빌드 없이 소스를 그대로 쓴다
   transpilePackages: ['@chulgeunkok/db', '@chulgeunkok/app-bridge'],
   // 개발용 PGlite(packages/db/src/client.ts)는 wasm·확장 파일을 패키지 경로에서 읽으므로 번들하지 않는다.
