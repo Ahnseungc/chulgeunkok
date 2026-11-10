@@ -10,7 +10,7 @@ import type { MyAttendancesDto } from '../model/my-attendance-types';
 import { toRowDto } from './attendance-admin-service';
 
 /**
- * GET /attendance/me — 직원 본인 기록과 이번 기간 예상 기본급·주휴·가산수당 (docs/specs/attendance §8, payroll §4)
+ * GET /attendance/me — 직원 본인 기록과 이번 기간 예상 기본급·주휴·가산·유급휴일수당 (docs/specs/attendance §8, payroll §4)
  * 근무 중 카드·대기 중 수정 요청 표시를 위해 한 번에 돌려준다.
  */
 export async function getMyAttendances(

@@ -140,7 +140,7 @@ describe('CSV', () => {
   it('요약 CSV: 휴대폰은 뒤 4자리만, 이름 수식은 막는다', async () => {
     const csv = buildSummaryCsv(await loadPayroll(db, { storeId: 'store', actorUserId: 'owner', now: NOW }));
     const staffLine = csv.split('\r\n').find((line) => line.includes('이알바'));
-    expect(staffLine).toBe("'=이알바,5678,재직,2,360,6:00,10320/11000,63960,0,0,0,0,63960,1,0,0");
+    expect(staffLine).toBe("'=이알바,5678,재직,2,360,6:00,10320/11000,63960,0,0,0,0,0,63960,1,0,0");
     expect(csv.includes('01012345678')).toBe(false);
   });
 

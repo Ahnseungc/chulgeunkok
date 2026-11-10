@@ -97,7 +97,7 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
                   <SmoothCountUpNumber value={estimateTotal ?? 0} {...totalIntro} />원
                 </Text>
                 <Text textStyle="t4Regular" color="fg.neutralMuted">
-                  기본급 {won(data.totals.basePayEstimate)} · 주휴·가산 {won(data.totals.allowanceEstimate)}
+                  기본급 {won(data.totals.basePayEstimate)} · 주휴·가산·유급휴일 {won(data.totals.allowanceEstimate)}
                 </Text>
                 <Text textStyle="t3Regular" color="fg.neutralMuted">
                   {PAYROLL_DISCLAIMER} {PREMIUM_NOT_APPLIED_NOTE[data.headcountBand] ?? ''}

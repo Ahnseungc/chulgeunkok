@@ -3,6 +3,7 @@ import type { HeadcountBand, PrismaClient } from '@chulgeunkok/db';
 import { weekStartOf } from '@/features/labor/model/work-record-rules';
 
 import { estimateAllowances, type AllowanceEstimate, type AllowanceTerms } from '../model/allowances';
+import { isPaidHoliday } from '../model/public-holidays';
 import type { PayPeriod } from '../model/work-time';
 
 import { loadPeriodAttendances, restrictToPeriod, type PeriodAttendanceRow } from './period-attendances';
@@ -10,16 +11,16 @@ import { loadPeriodAttendances, restrictToPeriod, type PeriodAttendanceRow } fro
 export interface PeriodWithAllowances {
   /** 기간 안 근태. `loadPeriodAttendances` 결과와 같다 */
   rows: PeriodAttendanceRow[];
-  /** 직원 1명 예상 주휴·가산수당 (docs/specs/payroll §3.6) */
+  /** 직원 1명 예상 주휴·가산·유급휴일수당 (docs/specs/payroll §3.6·§3.7) */
   allowancesFor: (memberId: string) => AllowanceEstimate;
   /** 그날 기준 사업장 규모 신고값 */
   bandOn: (localDate: string) => HeadcountBand;
-  /** 기간 첫 주 월요일부터 근태가 있는 직원. 주휴·가산이 생길 수 있는 직원은 여기 다 있다 */
-  workedMemberIds: string[];
+  /** 근태나 근로조건이 있는 직원. 예상액이 생길 수 있는 직원은 여기 다 있다 (쉬어도 받는 유급휴일 포함) */
+  memberIds: string[];
 }
 
 /**
- * 기간 근태와 예상 주휴·가산수당. 정산 미리보기·직원 본인·대시보드가 같이 쓴다.
+ * 기간 근태와 예상 주휴·가산·유급휴일수당. 정산 미리보기·직원 본인·대시보드가 같이 쓴다.
  * 주휴·주 40시간은 기간 첫 주 월요일부터 봐야 해서 그만큼 넓게 한 번 읽고 기간으로 좁힌다.
  */
 export async function loadPeriodWithAllowances(
@@ -52,7 +53,9 @@ export async function loadPeriodWithAllowances(
     rows: restrictToPeriod(weekRows, input.period),
     allowancesFor,
     bandOn,
-    workedMemberIds: [...new Set(weekRows.map((row) => row.attendance.membershipId))],
+    memberIds: [
+      ...new Set([...weekRows.map((row) => row.attendance.membershipId), ...terms.map((version) => version.membershipId)]),
+    ],
   };
 }
 
@@ -64,6 +67,7 @@ function estimateMemberAllowances(input: {
   rows: PeriodAttendanceRow[];
   isFiveOrMore: (localDate: string) => boolean;
 }): AllowanceEstimate {
+  // ponytail: 매번 새 클로저지만 직원 수 × 기간 일수라 비용이 작다
   const works = input.rows.flatMap(({ attendance, segments }) =>
     attendance.status === 'CLOSED' && attendance.clockOutAt
       ? [{ clockInAt: attendance.clockInAt, clockOutAt: attendance.clockOutAt, segments, terms: attendance.terms }]
@@ -71,6 +75,7 @@ function estimateMemberAllowances(input: {
   );
   return estimateAllowances({
     ...input,
+    isPaidHoliday: (localDate) => isPaidHoliday(localDate, input.isFiveOrMore(localDate)),
     attendedDates: new Set(input.rows.filter((row) => row.attendance.status !== 'VOID').map((row) => row.localDate)),
     works,
   });
