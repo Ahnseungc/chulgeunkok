@@ -1,12 +1,14 @@
-import type { PrismaClient } from '@chulgeunkok/db';
+import type { HeadcountBand, PrismaClient, StoreHeadcountDeclaration } from '@chulgeunkok/db';
 
+import { weekStartOf } from '@/features/labor/model/work-record-rules';
 import { OPEN_REVIEW_STATUSES } from '@/features/labor/server/review-service';
 import { requireMembership } from '@/server/auth/require-membership';
 
+import { estimateAllowances, type AllowanceEstimate, type AllowanceTerms } from '../model/allowances';
 import type { PayrollMemberDto, PayrollPreviewDto } from '../model/payroll-types';
-import { payPeriodConfigOf, summarizePeriod } from '../model/work-time';
+import { payPeriodConfigOf, summarizePeriod, toLocalDate, type PayPeriod } from '../model/work-time';
 
-import { loadPeriodAttendances, resolvePeriod, type PeriodAttendanceRow } from './period-attendances';
+import { loadPeriodAttendances, resolvePeriod, restrictToPeriod, type PeriodAttendanceRow } from './period-attendances';
 
 export interface PayrollPreviewWithRows {
   preview: PayrollPreviewDto;
@@ -18,6 +20,11 @@ export interface PayrollPreviewWithRows {
 
 const countBy = (keys: string[]) =>
   keys.reduce((counts, key) => counts.set(key, (counts.get(key) ?? 0) + 1), new Map<string, number>());
+
+/** 그날 기준 사업장 규모 신고값 (신고는 effectiveFrom 오름차순) */
+const bandOn = (declarations: readonly StoreHeadcountDeclaration[], localDate: string): HeadcountBand =>
+  declarations.filter((declaration) => declaration.effectiveFrom.toISOString().slice(0, 10) <= localDate).at(-1)?.band ??
+  'UNKNOWN';
 
 /** GET /stores/:storeId/payroll/preview — docs/specs/payroll §4 */
 export async function getPayrollPreview(
@@ -35,10 +42,15 @@ export async function loadPayroll(
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'PAYROLL' }, db);
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
-  const rows = await loadPeriodAttendances(db, { storeId: input.storeId, period });
+  // 주휴·주 40시간은 기간 첫 주 월요일부터 봐야 한다 (docs/specs/payroll §3.6)
+  const weekRows = await loadPeriodAttendances(db, {
+    storeId: input.storeId,
+    period: { start: weekStartOf(period.start), end: period.end },
+  });
+  const rows = restrictToPeriod(weekRows, period);
 
   const workedMemberIds = new Set(rows.map((row) => row.attendance.membershipId));
-  const [members, pendingCorrections, openReviews] = await Promise.all([
+  const [members, pendingCorrections, openReviews, declarations] = await Promise.all([
     // 대상: 기간 중 근무가 있거나 지금 재직 중인 직원. 사장님은 근무했을 때만
     db.membership.findMany({
       where: {
@@ -55,7 +67,18 @@ export async function loadPayroll(
       where: { membership: { storeId: input.storeId }, status: { in: [...OPEN_REVIEW_STATUSES] } },
       select: { membershipId: true },
     }),
+    db.storeHeadcountDeclaration.findMany({ where: { storeId: input.storeId }, orderBy: { effectiveFrom: 'asc' } }),
   ]);
+  const termsByMember = await loadTermsByMember(db, members.map((member) => member.id));
+  const today = toLocalDate(input.now);
+  const estimateFor = (memberId: string) =>
+    estimateMemberAllowances({
+      period,
+      today,
+      terms: termsByMember.get(memberId) ?? [],
+      rows: weekRows.filter((row) => row.attendance.membershipId === memberId),
+      isFiveOrMore: (localDate) => bandOn(declarations, localDate) === 'FIVE_OR_MORE',
+    });
 
   const correctionCounts = countBy(pendingCorrections.map((request) => request.attendance.membershipId));
   const reviewCounts = countBy(openReviews.map((review) => review.membershipId));
@@ -67,16 +90,20 @@ export async function loadPayroll(
         period,
         pendingCorrectionCount: correctionCounts.get(member.id) ?? 0,
         openLaborReviewCount: reviewCounts.get(member.id) ?? 0,
+        allowances: estimateFor(member.id),
       }),
     )
     .sort((a, b) => b.recognizedSeconds - a.recognizedSeconds || a.name.localeCompare(b.name, 'ko'));
 
+  const lastDay = toLocalDate(new Date(Date.parse(`${period.end}T00:00:00+09:00`) - 1));
   return {
     preview: {
       period,
+      headcountBand: bandOn(declarations, lastDay < today ? lastDay : today),
       totals: {
         recognizedSeconds: memberDtos.reduce((sum, member) => sum + member.recognizedSeconds, 0),
         basePayEstimate: memberDtos.reduce((sum, member) => sum + member.basePayEstimate, 0),
+        allowanceEstimate: memberDtos.reduce((sum, member) => sum + member.allowances.total, 0),
         memberCount: memberDtos.filter((member) => member.recognizedSeconds > 0).length,
       },
       members: memberDtos,
@@ -98,6 +125,7 @@ function toMemberDto(input: {
   period: { start: string; end: string };
   pendingCorrectionCount: number;
   openLaborReviewCount: number;
+  allowances: AllowanceEstimate;
 }): PayrollMemberDto {
   const closed = input.rows.filter((row) => row.attendance.status === 'CLOSED');
   const summary = summarizePeriod(closed.flatMap((row) => row.segments), input.period);
@@ -107,6 +135,7 @@ function toMemberDto(input: {
     name: input.member.name,
     status: input.member.status,
     ...summary,
+    allowances: input.allowances,
     attendanceCount: closed.length,
     workDays: new Set(closed.map((row) => row.localDate)).size,
     flags: {
@@ -117,4 +146,34 @@ function toMemberDto(input: {
       openLaborReviewCount: input.openLaborReviewCount,
     },
   };
+}
+
+async function loadTermsByMember(db: PrismaClient, memberIds: string[]): Promise<Map<string, AllowanceTerms[]>> {
+  const terms = await db.employmentTerms.findMany({
+    where: { membershipId: { in: memberIds } },
+    include: { schedules: true },
+  });
+  const byMember = new Map<string, AllowanceTerms[]>();
+  for (const version of terms) byMember.set(version.membershipId, [...(byMember.get(version.membershipId) ?? []), version]);
+  return byMember;
+}
+
+/** 직원 1명 예상 주휴·가산수당. rows 는 기간 첫 주 월요일부터 */
+function estimateMemberAllowances(input: {
+  period: PayPeriod;
+  today: string;
+  terms: AllowanceTerms[];
+  rows: PeriodAttendanceRow[];
+  isFiveOrMore: (localDate: string) => boolean;
+}): AllowanceEstimate {
+  const works = input.rows.flatMap(({ attendance, segments }) =>
+    attendance.status === 'CLOSED' && attendance.clockOutAt
+      ? [{ clockInAt: attendance.clockInAt, clockOutAt: attendance.clockOutAt, segments, terms: attendance.terms }]
+      : [],
+  );
+  return estimateAllowances({
+    ...input,
+    attendedDates: new Set(input.rows.filter((row) => row.attendance.status !== 'VOID').map((row) => row.localDate)),
+    works,
+  });
 }

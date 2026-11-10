@@ -77,13 +77,70 @@ describe('getPayrollPreview', () => {
   it('직원은 볼 수 없다', async () => {
     await expect(preview('staff')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('규모 신고가 없으면 UNKNOWN 이고 가산수당은 0원', async () => {
+    const result = await preview();
+    expect([result.headcountBand, result.totals.allowanceEstimate]).toEqual(['UNKNOWN', 0]);
+  });
+});
+
+describe('예상 주휴·가산수당 (payroll §3.6)', () => {
+  beforeEach(async () => {
+    await db.user.create({ data: { id: 'full', name: '정직원' } });
+    await db.membership.create({ data: { id: 'm-full', storeId: 'store', userId: 'full', role: 'EMPLOYEE' } });
+    // 월~금 09:00–18:00 휴게 60분, 주휴일 일요일
+    await db.employmentTerms.create({
+      data: {
+        id: 't-full',
+        membershipId: 'm-full',
+        version: 1,
+        effectiveFrom: kst('2026-10-01T00:00:00'),
+        hourlyWage: 10000,
+        weeklyHolidayWeekday: 0,
+        contractStartDate: new Date('2026-10-01'),
+        createdById: 'owner',
+        schedules: { create: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 9 * 60, workMinutes: 9 * 60, breakMinutes: 60 })) },
+      },
+    });
+    // 11/2(월)은 20시까지 → 인정 10h, 연장 2h
+    await db.attendance.createMany({
+      data: ['02', '03', '04', '05', '06'].map((day) => ({
+        storeId: 'store',
+        membershipId: 'm-full',
+        termsId: 't-full',
+        clockInAt: kst(`2026-11-${day}T09:00:00`),
+        clockOutAt: kst(`2026-11-${day}T${day === '02' ? '20' : '18'}:00:00`),
+        status: 'CLOSED' as const,
+      })),
+    });
+  });
+
+  const fullMember = async () => (await preview()).members.find((member) => member.memberId === 'm-full');
+
+  it('개근한 주의 주휴수당은 규모 신고와 상관없이 넣는다', async () => {
+    const member = await fullMember();
+    expect([member?.allowances.weeklyHolidayPay, member?.allowances.overtimePremium]).toEqual([80000, 0]);
+  });
+
+  it('5인 이상 신고 기간에는 연장 가산도 넣는다', async () => {
+    await db.storeHeadcountDeclaration.create({
+      data: { storeId: 'store', band: 'FIVE_OR_MORE', effectiveFrom: new Date('2026-01-01'), declaredById: 'owner' },
+    });
+    const result = await preview();
+    const member = result.members.find((item) => item.memberId === 'm-full');
+    expect([result.headcountBand, member?.allowances.overtimePremium, result.totals.allowanceEstimate]).toEqual([
+      'FIVE_OR_MORE',
+      10000,
+      90000,
+    ]);
+  });
 });
 
 describe('CSV', () => {
   it('요약 CSV: 휴대폰은 뒤 4자리만, 이름 수식은 막는다', async () => {
     const csv = buildSummaryCsv(await loadPayroll(db, { storeId: 'store', actorUserId: 'owner', now: NOW }));
     const staffLine = csv.split('\r\n').find((line) => line.includes('이알바'));
-    expect(staffLine).toBe("'=이알바,5678,재직,2,360,6:00,10320/11000,63960,1,0,0");
+    expect(staffLine).toBe("'=이알바,5678,재직,2,360,6:00,10320/11000,63960,0,0,0,0,63960,1,0,0");
     expect(csv.includes('01012345678')).toBe(false);
   });
 

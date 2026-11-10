@@ -73,15 +73,18 @@ export async function loadPeriodAttendances(
     orderBy: { clockInAt: 'desc' },
   });
 
-  return attendances
-    .map((attendance) => toRow(attendance, input.period))
-    .filter(
-      (row) =>
-        (row.localDate >= input.period.start && row.localDate < input.period.end) || row.segments.length > 0,
-    );
+  return restrictToPeriod(attendances.map(toRow), input.period);
 }
 
-function toRow(attendance: PeriodAttendance, period: PayPeriod): PeriodAttendanceRow {
+/** 기간 안 구간만 남기고, 기간 안 날짜에 출근했거나 기간 안에 구간이 있는 근태만 남긴다 */
+export function restrictToPeriod(rows: readonly PeriodAttendanceRow[], period: PayPeriod): PeriodAttendanceRow[] {
+  const inPeriod = (localDate: string) => localDate >= period.start && localDate < period.end;
+  return rows
+    .map((row) => ({ ...row, segments: row.segments.filter((segment) => inPeriod(segment.localDate)) }))
+    .filter((row) => inPeriod(row.localDate) || row.segments.length > 0);
+}
+
+function toRow(attendance: PeriodAttendance): PeriodAttendanceRow {
   const localDate = toLocalDate(attendance.clockInAt);
   if (attendance.status !== 'CLOSED' || !attendance.clockOutAt) {
     return { attendance, localDate, segments: [], breakNotScheduled: false };
@@ -90,10 +93,5 @@ function toRow(attendance: PeriodAttendance, period: PayPeriod): PeriodAttendanc
     attendance: { ...attendance, clockOutAt: attendance.clockOutAt },
     terms: attendance.terms,
   });
-  return {
-    attendance,
-    localDate,
-    segments: segments.filter((segment) => segment.localDate >= period.start && segment.localDate < period.end),
-    breakNotScheduled,
-  };
+  return { attendance, localDate, segments, breakNotScheduled };
 }
