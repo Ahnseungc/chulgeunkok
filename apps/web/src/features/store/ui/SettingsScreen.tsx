@@ -10,7 +10,7 @@ import { HEADCOUNT_LABEL, type HeadcountBandValue, type StoreSettingsDto } from 
 
 import QrRotateSection from './QrRotateSection';
 import { useStoreSettings } from './useStoreSettings';
-import { AppBackLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const STORE_NAME_MAX_LENGTH = 30;
 /** 정산 시작일은 1~28 (월말 문제 회피, docs/specs/payroll §3.1) */
@@ -24,9 +24,7 @@ export default function SettingsScreen({ storeId }: { storeId: string }) {
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}`} className="back-link">
-        ← 매장 홈
-      </AppBackLink>
+      <ScreenHeader backHref={`/owner/${storeId}`} backLabel="매장 홈" title="매장 설정" />
       <Text as="h1" textStyle="t8Bold">
         매장 설정
       </Text>

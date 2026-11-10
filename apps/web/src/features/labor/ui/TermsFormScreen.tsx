@@ -14,7 +14,8 @@ import { WEEKDAY_LABELS } from '../model/review-copy';
 import ReviewSheet from './ReviewSheet';
 import ScheduleEditor from './ScheduleEditor';
 import { initialTermsValues, useSaveTerms, type TermsFormValues } from './useTermsForm';
-import { AppBackLink, useBackTo } from '@/shared/ui/AppLink';
+import { useBackTo } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 interface TermsFormScreenProps {
   storeId: string;
@@ -57,9 +58,7 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
 
   return (
     <main className="screen">
-      <AppBackLink href={detailPath} className="back-link">
-        ← {member.data.name}
-      </AppBackLink>
+      <ScreenHeader backHref={detailPath} backLabel={member.data.name} title={`${member.data.name}님 근로조건`} />
       <Text as="h1" textStyle="t8Bold">
         {member.data.name}님 근로조건
       </Text>

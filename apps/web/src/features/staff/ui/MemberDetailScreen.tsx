@@ -17,7 +17,8 @@ import type { MemberDetailDto } from '../model/member-types';
 
 import InviteQrSheet from './InviteQrSheet';
 import { ROLE_LABEL } from './member-labels';
-import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
+import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 interface MemberDetailScreenProps {
   storeId: string;
@@ -49,9 +50,7 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}/members`} className="back-link">
-        ← 직원
-      </AppBackLink>
+      <ScreenHeader backHref={`/owner/${storeId}/members`} backLabel="직원" title={detail?.name} />
       {member.errorMessage ? <ErrorText message={member.errorMessage} /> : null}
       {detail ? (
         <>

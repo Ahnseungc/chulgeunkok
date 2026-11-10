@@ -14,7 +14,8 @@ import Sheet from '@/shared/ui/Sheet';
 import type { CorrectionDto } from '../model/attendance-admin-types';
 
 import { CORRECTION_TYPE_LABEL } from './correction-labels';
-import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
+import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const NOTE_MAX_LENGTH = 200;
 
@@ -38,9 +39,7 @@ export default function CorrectionsScreen({ storeId }: { storeId: string }) {
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}`} className="back-link">
-        ← 매장 홈
-      </AppBackLink>
+      <ScreenHeader backHref={`/owner/${storeId}`} backLabel="매장 홈" title="수정 요청" />
       <Text as="h1" textStyle="t8Bold">
         수정 요청
       </Text>

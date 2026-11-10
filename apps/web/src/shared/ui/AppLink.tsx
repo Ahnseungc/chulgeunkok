@@ -9,6 +9,8 @@ import type { MouseEvent, ReactNode } from 'react';
 interface AppLinkProps<T extends string = string> {
   href: Route<T>;
   className?: string;
+  /** 아이콘만 있는 링크(앱 바 뒤로가기)의 접근 가능한 이름 */
+  'aria-label'?: string;
   children: ReactNode;
 }
 
@@ -49,12 +51,12 @@ export function useBackTo(): <T extends string>(href: Route<T>) => void {
 }
 
 /** 화면 상단 "← 상위" 링크. 스택 안이면 back(딥링크로 들어와 스택이 비면 상위로 교체), 밖이면 href 로 이동 */
-export function AppBackLink<T extends string>({ href, className, children }: AppLinkProps<T>) {
+export function AppBackLink<T extends string>({ href, className, 'aria-label': ariaLabel, children }: AppLinkProps<T>) {
   const stack = useOptionalStackRouter();
   const backTo = useBackTo();
   if (!stack) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} className={className} aria-label={ariaLabel}>
         {children}
       </Link>
     );
@@ -65,7 +67,7 @@ export function AppBackLink<T extends string>({ href, className, children }: App
     backTo(href);
   };
   return (
-    <a href={href} className={className} onClick={handleClick}>
+    <a href={href} className={className} aria-label={ariaLabel} onClick={handleClick}>
       {children}
     </a>
   );

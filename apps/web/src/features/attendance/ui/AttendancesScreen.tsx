@@ -11,7 +11,8 @@ import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import PeriodNav from '@/shared/ui/PeriodNav';
 
 import type { AttendanceListDto, AttendanceRowDto } from '../model/attendance-admin-types';
-import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
+import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const SECOND_MS = 1000;
 
@@ -42,9 +43,7 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}`} className="back-link">
-        ← 매장 홈
-      </AppBackLink>
+      <ScreenHeader backHref={`/owner/${storeId}`} backLabel="매장 홈" title="근태 기록" />
       <Text as="h1" textStyle="t8Bold">
         근태 기록
       </Text>

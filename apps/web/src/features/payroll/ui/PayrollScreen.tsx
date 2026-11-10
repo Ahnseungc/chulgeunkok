@@ -10,7 +10,8 @@ import PeriodNav from '@/shared/ui/PeriodNav';
 import Sheet from '@/shared/ui/Sheet';
 
 import { PAYROLL_DISCLAIMER, type PayrollMemberDto, type PayrollPreviewDto } from '../model/payroll-types';
-import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
+import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const SECOND_MS = 1000;
 
@@ -43,9 +44,7 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}`} className="back-link">
-        ← 매장 홈
-      </AppBackLink>
+      <ScreenHeader backHref={`/owner/${storeId}`} backLabel="매장 홈" title="정산" />
       <Text as="h1" textStyle="t8Bold">
         정산
       </Text>

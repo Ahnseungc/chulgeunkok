@@ -17,7 +17,8 @@ import LabeledTextField from '@/shared/ui/LabeledTextField';
 import type { AttendanceDetailDto, AttendanceSnapshot } from '../model/attendance-admin-types';
 
 import { AttendanceBadges } from './AttendancesScreen';
-import { AppBackLink, AppLink } from '@/shared/ui/AppLink';
+import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 const SECOND_MS = 1000;
 const REASON_MAX_LENGTH = 200;
@@ -35,9 +36,11 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
 
   return (
     <main className="screen">
-      <AppBackLink href={`/owner/${storeId}/attendances`} className="back-link">
-        ← 근태 기록
-      </AppBackLink>
+      <ScreenHeader
+        backHref={`/owner/${storeId}/attendances`}
+        backLabel="근태 기록"
+        title={data ? `${data.name} · ${formatLocalDate(data.localDate)}` : undefined}
+      />
       {detail.errorMessage ? (
         <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
           {detail.errorMessage}

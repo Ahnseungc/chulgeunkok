@@ -1,13 +1,13 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 import { apiFetch } from '@/shared/lib/api-client';
 import { formatClock, formatDuration, formatLocalDate, fromLocalDateTimeInput, toLocalDateTimeInput } from '@/shared/lib/format-time';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 import type { AttendanceDetailDto } from '../model/attendance-admin-types';
 import { DEFAULT_BREAK_WAIVED_REASON } from '../model/my-attendance-types';
@@ -27,9 +27,7 @@ export default function MyAttendanceScreen({ attendanceId }: { attendanceId: str
 
   return (
     <main className="screen">
-      <Link href="/me" className="back-link">
-        ← 내 근무
-      </Link>
+      <ScreenHeader backHref="/me" backLabel="내 근무" title={data ? formatLocalDate(data.localDate) : undefined} />
       {detail.errorMessage ? (
         <Text as="p" textStyle="t5Regular" color="fg.critical" role="alert">
           {detail.errorMessage}

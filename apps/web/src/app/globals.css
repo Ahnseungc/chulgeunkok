@@ -175,6 +175,47 @@ body {
   }
 }
 
+/* 화면 상단 앱 바 (shared/ui/ScreenHeader). .screen 의 위쪽 24px·좌우 16px padding 을 상쇄해 화면 끝에 붙인다.
+   safe-area 위쪽은 이 바에서 한 번만 더한다 (RN 셸 SafeAreaView 안에서는 0). 오른쪽 칸은 비워 둔다 (개발용 DEV 버튼 자리) */
+.screen-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  height: calc(52px + env(safe-area-inset-top));
+  margin: -24px -16px 0;
+  padding: env(safe-area-inset-top) 4px 0;
+  background: var(--seed-color-bg-layer-default);
+}
+
+.screen-header__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--seed-color-fg-neutral);
+}
+
+.screen-header__title {
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-header__divider {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: var(--seed-color-stroke-neutral-muted);
+}
+
 /* 공통 */
 .back-link {
   color: var(--seed-color-fg-neutral-muted);

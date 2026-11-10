@@ -1,7 +1,6 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { formatClock, formatDuration, formatPeriodRange } from '@/shared/lib/format-time';
@@ -13,6 +12,7 @@ import type { DashboardDto } from '../model/dashboard-types';
 
 import TodoCards from './TodoCards';
 import { AppLink } from '@/shared/ui/AppLink';
+import ScreenHeader from '@/shared/ui/ScreenHeader';
 
 /** docs/specs/dashboard §5 */
 const POLL_INTERVAL_MS = 30_000;
@@ -42,9 +42,8 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
 
   return (
     <main className="screen">
-      <Link href="/owner" className="back-link">
-        ← 내 매장
-      </Link>
+      {/* 매장 홈은 스택 루트라 스택 밖(/owner)으로 나간다 */}
+      <ScreenHeader backHref="/owner" backLabel="내 매장" title={data?.store.name} leaveStack />
       <Text as="h1" textStyle="t8Bold">
         {data?.store.name ?? ' '}
       </Text>
