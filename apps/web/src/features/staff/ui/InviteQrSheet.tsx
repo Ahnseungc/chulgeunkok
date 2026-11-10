@@ -16,7 +16,9 @@ interface InviteQrSheetProps {
   memberName?: string;
 }
 
-const formatRemaining = (milliseconds: number) => {
+const QR_SIZE = 220;
+
+const formatRemaining =(milliseconds: number) => {
   const totalSeconds = Math.ceil(milliseconds / 1000);
   return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
 };
@@ -36,9 +38,18 @@ export default function InviteQrSheet({ open, onClose, storeId, target, memberNa
       <div className="invite-qr" aria-live="polite">
         {invite.qr && !invite.expired ? (
           <>
-            <QrImage value={invite.qr.url} alt="직원 등록 QR" size={220} />
+            <QrImage value={invite.qr.url} alt="직원 등록 QR" size={QR_SIZE} />
             <Text as="p" textStyle="t4Medium" color="fg.neutralMuted">
               {formatRemaining(invite.remainingMs)} 후 만료
+            </Text>
+          </>
+        ) : null}
+        {/* QR을 받아 오는 동안 같은 크기로 자리를 잡아 둔다. 비워 두면 시트가 열리다 말고 길어진다 */}
+        {!invite.qr && !invite.expired && !invite.errorMessage ? (
+          <>
+            <div className="qr-image" style={{ width: QR_SIZE, height: QR_SIZE }} aria-hidden="true" />
+            <Text as="p" textStyle="t4Medium" aria-hidden="true" style={{ visibility: 'hidden' }}>
+              0:00 후 만료
             </Text>
           </>
         ) : null}

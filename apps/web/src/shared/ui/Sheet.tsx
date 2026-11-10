@@ -2,7 +2,7 @@
 
 import { Text } from '@seed-design/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { type ReactNode, useLayoutEffect, useRef } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   SHEET_BACKDROP_TRANSITION,
@@ -11,6 +11,8 @@ import {
   SHEET_PANEL_HIDDEN,
   SHEET_PANEL_SHOWN,
   SHEET_REDUCED_TRANSITION,
+  SHEET_RESIZE_EASING,
+  SHEET_RESIZE_MS,
 } from '@/shared/motion/sheetMotion';
 
 interface SheetProps {
@@ -86,15 +88,57 @@ export default function Sheet({ open, title, onClose, children }: SheetProps) {
             exit={{ ...SHEET_PANEL_HIDDEN, transition: exit }}
             transition={enter}
           >
-            <div className="sheet__body">
-              <Text as="h2" textStyle="t7Bold">
-                {title}
-              </Text>
-              {children}
-            </div>
+            <AutoHeight animate={!reduceMotion}>
+              <div className="sheet__body">
+                <Text as="h2" textStyle="t7Bold">
+                  {title}
+                </Text>
+                {children}
+              </div>
+            </AutoHeight>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </dialog>
+  );
+}
+
+interface AutoHeightProps {
+  animate: boolean;
+  children: ReactNode;
+}
+
+/**
+ * 열린 시트의 내용 높이가 바뀌면(늦게 오는 데이터·오류 문구) 툭 튀지 않고 늘거나 준다.
+ * 처음 잰 높이는 전환 없이 바로 적용해 올라오는 애니메이션과 겹치지 않는다.
+ * ponytail: 닫힌 dialog 안에서는 높이가 0 으로 재져서, 0 은 건너뛰고 실제로 보일 때의 높이부터 따른다.
+ * ResizeObserver 가 없는 환경(jsdom 등)은 auto 로 둔다
+ */
+function AutoHeight({ animate, children }: AutoHeightProps) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  // changed: 두 번째 측정부터 true → 그때부터만 전환을 건다
+  const [size, setSize] = useState<{ height: number; changed: boolean } | null>(null);
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    if (!inner || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      const height = inner.offsetHeight;
+      if (height > 0) setSize((prev) => ({ height, changed: prev !== null }));
+    });
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      style={{
+        height: size?.height ?? 'auto',
+        overflow: 'hidden',
+        transition: animate && size?.changed ? `height ${SHEET_RESIZE_MS}ms ${SHEET_RESIZE_EASING}` : 'none',
+      }}
+    >
+      <div ref={innerRef}>{children}</div>
+    </div>
   );
 }
