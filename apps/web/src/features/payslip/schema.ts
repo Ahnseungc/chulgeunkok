@@ -11,7 +11,7 @@ const MAX_SEND_COUNT = 200;
 
 const Amount = z.number().int().min(0).max(MAX_LINE_AMOUNT);
 
-/** GET /stores/:storeId/payslips — docs/specs/payslip §7. 생략 시 현재 정산 기간 */
+/** GET /stores/:storeId/payslips — docs/specs/payslip §7. 생략 시 끝난 최근 정산 기간 (§5.1) */
 export const PayslipListQuery = z.object({ periodStart: LocalDate.optional() });
 
 /** PATCH /payslips/:id — §7. deductionType이면 공제 줄 묶음을 새로 만든다 (§3.3) */

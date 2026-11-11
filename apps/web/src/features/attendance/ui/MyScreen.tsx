@@ -29,6 +29,12 @@ const SECOND_MS = 1000;
 /** 직원 화면은 로그인 화면이 없다. 미등록이면 안내 문구만 (docs/specs/auth §1) */
 const EMPLOYEE_OPTIONS = { loginPath: null } as const;
 
+/** 재직 중인 매장이 없을 때 안내. 퇴사한 매장만 있으면 명세서는 볼 수 있다 (docs/specs/payslip §1-6) */
+const noActiveStoreText = (hasInactiveStore: boolean, hasPayslip: boolean) => {
+  if (!hasInactiveStore) return '아직 소속된 매장이 없어요. 사장님께 직원 등록 QR을 보여 달라고 해 주세요.';
+  return hasPayslip ? '지금 다니는 매장이 없어요. 받은 임금명세서는 아래에서 볼 수 있어요.' : '지금 다니는 매장이 없어요.';
+};
+
 /** `/me` 직원 본인 기록 — docs/specs/attendance §8 */
 export default function MyScreen() {
   const me = useApiResource<MeDto>('/api/v1/me', EMPLOYEE_OPTIONS);
@@ -80,7 +86,7 @@ export default function MyScreen() {
       ) : null}
       {me.data && stores.length === 0 ? (
         <Text as="p" textStyle="t5Regular" color="fg.neutralMuted">
-          아직 소속된 매장이 없어요. 사장님께 직원 등록 QR을 보여 달라고 해 주세요.
+          {noActiveStoreText(me.data.memberships.length > 0, latestPayslip !== undefined)}
         </Text>
       ) : null}
       <InlineAlert message={mine.errorMessage} />

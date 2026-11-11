@@ -27,8 +27,10 @@ afterEach(() => {
 describe('getPushSender', () => {
   it('dev 발송기는 로그만 남기고 SENT', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    expect(await (await loadSender('dev')).send('token', MESSAGE)).toBe('SENT');
+    expect(await (await loadSender('dev')).send('fcm-token-abcdef123456', MESSAGE)).toBe('SENT');
     expect(send).not.toHaveBeenCalled();
+    const logged = String(info.mock.calls[0]?.[0]);
+    expect([logged.includes('…123456'), logged.includes('fcm-token-abcdef')]).toEqual([true, false]);
     info.mockRestore();
   });
 

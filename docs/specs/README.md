@@ -90,7 +90,7 @@ interface ApiError {
 | 임금명세서 조회 | ✅ | ❌ | ✅ | ❌ | 본인만 (보낸 것) |
 | 구독 | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-- 권한 검사는 서버 공통 가드 `requireMembership(storeId, check)` 한 곳에서 한다. 비활성 Membership은 모든 매장 API에서 `FORBIDDEN`.
+- 권한 검사는 서버 공통 가드 `requireMembership(storeId, check)` 한 곳에서 한다. 비활성 Membership은 모든 매장 API에서 `FORBIDDEN`. 예외: 본인 임금명세서 조회·열람 기록(`/attendance/me/payslips`, 본인 `GET /payslips/:id`, `POST /payslips/:id/view`)은 퇴사 뒤에도 된다 (payslip §1-6).
 - Manager에게 `PAYROLL_READ`가 없으면 근태 응답에서 **시급·금액 필드를 제거**한다 (응답 스키마 분리).
 
 ### 2.6 감사
