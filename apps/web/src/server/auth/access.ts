@@ -16,6 +16,7 @@ export const STORE_ACCESS_RULES = {
   TERMS_WRITE: { roles: ['OWNER'], managerPermissions: ['TERMS_EDIT'] },
   LABOR_REVIEW: { roles: ['OWNER'], managerPermissions: ['PAYROLL_READ', 'TERMS_EDIT'] },
   PAYROLL: { roles: ['OWNER'], managerPermissions: ['PAYROLL_READ'] },
+  PAYSLIP_WRITE: { roles: ['OWNER'], managerPermissions: [] },
   MEMBER: { roles: ['OWNER', 'MANAGER', 'EMPLOYEE'], managerPermissions: [] },
 } as const satisfies Record<
   string,

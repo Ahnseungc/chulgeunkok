@@ -28,7 +28,7 @@ interface SyncContext {
 }
 
 /** `YYYY-MM-DD` → @db.Date 컬럼 값 */
-const toDateColumn = (localDate: string) => new Date(`${localDate}T00:00:00Z`);
+export const toDateColumn = (localDate: string) => new Date(`${localDate}T00:00:00Z`);
 const dayBefore = (localDate: string) => new Date(Date.parse(`${localDate}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
 
 /** 사원번호: 매장 안 Membership을 (joinedAt, id) 순으로 센 1부터 순번 (§3.1) */
@@ -101,9 +101,9 @@ async function syncMember(tx: Prisma.TransactionClient, context: SyncContext, me
 }
 
 /** 저장된 줄. mergeLines는 줄을 펼쳐 복사하므로 id가 결과까지 따라온다 */
-type StoredLineDraft = LineDraft & { id: string };
+export type StoredLineDraft = LineDraft & { id: string };
 
-const toLineDraft = (line: PayslipLine): StoredLineDraft => ({
+export const toLineDraft = (line: PayslipLine): StoredLineDraft => ({
   id: line.id,
   kind: line.kind,
   code: line.code,
@@ -151,7 +151,7 @@ async function createFirstDraft(tx: Prisma.TransactionClient, context: SyncConte
 }
 
 /** 같은 직원의 이전 기간 직전 보낸 명세서 줄 (§3.3 4대보험 기본값) */
-async function previousSentLines(tx: Prisma.TransactionClient, membershipId: string, periodStart: string): Promise<LineDraft[]> {
+export async function previousSentLines(tx: Prisma.TransactionClient, membershipId: string, periodStart: string): Promise<LineDraft[]> {
   const previous = await tx.payslip.findFirst({
     where: { membershipId, status: { in: ['SENT', 'SUPERSEDED'] }, periodStart: { lt: toDateColumn(periodStart) } },
     orderBy: [{ periodStart: 'desc' }, { version: 'desc' }],
@@ -164,20 +164,24 @@ async function previousSentLines(tx: Prisma.TransactionClient, membershipId: str
 const lineKey = (line: LineDraft) =>
   line.code === CUSTOM_CODE ? `id:${(line as Partial<StoredLineDraft>).id ?? ''}` : `${line.kind}:${line.code}`;
 
-const WRITABLE_FIELDS = ['calculatedAmount', 'amount', 'basis', 'sortOrder'] as const;
+/** adjustReason은 사장님 줄 수정·공제 방식 전환에서만 바뀐다 (동기화 merge는 건드리지 않는다) */
+const WRITABLE_FIELDS = ['calculatedAmount', 'amount', 'basis', 'sortOrder', 'adjustReason'] as const;
 
-/** 달라진 쓰기 가능 필드만. CUSTOM·수기 공제는 merge가 sortOrder만 바꾸므로 sortOrder만 나온다 */
+/** 달라진 쓰기 가능 필드만. 동기화에서 CUSTOM·수기 공제는 merge가 sortOrder만 바꾸므로 sortOrder만 나온다 */
 const changedFields = (stored: LineDraft, next: LineDraft): Prisma.PayslipLineUpdateInput =>
   Object.fromEntries(WRITABLE_FIELDS.filter((field) => stored[field] !== next[field]).map((field) => [field, next[field]]));
 
-interface LineWrites {
+export interface LineWrites {
   updates: { id: string; data: Prisma.PayslipLineUpdateInput }[];
   creates: LineDraft[];
   deleteIds: string[];
 }
 
-/** 저장된 줄 → merge 결과로 가는 최소 쓰기. 삭제는 공제 방식이 바뀌어 빠진 공제 줄뿐이다 (§4.3) */
-function planLineWrites(stored: readonly StoredLineDraft[], merged: readonly LineDraft[]): LineWrites {
+/**
+ * 저장된 줄 → merge 결과로 가는 최소 쓰기 (§4.3). 동기화에서 삭제는 공제 방식이 바뀌어 빠진 공제 줄뿐이고,
+ * 사장님 수정(§4.2)에서는 지운 CUSTOM 줄도 빠진다. id 없는 CUSTOM 줄은 새로 만든다.
+ */
+export function planLineWrites(stored: readonly StoredLineDraft[], merged: readonly LineDraft[]): LineWrites {
   const storedByKey = new Map(stored.map((line) => [lineKey(line), line]));
   const mergedKeys = new Set(merged.map(lineKey));
   const updates: LineWrites['updates'] = [];
@@ -202,7 +206,7 @@ const toLineRow = ({ kind, code, label, basis, calculatedAmount, amount, adjustR
   sortOrder,
 });
 
-async function applyLineWrites(tx: Prisma.TransactionClient, payslipId: string, writes: LineWrites): Promise<void> {
+export async function applyLineWrites(tx: Prisma.TransactionClient, payslipId: string, writes: LineWrites): Promise<void> {
   if (writes.deleteIds.length > 0) await tx.payslipLine.deleteMany({ where: { id: { in: writes.deleteIds } } });
   for (const { id, data } of writes.updates) await tx.payslipLine.update({ where: { id }, data });
   if (writes.creates.length > 0) {

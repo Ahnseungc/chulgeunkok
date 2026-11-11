@@ -184,7 +184,14 @@ model PushToken {
 ```
 
 - **DRAFT 수정**: 줄 금액 변경(사유 필수), `CUSTOM` 줄 추가·삭제, 공제 금액 입력, `payDate` 변경, 정정본이면 `correctionNote`. 계산 줄은 삭제하지 않고 0원으로 둔다.
+  - 계산 줄(`calculatedAmount` 있음)을 계산값과 다른 금액으로 바꾸면 `adjustReason` 필수 (`PAYSLIP_ADJUST_REASON_REQUIRED`). 계산값으로 되돌리면 `adjustReason`을 지운다 (다시 동기화를 따라간다).
+  - `calculatedAmount`가 없는 줄(`CUSTOM`·4대보험 수기 공제)은 사유 없이 바꾼다.
+  - 수정마다 3.3% 줄을 새 지급 총액으로 다시 계산하고(사장님이 고친 3.3% 줄은 유지, §3.3) `grossPay`·`totalDeduction`·`netPay`를 맞춘다.
+  - `CUSTOM`이 아닌 줄 삭제는 `VALIDATION_FAILED`. `correctionNote`는 정정본(version ≥ 2)에만 적는다 (v1이면 `VALIDATION_FAILED`).
+  - 수정·보내기는 명세서 행을 잠그고(`SELECT … FOR UPDATE`) 다시 읽은 뒤 쓴다. 동기화(§4.3)와 같은 행 잠금이라 서로의 변경을 덮어쓰지 않는다.
 - **보내기**: 트랜잭션에서 스냅숏 확정 → `SENT` → 같은 기간 이전 `SENT`는 `SUPERSEDED` → 푸시 발송 (트랜잭션 밖, 실패해도 롤백하지 않음, §6).
+  - 스냅숏 확정: 성명(`User.name`)·사원번호를 보낸 시점 값으로, 합계를 저장된 줄에서 다시 센다.
+  - 일괄 보내기는 한 트랜잭션이다. 하나라도 막히면(`PAYSLIP_PAY_DATE_REQUIRED` 등) 아무것도 보내지 않고, 에러 `details.payslipId`로 어느 명세서인지 알려 준다.
 - `SENT`·`SUPERSEDED`는 수정할 수 없다 (`PAYSLIP_NOT_EDITABLE`). 보존 기간은 퇴사 후 3년 (근기법 §42).
 
 ### 4.3 초안 생성과 동기화
@@ -210,6 +217,7 @@ model PushToken {
 1. 기간 선택 (정산 화면과 같은 화살표)
 2. 상단 요약: 확인 필요 n · 보냄 n · 정정 필요 n
 3. 직원 목록: 이름, 실지급액, 상태 칩(`확인 필요` / `보냄` / `정정본 확인 필요`), 열람 여부(`읽음`), 알림 미수신 배지(푸시 토큰 없음)
+   - 직원마다 그 기간 최신 버전 1건. 요약 숫자는 확인 필요 = v1 `DRAFT`, 정정 필요 = v2 이상 `DRAFT`, 보냄 = 최신이 `SENT`.
 4. "확인 필요 모두 보내기" — 확인 시트에 인원·총액. `payDate` 없는 직원이 있으면 막는다.
 5. 진입: 대시보드 "처리할 일"에 `명세서 확인 n건`, 정산 화면 상단에 "임금명세서 만들기" 링크.
 
@@ -264,6 +272,7 @@ model PushToken {
 | POST | `/push-tokens` body `{ token, platform }` | 기기 |
 
 - 쓰기 요청은 공통대로 Zod 검증·권한 가드·멱등 키(보내기).
+- 서버 푸시 발송기는 `PUSH_PROVIDER` 로 고른다: `fcm`(firebase-admin, `FIREBASE_SERVICE_ACCOUNT` 필요) / 그 밖은 dev(로그만, production에서는 `INTERNAL`).
 - 인덱스 §2.5 권한 매트릭스에 "임금명세서 수정·보내기: Owner만", "조회: Owner·`PAYROLL_READ`·본인" 줄 추가.
 
 ## 8. 에러 코드
