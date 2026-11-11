@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@chulgeunkok/db';
 import { createTestDb } from '@chulgeunkok/db/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { computePayroll } from '@/features/payroll/server/payroll-service';
 
@@ -111,6 +111,29 @@ describe('syncPeriodPayslips', () => {
     expect([after?.id, basePayOf(after), after?.grossPay]).toEqual([before?.id, 21 * WAGE, 21 * WAGE]);
   });
 
+  it('DRAFT 갱신은 줄 id를 유지한다 (CUSTOM 포함)', async () => {
+    await sync();
+    const [draft] = await staffPayslips();
+    const custom = await db.payslipLine.create({
+      data: { payslipId: draft?.id ?? '', kind: 'EARNING', code: 'CUSTOM', label: '식대', basis: '', amount: 50_000, sortOrder: 9 },
+    });
+    const ids = [...(draft?.lines.map((l) => l.id) ?? []), custom.id].sort();
+    await extendFirstShift(1);
+    expect(await sync()).toEqual({ created: 0, updated: 1 });
+    const [after] = await staffPayslips();
+    expect(after?.lines.map((l) => l.id).sort()).toEqual(ids);
+    expect([basePayOf(after), after?.lines.find((l) => l.id === custom.id)?.amount]).toEqual([21 * WAGE, 50_000]);
+  });
+
+  it('조정한 금액은 갱신 뒤에도 남는다', async () => {
+    await sync();
+    await db.payslipLine.updateMany({ where: { code: 'BASE_PAY' }, data: { amount: 300_000, adjustReason: '합의' } });
+    await extendFirstShift(1);
+    await sync();
+    const line = (await staffPayslips())[0]?.lines.find((l) => l.code === 'BASE_PAY');
+    expect([line?.amount, line?.calculatedAmount, line?.adjustReason]).toEqual([300_000, 21 * WAGE, '합의']);
+  });
+
   it('근태가 그대로면 DRAFT를 고치지 않는다', async () => {
     await sync();
     expect(await sync()).toEqual({ created: 0, updated: 0 });
@@ -213,13 +236,34 @@ describe('employeeNumberOf', () => {
 describe('runPayslipDraftJob', () => {
   it('runPayslipDraftJob은 직전 3기간을 본다', async () => {
     await db.attendance.createMany({ data: ['2026-07-06', '2026-08-03', '2026-11-02'].map(mondayShift) });
-    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 1, created: 2, updated: 0 });
+    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 1, created: 2, updated: 0, failed: 0 });
     const periods = await db.payslip.findMany({ orderBy: { periodStart: 'asc' }, select: { periodStart: true } });
     expect(periods.map((p) => p.periodStart.toISOString().slice(0, 10))).toEqual(['2026-08-01', '2026-10-01']);
   });
 
   it('비활성 매장은 건너뛴다', async () => {
     await db.store.update({ where: { id: 'store' }, data: { status: 'CLOSED' } });
-    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 0, created: 0, updated: 0 });
+    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 0, created: 0, updated: 0, failed: 0 });
+  });
+
+  it('한 매장 동기화가 실패해도 다른 매장은 만든다', async () => {
+    await db.store.create({ data: { id: 'broken', name: '고장난 매장' } });
+    const findStore = db.store.findUniqueOrThrow.bind(db.store);
+    const flaky = new Proxy(db, {
+      get: (target, key) =>
+        key === 'store'
+          ? {
+              ...target.store,
+              findMany: target.store.findMany.bind(target.store),
+              findUniqueOrThrow: (args: Parameters<typeof findStore>[0]) =>
+                args.where.id === 'broken' ? Promise.reject(new Error('boom')) : findStore(args),
+            }
+          : Reflect.get(target, key),
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const result = await runPayslipDraftJob(flaky, NOW);
+    expect([result.stores, result.created, result.failed]).toEqual([2, 1, 3]);
+    expect(error).toHaveBeenCalledTimes(3);
+    error.mockRestore();
   });
 });
