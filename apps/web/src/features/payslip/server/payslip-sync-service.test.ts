@@ -62,6 +62,7 @@ afterEach(async () => {
 });
 
 const sync = (periodStart = OCTOBER, now = NOW) => syncPeriodPayslips(db, { storeId: 'store', periodStart, now });
+const payDateOf = async () => (await staffPayslips())[0]?.payDate?.toISOString().slice(0, 10) ?? null;
 const staffPayslips = () =>
   db.payslip.findMany({ where: { membershipId: 'm-staff' }, orderBy: { version: 'asc' }, include: { lines: true } });
 const basePayOf = (payslip: { lines: { code: string; amount: number }[] } | undefined) =>
@@ -132,6 +133,32 @@ describe('syncPeriodPayslips', () => {
     await sync();
     const line = (await staffPayslips())[0]?.lines.find((l) => l.code === 'BASE_PAY');
     expect([line?.amount, line?.calculatedAmount, line?.adjustReason]).toEqual([300_000, 21 * WAGE, '합의']);
+  });
+
+  it('지급일 없이 만든 DRAFT는 매장 지급일을 정하면 다음 동기화에서 채운다', async () => {
+    await db.store.update({ where: { id: 'store' }, data: { payDay: null } });
+    await sync();
+    expect(await payDateOf()).toBeNull();
+    await db.store.update({ where: { id: 'store' }, data: { payDay: 25 } });
+    expect(await sync()).toEqual({ created: 0, updated: 1 });
+    expect(await payDateOf()).toBe('2026-11-25');
+  });
+
+  it('사장님이 넣은 지급일은 매장 지급일로 덮지 않는다', async () => {
+    await sync();
+    await db.payslip.updateMany({ data: { payDate: new Date('2026-11-05') } });
+    await db.store.update({ where: { id: 'store' }, data: { payDay: 25 } });
+    expect(await sync()).toEqual({ created: 0, updated: 0 });
+    expect(await payDateOf()).toBe('2026-11-05');
+  });
+
+  it('createFirst가 false면 v1을 만들지 않고 있는 DRAFT만 갱신한다', async () => {
+    const syncExisting = () => syncPeriodPayslips(db, { storeId: 'store', periodStart: OCTOBER, now: NOW, createFirst: false });
+    expect(await syncExisting()).toEqual({ created: 0, updated: 0 });
+    expect(await db.payslip.count()).toBe(0);
+    await sync();
+    await extendFirstShift(1);
+    expect(await syncExisting()).toEqual({ created: 0, updated: 1 });
   });
 
   it('근태가 그대로면 DRAFT를 고치지 않는다', async () => {
@@ -234,11 +261,22 @@ describe('employeeNumberOf', () => {
 });
 
 describe('runPayslipDraftJob', () => {
-  it('runPayslipDraftJob은 직전 3기간을 본다', async () => {
+  it('v1은 가장 최근 끝난 기간에만 만든다', async () => {
     await db.attendance.createMany({ data: ['2026-07-06', '2026-08-03', '2026-11-02'].map(mondayShift) });
-    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 1, created: 2, updated: 0, failed: 0 });
+    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 1, created: 1, updated: 0, failed: 0 });
     const periods = await db.payslip.findMany({ orderBy: { periodStart: 'asc' }, select: { periodStart: true } });
-    expect(periods.map((p) => p.periodStart.toISOString().slice(0, 10))).toEqual(['2026-08-01', '2026-10-01']);
+    expect(periods.map((p) => p.periodStart.toISOString().slice(0, 10))).toEqual(['2026-10-01']);
+  });
+
+  it('지난 두 기간은 이미 있는 명세서만 갱신·정정한다', async () => {
+    await db.attendance.createMany({ data: ['2026-08-03', '2026-08-10'].map(mondayShift) });
+    await sync('2026-08-01');
+    await db.attendance.updateMany({
+      where: { clockInAt: kst('2026-08-03T18:00:00') },
+      data: { clockOutAt: kst('2026-08-04T00:00:00') },
+    });
+    expect(await runPayslipDraftJob(db, NOW)).toEqual({ stores: 1, created: 1, updated: 1, failed: 0 });
+    expect(await db.payslip.count()).toBe(2);
   });
 
   it('비활성 매장은 건너뛴다', async () => {

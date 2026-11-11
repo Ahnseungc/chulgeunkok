@@ -84,6 +84,7 @@
   - 예: 기간 10/1~11/1, `payDay = 10` → 11/10. 기간 10/21~11/21, `payDay = 10` → 12/10.
   - 규칙: 기간 `end` 이후 처음 오는 `payDay`.
 - `payDay` 미설정이면 초안의 `payDate`는 비어 있고, 보내기 전에 입력해야 한다 (`PAYSLIP_PAY_DATE_REQUIRED`). 매장 설정에 "급여 지급일" 항목을 추가한다.
+- 지급일이 빈 `DRAFT`는 사장님이 나중에 `payDay`를 정하면 다음 동기화(§4.3)에서 위 규칙으로 채운다. 이미 들어 있는 값(사장님이 넣은 값 포함)은 덮지 않는다.
 
 ## 4. 모델·상태
 
@@ -197,12 +198,12 @@ model PushToken {
 ### 4.3 초안 생성과 동기화
 
 쓰기 서비스별 재계산 트리거와 `needsRecalculation` 플래그는 두지 않는다. 대신 `syncPeriodPayslips(store, period)` 한 함수가 아래를 모두 한다. 호출 시점은 두 곳이다.
-- **사장님이 명세서 목록을 읽을 때** (`GET /stores/:storeId/payslips?periodStart=`) 그 기간.
-- **일배치 `payslip-drafts`** (`/api/internal/jobs/[job]`, 매일 06:10, `daily-reviews` 뒤): 매장별로 `end ≤ 오늘`인 **최근 3개** 정산 기간 (사업장 규모 소급 90일을 덮는다).
+- **사장님이 명세서 목록을 읽을 때** (`GET /stores/:storeId/payslips?periodStart=`) 그 기간. 사장님이 고른 기간이므로 지난 기간이어도 version 1 DRAFT를 만든다.
+- **일배치 `payslip-drafts`** (`/api/internal/jobs/[job]`, 매일 06:10, `daily-reviews` 뒤): 매장별로 `end ≤ 오늘`인 **최근 3개** 정산 기간 (사업장 규모 소급 90일을 덮는다). version 1 DRAFT는 **가장 최근 끝난 기간에만** 만든다. 그 전 두 기간은 이미 있는 명세서만 갱신·정정한다 — 기능 배포 전에 이미 지급한 기간에 지울 수 없는 초안이 쌓이지 않게.
 
 `syncPeriodPayslips` 규칙:
-- 대상 직원(`payroll` §4 미리보기 대상과 같음) 중 그 기간 Payslip이 하나도 없으면 version 1 DRAFT를 만든다. 인정 근무와 수당이 모두 0원인 직원은 만들지 않는다. 미해결 항목(퇴근 누락·대기 중 수정 요청)이 있어도 만든다. 화면에 배지로 보인다.
-- 최신이 `DRAFT` → 계산 줄의 `calculatedAmount`를 다시 계산한다. 사장님이 고치지 않은 줄(`adjustReason` 없음)은 `amount`도 따라간다. 고친 줄은 `amount` 유지, 화면에 "계산값이 바뀌었어요" 표시.
+- 대상 직원(`payroll` §4 미리보기 대상과 같음) 중 그 기간 Payslip이 하나도 없으면 version 1 DRAFT를 만든다 (일배치의 지난 두 기간은 제외, 위). 인정 근무와 수당이 모두 0원인 직원은 만들지 않는다. 미해결 항목(퇴근 누락·대기 중 수정 요청)이 있어도 만든다. 화면에 배지로 보인다.
+- 최신이 `DRAFT` → 계산 줄의 `calculatedAmount`를 다시 계산한다. `payDate`가 비어 있고 매장 `payDay`가 있으면 채운다 (§3.4). 사장님이 고치지 않은 줄(`adjustReason` 없음)은 `amount`도 따라간다. 고친 줄은 `amount` 유지, 화면에 "계산값이 바뀌었어요" 표시.
 - 최신이 `SENT` → 다시 계산해 계산 줄 하나라도 달라지면 version+1 DRAFT를 만든다. 이전 SENT의 `CUSTOM` 줄·수기 공제·`payDate`·수정한 줄을 복사한다. 달라진 게 없으면 만들지 않는다.
 - 사업장 규모 소급 신고(`store` §6, 최대 90일)로 35일 넘은 기간이 바뀌어도 최근 3기간 안이면 같은 방식으로 정정본 DRAFT가 만들어진다. 사장님이 확인하고 보내므로 자동으로 나가지 않는다.
 
