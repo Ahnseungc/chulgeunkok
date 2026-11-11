@@ -164,13 +164,6 @@ export function buildDeductionLines(input: {
 
 const isCalculated = (line: LineDraft) => line.calculatedAmount !== null && line.code !== CUSTOM_CODE;
 
-/** 현재 공제 줄에서 공제 방식을 되짚는다. 4대보험 줄은 calculatedAmount가 null, 3.3% 줄은 값이 있다 */
-function inferDeductionType(deductions: readonly LineDraft[]): DeductionType {
-  if (deductions.some((l) => l.code === 'NATIONAL_PENSION')) return 'SOCIAL_INSURANCE';
-  if (deductions.some((l) => l.code === 'INCOME_TAX' && l.calculatedAmount !== null)) return 'WITHHOLDING_3_3';
-  return 'NONE';
-}
-
 const byCode = (lines: readonly LineDraft[]) => new Map(lines.map((l) => [l.code, l]));
 
 /** 계산 줄을 fresh 기준으로 갱신. 조정(adjustReason)한 줄은 amount 유지 (§4.3) */
@@ -193,17 +186,21 @@ function mergeEarnings(current: readonly LineDraft[], fresh: readonly LineDraft[
   return [...kept, ...added];
 }
 
-function mergeDeductions(input: {
-  current: readonly LineDraft[];
-  fresh: readonly LineDraft[];
+/** 공제 방식 전환·재계산에 쓰는 입력 (§3.3) */
+interface DeductionMergeInput {
+  /** 지금 명세서에 저장된 공제 방식 (`Payslip.deductionType`) */
+  currentDeductionType: DeductionType;
+  /** 적용할 공제 방식 */
   deductionType: DeductionType;
-  grossPay: number;
-}): LineDraft[] {
-  const { current, deductionType, grossPay } = input;
-  const custom = current.filter((l) => l.code === CUSTOM_CODE);
-  if (inferDeductionType(current) !== deductionType) {
-    const previousSent = input.fresh.filter((l) => l.kind === 'DEDUCTION');
-    return [...buildDeductionLines({ type: deductionType, grossPay, previousSent }), ...custom];
+  /** 같은 직원의 직전 보낸 명세서 줄. 4대보험 묶음을 새로 만들 때 기본값 */
+  previousSent: readonly LineDraft[];
+}
+
+function mergeDeductions(current: readonly LineDraft[], grossPay: number, input: DeductionMergeInput): LineDraft[] {
+  const { deductionType } = input;
+  if (input.currentDeductionType !== deductionType) {
+    const custom = current.filter((l) => l.code === CUSTOM_CODE);
+    return [...buildDeductionLines({ type: deductionType, grossPay, previousSent: input.previousSent }), ...custom];
   }
   if (deductionType !== 'WITHHOLDING_3_3') return [...current];
   const recalculated = byCode(withholdingLines(grossPay));
@@ -231,15 +228,13 @@ const resequence = (lines: LineDraft[], rank: (line: LineDraft) => number): Line
  * 재계산 결과(fresh)를 현재 초안(current)에 합친다 (§4.3, §3.3).
  * - 계산 줄은 code로 짝지어 calculatedAmount 갱신, 조정 안 한 줄은 amount도 따라간다.
  * - fresh에서 사라진 계산 줄은 0원으로 남긴다.
- * - CUSTOM·수기 공제(calculatedAmount null)는 그대로 둔다.
- * - 공제 방식이 current 줄에서 읽은 방식과 다르면 공제 줄 묶음을 새로 만든다
- *   (4대보험 기본값은 fresh의 공제 줄을 직전 보낸 값으로 쓴다). 같으면 3.3% 줄만 새 지급 총액으로 다시 계산한다.
+ * - CUSTOM·수기 공제(calculatedAmount null)는 그대로 둔다. fresh의 공제 줄은 보지 않는다.
+ * - currentDeductionType ≠ deductionType 이면 공제 줄 묶음을 새로 만든다 (4대보험 기본값은 previousSent).
+ *   같으면 3.3% 줄만 새 지급 총액으로 다시 계산한다.
  */
-export function mergeLines(input: {
-  current: readonly LineDraft[];
-  fresh: readonly LineDraft[];
-  deductionType: DeductionType;
-}): LineDraft[] {
+export function mergeLines(
+  input: { current: readonly LineDraft[]; fresh: readonly LineDraft[] } & DeductionMergeInput,
+): LineDraft[] {
   const earnings = resequence(
     mergeEarnings(
       input.current.filter((l) => l.kind === 'EARNING'),
@@ -247,16 +242,8 @@ export function mergeLines(input: {
     ),
     earningRank,
   );
-  const grossPay = totalsOf(earnings).grossPay;
-  const deductions = resequence(
-    mergeDeductions({
-      current: input.current.filter((l) => l.kind === 'DEDUCTION'),
-      fresh: input.fresh,
-      deductionType: input.deductionType,
-      grossPay,
-    }),
-    deductionRank,
-  );
+  const currentDeductions = input.current.filter((l) => l.kind === 'DEDUCTION');
+  const deductions = resequence(mergeDeductions(currentDeductions, totalsOf(earnings).grossPay, input), deductionRank);
   return [...earnings, ...deductions];
 }
 

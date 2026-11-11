@@ -35,6 +35,17 @@ export async function loadPayroll(
   input: { storeId: string; actorUserId: string; periodStart?: string; now: Date },
 ): Promise<PayrollPreviewWithRows> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'PAYROLL' }, db);
+  return computePayroll(db, input);
+}
+
+/**
+ * 권한 검사 없는 정산 계산. 미리보기·CSV·임금명세서 동기화(docs/specs/payslip §4.3)가 같은 결과를 쓴다.
+ * 호출하는 쪽이 권한을 확인한다.
+ */
+export async function computePayroll(
+  db: PrismaClient,
+  input: { storeId: string; periodStart?: string; now: Date },
+): Promise<PayrollPreviewWithRows> {
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
   const today = toLocalDate(input.now);

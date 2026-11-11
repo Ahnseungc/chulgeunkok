@@ -72,7 +72,7 @@
 | --- | --- | --- |
 | `NONE` | 없음 | — |
 | `WITHHOLDING_3_3` | `INCOME_TAX` 소득세 3%, `LOCAL_INCOME_TAX` 지방소득세 0.3% | 지급 총액 × 3% → **10원 미만 절사**, 지방소득세 = 소득세 × 10% → 10원 미만 절사 |
-| `SOCIAL_INSURANCE` | `NATIONAL_PENSION`, `HEALTH_INSURANCE`, `LONG_TERM_CARE`, `EMPLOYMENT_INSURANCE`, `INCOME_TAX`, `LOCAL_INCOME_TAX` | 자동 계산 없음. 같은 직원의 **직전 보낸 명세서 금액**을 기본값으로 채우고, 없으면 0원. 사장님이 고친다 |
+| `SOCIAL_INSURANCE` | `NATIONAL_PENSION`, `HEALTH_INSURANCE`, `LONG_TERM_CARE`, `EMPLOYMENT_INSURANCE`, `INCOME_TAX`, `LOCAL_INCOME_TAX` | 자동 계산 없음. 같은 직원의 **직전 보낸 명세서 금액**(이전 기간의 `SENT`·`SUPERSEDED` 중 `periodStart`·`version`이 가장 늦은 것)을 기본값으로 채우고, 없으면 0원. 사장님이 고친다 |
 
 - 3.3% 계산식과 절사 단위는 가정이다 (세무 검토 필요). 순수 함수 `calculateWithholding33(grossPay)` 로 두고 테스트로 고정한다.
 - 지급 총액이 바뀌면(사장님 수정·정정) 3.3% 줄은 **다시 계산**한다. 사장님이 3.3% 줄 금액을 직접 고쳤다면 그 값을 유지한다 (§4.2).
