@@ -25,6 +25,16 @@ interface SyncContext {
   storeId: string;
   period: PayPeriod;
   payDay: number | null;
+  /** false면 명세서가 없는 직원에게 v1을 만들지 않고 있는 것만 맞춘다 (일배치의 지난 기간, §4.3) */
+  createFirst: boolean;
+}
+
+/** syncPeriodPayslips 입력. createFirst 기본값 true (§4.3) */
+export interface SyncPeriodInput {
+  storeId: string;
+  periodStart: string;
+  now: Date;
+  createFirst?: boolean;
 }
 
 /** `YYYY-MM-DD` → @db.Date 컬럼 값 */
@@ -45,18 +55,20 @@ export async function employeeNumberOf(db: DbClient, membership: { id: string; s
 
 /**
  * 끝난 정산 기간 하나의 명세서를 맞춘다 (§4.3). 기간 끝(미포함)이 오늘보다 뒤면 아무것도 안 한다.
- * 직원마다 따로 트랜잭션을 쓴다.
+ * 직원마다 따로 트랜잭션을 쓴다. `createFirst: false`면 v1은 만들지 않는다.
  */
-export async function syncPeriodPayslips(
-  db: PrismaClient,
-  input: { storeId: string; periodStart: string; now: Date },
-): Promise<{ created: number; updated: number }> {
+export async function syncPeriodPayslips(db: PrismaClient, input: SyncPeriodInput): Promise<{ created: number; updated: number }> {
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
   if (period.end > toLocalDate(input.now)) return { created: 0, updated: 0 };
 
   const { preview } = await computePayroll(db, input);
-  const context: SyncContext = { storeId: input.storeId, period: { start: period.start, end: period.end }, payDay: store.payDay };
+  const context: SyncContext = {
+    storeId: input.storeId,
+    period: { start: period.start, end: period.end },
+    payDay: store.payDay,
+    createFirst: input.createFirst ?? true,
+  };
   const outcomes: SyncOutcome[] = [];
   for (const member of preview.members) outcomes.push(await syncMemberSafely(db, context, member));
   return {
@@ -89,13 +101,16 @@ async function syncMember(tx: Prisma.TransactionClient, context: SyncContext, me
     orderBy: { version: 'desc' },
     select: { id: true },
   });
-  if (!latest) return totalsOf(buildEarningLines(member)).grossPay > 0 ? createFirstDraft(tx, context, member) : null;
+  if (!latest) {
+    const paid = totalsOf(buildEarningLines(member)).grossPay > 0;
+    return context.createFirst && paid ? createFirstDraft(tx, context, member) : null;
+  }
   await lockPayslip(tx, latest.id);
   const payslip = await tx.payslip.findUniqueOrThrow({
     where: { id: latest.id },
     include: { lines: { orderBy: [{ kind: 'asc' }, { sortOrder: 'asc' }] } },
   });
-  if (payslip.status === 'DRAFT') return refreshDraft(tx, payslip, member);
+  if (payslip.status === 'DRAFT') return refreshDraft(tx, context, { draft: payslip, member });
   if (payslip.status === 'SENT') return createCorrectionDraft(tx, payslip, member);
   return null;
 }
@@ -214,16 +229,31 @@ export async function applyLineWrites(tx: Prisma.TransactionClient, payslipId: s
   }
 }
 
-/** 최신이 DRAFT: 계산 줄은 제자리에서 고치고 CUSTOM·수기 공제·조정 금액은 그대로 둔다 (§4.3) */
-async function refreshDraft(tx: Prisma.TransactionClient, draft: PayslipWithLines, member: PayrollMemberDto): Promise<SyncOutcome> {
+/**
+ * 지급일이 비어 있는 DRAFT에 매장 payDay로 채울 값 (§3.4). 출시 직후엔 payDay 없이 초안이 생기므로
+ * 사장님이 나중에 지급일을 정하면 다음 동기화에서 채운다. 사장님이 넣은 값·payDay 없음이면 빈 객체
+ */
+const payDateBackfill = (draft: Payslip, context: SyncContext): { payDate?: Date } => {
+  if (draft.payDate !== null) return {};
+  const payDate = payDateFor(context.period.end, context.payDay);
+  return payDate ? { payDate: toDateColumn(payDate) } : {};
+};
+
+/** 최신이 DRAFT: 계산 줄은 제자리에서 고치고 CUSTOM·수기 공제·조정 금액은 그대로 둔다. 빈 지급일은 채운다 (§3.4·§4.3) */
+async function refreshDraft(
+  tx: Prisma.TransactionClient,
+  context: SyncContext,
+  { draft, member }: { draft: PayslipWithLines; member: PayrollMemberDto },
+): Promise<SyncOutcome> {
   const lines = remerge(draft, member);
   const snapshot = snapshotOf(member, lines);
+  const backfill = payDateBackfill(draft, context);
   const writes = planLineWrites(draft.lines.map(toLineDraft), lines);
   const linesUnchanged = writes.updates.length + writes.creates.length + writes.deleteIds.length === 0;
   const snapshotUnchanged = Object.entries(snapshot).every(([key, value]) => draft[key as keyof typeof snapshot] === value);
-  if (linesUnchanged && snapshotUnchanged) return null;
+  if (linesUnchanged && snapshotUnchanged && !backfill.payDate) return null;
   await applyLineWrites(tx, draft.id, writes);
-  await tx.payslip.update({ where: { id: draft.id }, data: snapshot });
+  await tx.payslip.update({ where: { id: draft.id }, data: { ...snapshot, ...backfill } });
   return 'updated';
 }
 
@@ -289,7 +319,7 @@ function endedPeriodStarts(store: Parameters<typeof payPeriodConfigOf>[0], today
 /** 배치용: 실패는 로그만 남기고 다음 배치에서 다시 본다. 사장님 목록 조회 경로는 그대로 던진다 */
 async function syncPeriodPayslipsSafely(
   db: PrismaClient,
-  input: { storeId: string; periodStart: string; now: Date },
+  input: SyncPeriodInput,
 ): Promise<{ created: number; updated: number } | null> {
   try {
     return await syncPeriodPayslips(db, input);
@@ -299,7 +329,11 @@ async function syncPeriodPayslipsSafely(
   }
 }
 
-/** 일배치 payslip-drafts (매일 06:10): ACTIVE 매장마다 끝난 최근 3기간을 동기화. 매장·기간별로 실패를 격리한다 (§4.3) */
+/**
+ * 일배치 payslip-drafts (매일 06:10): ACTIVE 매장마다 끝난 최근 3기간을 동기화. 매장·기간별로 실패를 격리한다 (§4.3).
+ * v1은 가장 최근 끝난 기간에만 만든다. 그 전 두 기간은 이미 있는 명세서만 갱신·정정한다
+ * (기능 배포 전에 이미 지급한 기간에 초안이 쌓이지 않게).
+ */
 export async function runPayslipDraftJob(
   db: PrismaClient,
   now: Date,
@@ -308,8 +342,8 @@ export async function runPayslipDraftJob(
   const today = toLocalDate(now);
   const totals = { stores: stores.length, created: 0, updated: 0, failed: 0 };
   for (const store of stores) {
-    for (const periodStart of endedPeriodStarts(store, today)) {
-      const result = await syncPeriodPayslipsSafely(db, { storeId: store.id, periodStart, now });
+    for (const [index, periodStart] of endedPeriodStarts(store, today).entries()) {
+      const result = await syncPeriodPayslipsSafely(db, { storeId: store.id, periodStart, now, createFirst: index === 0 });
       if (!result) totals.failed += 1;
       totals.created += result?.created ?? 0;
       totals.updated += result?.updated ?? 0;
