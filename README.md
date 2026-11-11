@@ -22,6 +22,10 @@
   <img src="docs/readme/05-labor-guide.png" width="100%" alt="05 노무 의무 안내. 놓치기 쉬운 노무 의무를 먼저" />
 </p>
 
+<p align="center">
+  <img src="docs/readme/06-payslip.png" width="100%" alt="06 임금명세서. 확인하고 보내면 명세서 교부 끝" />
+</p>
+
 ## 앱 푸시 (FCM)
 
 환경 변수 `GOOGLE_SERVICES_JSON`(Android `google-services.json` 경로), `GOOGLE_SERVICE_INFO_PLIST`(iOS `GoogleService-Info.plist` 경로)를 주면 Firebase 플러그인이 켜진다. 없으면 푸시 없이 기존처럼 동작한다.
