@@ -22,6 +22,7 @@
 | [attendance/README.md](./attendance/README.md) | TIME-01~04 | 출퇴근 punch, 퇴근 누락, 수정 요청 |
 | [payroll/README.md](./payroll/README.md) | TIME-02, PAY-01, ADMIN-02 | 근무시간 계산, 예상 기본급, CSV |
 | [dashboard/README.md](./dashboard/README.md) | ADMIN-01 | 관리자 대시보드 |
+| [payslip/README.md](./payslip/README.md) | P1 임금명세서 | 명세서 초안·수정·보내기·정정, 직원별 공제, FCM 푸시 |
 
 ---
 
