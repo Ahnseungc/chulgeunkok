@@ -134,6 +134,8 @@ async function countTodo(
     pendingCorrections,
     laborReviews: canAccessStore(input.actor, 'LABOR_REVIEW') ? await countSheetReviews(db, { ...input, storeId }) : null,
     pendingInvitations,
+    // 다음 동기화(목록 조회·일배치) 전까지 늦을 수 있다 (docs/specs/payslip §4.3)
+    payslipDrafts: canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await db.payslip.count({ where: { storeId, status: 'DRAFT' } }) : null,
   };
 }
 

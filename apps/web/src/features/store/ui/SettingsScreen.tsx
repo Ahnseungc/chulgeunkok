@@ -17,6 +17,8 @@ import ScreenHeader from '@/shared/ui/ScreenHeader';
 const STORE_NAME_MAX_LENGTH = 30;
 /** 정산 시작일은 1~28 (월말 문제 회피, docs/specs/payroll §3.1) */
 const START_DAYS = Array.from({ length: 28 }, (_, index) => index + 1);
+/** 급여 지급일 1~31, 없는 날은 말일 (docs/specs/payslip §3.4) */
+const PAY_DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
 const BANDS = ['UNDER_5', 'FIVE_OR_MORE', 'UNKNOWN'] as const satisfies readonly HeadcountBandValue[];
 
 /** `/owner/[storeId]/settings` — docs/specs/store §7 */
@@ -45,6 +47,9 @@ export default function SettingsScreen({ storeId }: { storeId: string }) {
           </PageStaggerEntranceItem>
           <PageStaggerEntranceItem>
             <StartDaySection settings={settings} pending={store.pending} onSave={store.saveStartDay} />
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
+            <PayDaySection settings={settings} pending={store.pending} onSave={store.savePayDay} />
           </PageStaggerEntranceItem>
           <PageStaggerEntranceItem>
             <HeadcountSection settings={settings} pending={store.pending} onSave={store.declareHeadcount} />
@@ -117,6 +122,33 @@ function StartDaySection({ settings, pending, onSave }: SectionProps<[number]>) 
           기간은 그대로예요.
         </Text>
       ) : null}
+    </section>
+  );
+}
+
+function PayDaySection({ settings, pending, onSave }: SectionProps<[number | null]>) {
+  return (
+    <section className="detail-section" aria-labelledby="pay-day-heading">
+      <Text as="h2" id="pay-day-heading" textStyle="t6Bold">
+        급여 지급일
+      </Text>
+      <Text textStyle="t4Regular" color="fg.neutralMuted">
+        임금명세서에 들어가요. 정산 기간이 끝난 뒤 처음 오는 이 날짜가 지급일이에요. 그 달에 없는 날이면 말일이에요.
+      </Text>
+      <select
+        className="native-select"
+        aria-label="급여 지급일"
+        value={settings.payDay ?? ''}
+        disabled={pending}
+        onChange={(event) => void onSave(event.target.value === '' ? null : Number(event.target.value))}
+      >
+        <option value="">정하지 않음 (명세서마다 넣기)</option>
+        {PAY_DAYS.map((day) => (
+          <option key={day} value={day}>
+            매월 {day}일
+          </option>
+        ))}
+      </select>
     </section>
   );
 }

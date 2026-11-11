@@ -214,11 +214,11 @@ model PushToken {
 
 ### 5.1 사장님 `/owner/[storeId]/payslips?periodStart=`
 
-1. 기간 선택 (정산 화면과 같은 화살표)
+1. 기간 선택 (정산 화면과 같은 화살표). `periodStart` 없이 열면 끝난 최근 기간 (명세서는 끝난 기간에만 생긴다)
 2. 상단 요약: 확인 필요 n · 보냄 n · 정정 필요 n
 3. 직원 목록: 이름, 실지급액, 상태 칩(`확인 필요` / `보냄` / `정정본 확인 필요`), 열람 여부(`읽음`), 알림 미수신 배지(푸시 토큰 없음)
    - 직원마다 그 기간 최신 버전 1건. 요약 숫자는 확인 필요 = v1 `DRAFT`, 정정 필요 = v2 이상 `DRAFT`, 보냄 = 최신이 `SENT`.
-4. "확인 필요 모두 보내기" — 확인 시트에 인원·총액. `payDate` 없는 직원이 있으면 막는다.
+4. "확인 필요 모두 보내기" — 대상은 v1 `DRAFT`(정정본은 사유를 적어 하나씩 보낸다). 확인 시트에 인원·실지급 합계. `payDate` 없는 명세서가 있으면 막는다 (목록 항목에 `payDate`를 준다).
 5. 진입: 대시보드 "처리할 일"에 `명세서 확인 n건`, 정산 화면 상단에 "임금명세서 만들기" 링크.
 
 ### 5.2 사장님 상세 `/owner/[storeId]/payslips/[payslipId]`
@@ -258,7 +258,7 @@ model PushToken {
 
 | Method | 경로 | 권한 |
 | --- | --- | --- |
-| GET | `/stores/:storeId/payslips?periodStart=` | Owner·`PAYROLL_READ` |
+| GET | `/stores/:storeId/payslips?periodStart=` (생략 시 끝난 최근 기간) | Owner·`PAYROLL_READ` |
 | GET | `/payslips/:id` | Owner·`PAYROLL_READ`, 본인(SENT·SUPERSEDED만) |
 | PATCH | `/payslips/:id` body `{ payDate?, correctionNote? }` | Owner |
 | PUT | `/payslips/:id/lines/:lineId` body `{ amount, adjustReason? }` | Owner |

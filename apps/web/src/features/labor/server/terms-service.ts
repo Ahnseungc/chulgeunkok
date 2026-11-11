@@ -43,6 +43,7 @@ export async function createEmploymentTerms(
         scheduleVaries: input.body.scheduleVaries,
         averageWeeklyMinutesOverride: input.body.averageWeeklyMinutesOverride,
         weeklyHolidayWeekday: input.body.weeklyHolidayWeekday,
+        deductionType: input.body.deductionType,
         contractStartDate: dateColumn(input.body.contractStartDate),
         contractEndDate: input.body.contractEndDate ? dateColumn(input.body.contractEndDate) : null,
         createdById: input.actorUserId,

@@ -21,6 +21,8 @@ export interface DashboardDto {
     /** 권한(LABOR_REVIEW)이 없으면 null */
     laborReviews: number | null;
     pendingInvitations: number;
+    /** 보내기 전 임금명세서 초안·정정본 (docs/specs/payslip §5.1). 사장님이 아니면 null */
+    payslipDrafts: number | null;
   };
   currentPeriod: {
     start: string;

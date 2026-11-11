@@ -44,6 +44,7 @@ export async function getStoreSettings(
       pendingChange: pending ? { startDay: config.startDay, effectiveFrom: pending } : null,
       currentPeriod: getStorePayPeriod(today, config),
     },
+    payDay: store.payDay,
     headcount: {
       current: declarations.find((declaration) => toLocalDate(declaration.effectiveFrom) <= today)?.band ?? 'UNKNOWN',
       history: declarations.map((declaration) => ({
@@ -57,13 +58,20 @@ export async function getStoreSettings(
   };
 }
 
-/** PATCH /stores/:storeId — 이름·주소·정산 시작일 (docs/specs/store §4) */
+/** PATCH /stores/:storeId — 이름·주소·정산 시작일·급여 지급일 (docs/specs/store §4) */
 export async function updateStore(
   db: PrismaClient,
   input: {
     storeId: string;
     actorUserId: string;
-    body: { name?: string; address?: string; latitude?: number; longitude?: number; payPeriodStartDay?: number };
+    body: {
+      name?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      payPeriodStartDay?: number;
+      payDay?: number | null;
+    };
     now: Date;
   },
 ): Promise<StoreSettingsDto> {

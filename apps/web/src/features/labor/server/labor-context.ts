@@ -58,6 +58,7 @@ export function toTermsDto(terms: EmploymentTerms & { schedules: EmploymentTerms
     scheduleVaries: terms.scheduleVaries,
     averageWeeklyMinutesOverride: terms.averageWeeklyMinutesOverride,
     weeklyHolidayWeekday: terms.weeklyHolidayWeekday,
+    deductionType: terms.deductionType,
     contractStartDate: terms.contractStartDate.toISOString().slice(0, 10),
     contractEndDate: terms.contractEndDate?.toISOString().slice(0, 10) ?? null,
     weeklyContractMinutes: weeklyContractMinutes({ ...terms, schedules }),

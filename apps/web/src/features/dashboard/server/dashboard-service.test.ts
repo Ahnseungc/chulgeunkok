@@ -120,6 +120,30 @@ describe('getDashboard', () => {
     ]);
   });
 
+  it('확인할 명세서 초안 수를 사장님에게만 센다', async () => {
+    await db.payslip.create({
+      data: {
+        storeId: 'store',
+        membershipId: 'm-early',
+        periodStart: new Date('2026-10-01'),
+        periodEnd: new Date('2026-11-01'),
+        version: 1,
+        employeeName: '이알바',
+        employeeNumber: 3,
+        workDays: 0,
+        recognizedSeconds: 0,
+        overtimeSeconds: 0,
+        nightSeconds: 0,
+        holidaySeconds: 0,
+        deductionType: 'NONE',
+        grossPay: 0,
+        totalDeduction: 0,
+        netPay: 0,
+      },
+    });
+    expect([(await dashboard()).todo.payslipDrafts, (await dashboard('manager')).todo.payslipDrafts]).toEqual([1, null]);
+  });
+
   it('직원은 대시보드를 볼 수 없다', async () => {
     await expect(dashboard('early')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });

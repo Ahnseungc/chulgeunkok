@@ -42,6 +42,8 @@ export function useStoreSettings(storeId: string) {
     saveName: (name: string) => save(`/api/v1/stores/${storeId}`, 'PATCH', { name }, '매장 이름을 바꿨어요'),
     saveStartDay: (payPeriodStartDay: number) =>
       save(`/api/v1/stores/${storeId}`, 'PATCH', { payPeriodStartDay }, '정산 시작일을 저장했어요'),
+    savePayDay: (payDay: number | null) =>
+      save(`/api/v1/stores/${storeId}`, 'PATCH', { payDay }, '급여 지급일을 저장했어요'),
     declareHeadcount: (band: string, effectiveFrom: string) =>
       save(`/api/v1/stores/${storeId}/headcount-declarations`, 'POST', { band, effectiveFrom }, '사업장 규모를 저장했어요'),
   };

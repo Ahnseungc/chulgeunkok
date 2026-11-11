@@ -15,12 +15,14 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
   const membersPath = `/owner/${storeId}/members` as const;
   const missingPath = `/owner/${storeId}/attendances?status=MISSING_CLOCK_OUT` as const;
   const correctionsPath = `/owner/${storeId}/corrections` as const;
+  const payslipsPath = `/owner/${storeId}/payslips` as const;
   const cards = [
     { count: todo.termsMissing, title: '근로조건 필요', description: '근로조건이 없으면 출근할 수 없어요', href: membersPath },
     { count: todo.missingClockOut, title: '퇴근 누락', description: '퇴근 시각을 넣어 주세요', href: missingPath },
     { count: todo.pendingCorrections, title: '수정 요청', description: '직원이 기록 수정을 요청했어요', href: correctionsPath },
     { count: todo.laborReviews ?? 0, title: '확인할 안내', description: '최저임금·휴게·주휴 안내', href: membersPath },
     { count: todo.pendingInvitations, title: '대기 중 초대', description: '아직 수락하지 않은 등록 QR·링크', href: membersPath },
+    { count: todo.payslipDrafts ?? 0, title: '명세서 확인', description: '확인하고 직원에게 보내 주세요', href: payslipsPath },
   ].filter((card) => card.count > 0);
 
   if (cards.length === 0) return null;

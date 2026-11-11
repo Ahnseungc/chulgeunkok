@@ -6,7 +6,7 @@ import { apiFetch, ApiRequestError } from '@/shared/lib/api-client';
 import { toStoreLocalDate } from '@/shared/lib/format-time';
 import { errorMessageOf } from '@/shared/lib/useApiResource';
 
-import type { CreateTermsResultDto, TermsDto, TermsScheduleDto } from '../model/labor-types';
+import type { CreateTermsResultDto, DeductionTypeValue, TermsDto, TermsScheduleDto } from '../model/labor-types';
 
 const DEFAULT_SCHEDULE: Omit<TermsScheduleDto, 'weekday'> = { startTime: '09:00', endTime: '18:00', breakMinutes: 60 };
 
@@ -19,6 +19,7 @@ export interface TermsFormValues {
   weeklyHolidayWeekday: number | null;
   contractStartDate: string;
   contractEndDate: string;
+  deductionType: DeductionTypeValue;
 }
 
 /** 기존 근로조건이 있으면 그 값으로, 없으면 오늘부터 시작하는 빈 폼 */
@@ -33,6 +34,7 @@ export function initialTermsValues(current: TermsDto | null, now = new Date()): 
     weeklyHolidayWeekday: current?.weeklyHolidayWeekday ?? 0,
     contractStartDate: current?.contractStartDate ?? today,
     contractEndDate: current?.contractEndDate ?? '',
+    deductionType: current?.deductionType ?? 'NONE',
   };
 }
 
@@ -55,6 +57,7 @@ function toRequestBody(values: TermsFormValues, confirmBelowMinimumWage: boolean
     weeklyHolidayWeekday: values.weeklyHolidayWeekday,
     contractStartDate: values.contractStartDate,
     contractEndDate: values.contractEndDate || null,
+    deductionType: values.deductionType,
     confirmBelowMinimumWage,
   };
 }

@@ -49,6 +49,7 @@ const terms = (overrides: Partial<CreateTermsInput> = {}): CreateTermsInput => (
   contractStartDate: '2026-11-01',
   contractEndDate: null,
   confirmBelowMinimumWage: false,
+  deductionType: 'NONE',
   ...overrides,
 });
 
@@ -64,6 +65,11 @@ describe('createEmploymentTerms', () => {
       '23:00',
       810,
     ]);
+  });
+
+  it('공제 방식을 저장하고 돌려준다', async () => {
+    const { terms: created } = await create(terms({ deductionType: 'WITHHOLDING_3_3' }));
+    expect(created.deductionType).toBe('WITHHOLDING_3_3');
   });
 
   it('자정을 넘는 근무를 그대로 저장한다', async () => {

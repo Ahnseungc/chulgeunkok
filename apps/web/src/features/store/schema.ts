@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { HeadcountBand, LocalDate } from '@/shared/schema/common';
 
 const PayPeriodStartDay = z.number().int().min(1).max(28);
+/** 급여 지급일. 그 달에 없는 날이면 말일 (docs/specs/payslip §3.4). null이면 지운다 */
+const PayDay = z.number().int().min(1).max(31).nullable();
 
 const StoreFields = z.object({
   name: z.string().trim().min(1).max(30),
@@ -34,7 +36,9 @@ export const PlaceSearchQuery = z.object({ query: z.string().trim().min(2).max(5
 export const VerifyBusinessBody = z.object({ businessNumber: z.string().max(20) });
 
 /** docs/specs/store §4 */
-export const UpdateStoreBody = StoreFields.partial().refine(
+export const UpdateStoreBody = StoreFields.extend({ payDay: PayDay })
+  .partial()
+  .refine(
   hasBothOrNoCoordinates,
   COORDINATES_MESSAGE,
 );

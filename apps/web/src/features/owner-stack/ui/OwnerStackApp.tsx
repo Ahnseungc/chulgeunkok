@@ -9,6 +9,8 @@ import CorrectionsScreen from '@/features/attendance/ui/CorrectionsScreen';
 import DashboardScreen from '@/features/dashboard/ui/DashboardScreen';
 import TermsFormScreen from '@/features/labor/ui/TermsFormScreen';
 import PayrollScreen from '@/features/payroll/ui/PayrollScreen';
+import PayslipDetailScreen from '@/features/payslip/ui/PayslipDetailScreen';
+import PayslipsScreen from '@/features/payslip/ui/PayslipsScreen';
 import MemberDetailScreen from '@/features/staff/ui/MemberDetailScreen';
 import MembersScreen from '@/features/staff/ui/MembersScreen';
 import SettingsScreen from '@/features/store/ui/SettingsScreen';
@@ -45,6 +47,11 @@ const Terms = ({ storeId }: OwnerStackAppProps) => {
   return <TermsFormScreen storeId={storeId} memberId={memberId} />;
 };
 
+const PayslipDetail = ({ storeId }: OwnerStackAppProps) => {
+  const { payslipId } = useParams<{ payslipId: string }>();
+  return <PayslipDetailScreen storeId={storeId} payslipId={payslipId} />;
+};
+
 /**
  * 매장 화면(/owner/[storeId]/**)을 앱처럼 스택으로 쌓는다.
  * 목록 화면은 keepAlive 로 back 뒤 다시 열어도 스크롤·필터를 유지한다.
@@ -60,6 +67,8 @@ export default function OwnerStackApp({ storeId }: OwnerStackAppProps) {
       { path: '/owner/:storeId/members/:memberId', element: <MemberDetail storeId={storeId} /> },
       { path: '/owner/:storeId/members/:memberId/terms', element: <Terms storeId={storeId} /> },
       { path: '/owner/:storeId/payroll', element: <PayrollScreen storeId={storeId} />, keepAlive: true },
+      { path: '/owner/:storeId/payslips', element: <PayslipsScreen storeId={storeId} />, keepAlive: true },
+      { path: '/owner/:storeId/payslips/:payslipId', element: <PayslipDetail storeId={storeId} /> },
       { path: '/owner/:storeId/corrections', element: <CorrectionsScreen storeId={storeId} /> },
       { path: '/owner/:storeId/settings', element: <SettingsScreen storeId={storeId} /> },
     ];

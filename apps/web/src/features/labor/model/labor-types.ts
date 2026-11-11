@@ -7,6 +7,15 @@ export interface TermsScheduleDto {
   breakMinutes: number;
 }
 
+export type DeductionTypeValue = 'NONE' | 'WITHHOLDING_3_3' | 'SOCIAL_INSURANCE';
+
+/** 근로조건·명세서 공통 공제 방식 라벨 (docs/specs/payslip §1-2) */
+export const DEDUCTION_TYPE_LABEL = {
+  NONE: '없음',
+  WITHHOLDING_3_3: '3.3%',
+  SOCIAL_INSURANCE: '4대보험',
+} as const satisfies Record<DeductionTypeValue, string>;
+
 export interface TermsDto {
   id: string;
   version: number;
@@ -17,6 +26,8 @@ export interface TermsDto {
   scheduleVaries: boolean;
   averageWeeklyMinutesOverride: number | null;
   weeklyHolidayWeekday: number | null;
+  /** 임금명세서 공제 방식 (docs/specs/payslip §3.3) */
+  deductionType: DeductionTypeValue;
   contractStartDate: string;
   contractEndDate: string | null;
   weeklyContractMinutes: number;

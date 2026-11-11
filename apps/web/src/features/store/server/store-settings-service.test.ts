@@ -71,6 +71,20 @@ describe('정산 시작일', () => {
   });
 });
 
+describe('급여 지급일', () => {
+  it('처음엔 비어 있고, 저장하면 설정에 보인다', async () => {
+    expect((await settings()).payDay).toBeNull();
+    const saved = await updateStore(db, { storeId: 'store', actorUserId: 'owner', body: { payDay: 10 }, now: NOW });
+    expect(saved.payDay).toBe(10);
+  });
+
+  it('null로 보내면 지운다', async () => {
+    await updateStore(db, { storeId: 'store', actorUserId: 'owner', body: { payDay: 25 }, now: NOW });
+    const cleared = await updateStore(db, { storeId: 'store', actorUserId: 'owner', body: { payDay: null }, now: NOW });
+    expect(cleared.payDay).toBeNull();
+  });
+});
+
 describe('사업장 규모', () => {
   it('신고하면 오늘부터 현재 값이 되고 이력이 남는다', async () => {
     const result = await declareHeadcount(db, {

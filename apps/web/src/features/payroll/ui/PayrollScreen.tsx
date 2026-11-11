@@ -63,6 +63,13 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
       <Text as="h1" textStyle="t8Bold">
         정산
       </Text>
+      {/* 임금명세서 진입 (docs/specs/payslip §5.1) */}
+      <AppLink className="dash-card unresolved-banner" href={`/owner/${storeId}/payslips`}>
+        <Text textStyle="t5Bold">임금명세서 만들기</Text>
+        <Text textStyle="t4Regular" color="fg.neutralMuted">
+          끝난 기간 명세서를 확인하고 직원에게 보내요
+        </Text>
+      </AppLink>
       <InlineAlert message={errorMessage} />
       {/* 기간은 합계와 같이 오지만 자리는 먼저 잡는다 */}
       <PeriodNav period={data?.period ?? null} onChange={setPeriodStart} />
