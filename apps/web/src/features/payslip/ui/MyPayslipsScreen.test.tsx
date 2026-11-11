@@ -114,6 +114,14 @@ describe('직원 임금명세서 화면', () => {
     expect(await screen.findByText('아직 받은 명세서가 없어요')).toBeTruthy();
   });
 
+  it('상세에 매장·성명·사원번호를 보여 준다 (§3.1)', async () => {
+    respondWith(detail());
+    render(<MyPayslipDetailScreen payslipId="p1" />);
+    expect(await screen.findByText('골목카페')).toBeTruthy();
+    expect(screen.getByText('이알바')).toBeTruthy();
+    expect(screen.getByText('사원번호').nextElementSibling?.textContent).toBe('2');
+  });
+
   it('상세를 열면 열람 요청을 한 번 보낸다', async () => {
     const mock = respondWith(detail());
     const { rerender } = render(<MyPayslipDetailScreen payslipId="p1" />);
