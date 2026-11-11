@@ -88,27 +88,48 @@ const earningLine = (code: (typeof EARNING_CODES)[number], basis: string, amount
   sortOrder: EARNING_CODES.indexOf(code),
 });
 
+/** 시급이 하나뿐이면 그 시급. 여럿이면 항목별 시급을 DTO로 알 수 없어 null (§3.2) */
+const singleWageOf = (member: PayrollMemberDto): number | null =>
+  member.byWage.length === 1 ? (member.byWage[0]?.hourlyWage ?? null) : null;
+
+/** `3시간` → `3시간 × 10,320원`. 시급을 모르면 그대로 */
+const timesWage = (seconds: number, wage: number | null) =>
+  wage === null ? formatDuration(seconds) : `${formatDuration(seconds)} × ${formatWon(wage)}`;
+
+/** 주휴·유급휴일 basis: 1일 소정시간이 DTO에 없어 곱셈식 대신 `4주 · 시급 10,320원` */
+const countBasis = (count: string, wage: number | null) => (wage === null ? count : `${count} · 시급 ${formatWon(wage)}`);
+
+/** 수당 줄 basis. 데이터에 있는 값(시간·주수·일수·단일 시급)만 쓴다 (§3.2) */
+function allowanceBases(member: PayrollMemberDto): Record<Exclude<(typeof EARNING_CODES)[number], 'BASE_PAY'>, string> {
+  const { allowances } = member;
+  const wage = singleWageOf(member);
+  return {
+    WEEKLY_HOLIDAY_PAY: countBasis(`${allowances.weeklyHolidayWeeks}주`, wage),
+    OVERTIME_PREMIUM: `${timesWage(allowances.overtimeSeconds, wage)} × 0.5`,
+    NIGHT_PREMIUM: `${timesWage(allowances.nightSeconds, wage)} × 0.5`,
+    HOLIDAY_PREMIUM: `${timesWage(allowances.holidaySeconds, wage)} (8시간까지 × 0.5, 넘는 분 × 1.0)`,
+    PAID_HOLIDAY_PAY: countBasis(`${allowances.paidHolidayDays}일`, wage),
+  };
+}
+
 /**
  * 직원 1명의 정산 미리보기 → 지급 줄 (§3.2). 0원 항목은 만들지 않는다.
- * DTO에 없는 값(1일 소정시간·항목별 시급)은 넣지 않고 가진 값(주수·시간·일수)으로 basis를 만든다.
+ * DTO에 없는 값(1일 소정시간·여러 시급일 때 항목별 시급)은 넣지 않는다.
  */
 export function buildEarningLines(member: PayrollMemberDto): LineDraft[] {
   const { allowances } = member;
+  const bases = allowanceBases(member);
   const candidates: [(typeof EARNING_CODES)[number], number, string][] = [
     [
       'BASE_PAY',
       member.basePayEstimate,
       member.byWage.map((w) => `${formatDuration(w.recognizedSeconds)} × ${formatWon(w.hourlyWage)}`).join('\n'),
     ],
-    ['WEEKLY_HOLIDAY_PAY', allowances.weeklyHolidayPay, `${allowances.weeklyHolidayWeeks}주`],
-    ['OVERTIME_PREMIUM', allowances.overtimePremium, `${formatDuration(allowances.overtimeSeconds)} × 0.5`],
-    ['NIGHT_PREMIUM', allowances.nightPremium, `${formatDuration(allowances.nightSeconds)} × 0.5`],
-    [
-      'HOLIDAY_PREMIUM',
-      allowances.holidayPremium,
-      `${formatDuration(allowances.holidaySeconds)} (8시간까지 × 0.5, 넘는 분 × 1.0)`,
-    ],
-    ['PAID_HOLIDAY_PAY', allowances.paidHolidayPay, `${allowances.paidHolidayDays}일`],
+    ['WEEKLY_HOLIDAY_PAY', allowances.weeklyHolidayPay, bases.WEEKLY_HOLIDAY_PAY],
+    ['OVERTIME_PREMIUM', allowances.overtimePremium, bases.OVERTIME_PREMIUM],
+    ['NIGHT_PREMIUM', allowances.nightPremium, bases.NIGHT_PREMIUM],
+    ['HOLIDAY_PREMIUM', allowances.holidayPremium, bases.HOLIDAY_PREMIUM],
+    ['PAID_HOLIDAY_PAY', allowances.paidHolidayPay, bases.PAID_HOLIDAY_PAY],
   ];
   return candidates.filter(([, amount]) => amount > 0).map(([code, amount, basis]) => earningLine(code, basis, amount));
 }

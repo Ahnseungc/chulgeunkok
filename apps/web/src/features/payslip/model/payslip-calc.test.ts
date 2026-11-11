@@ -137,10 +137,33 @@ describe('buildEarningLines', () => {
     );
     expect(lines.map((l) => [l.code, l.basis, l.sortOrder])).toEqual([
       ['BASE_PAY', '10시간 × 10,000원', 0],
-      ['WEEKLY_HOLIDAY_PAY', '4주', 1],
-      ['OVERTIME_PREMIUM', '3시간 × 0.5', 2],
-      ['PAID_HOLIDAY_PAY', '2일', 5],
+      ['WEEKLY_HOLIDAY_PAY', '4주 · 시급 10,000원', 1],
+      ['OVERTIME_PREMIUM', '3시간 × 10,000원 × 0.5', 2],
+      ['PAID_HOLIDAY_PAY', '2일 · 시급 10,000원', 5],
     ]);
+  });
+
+  it('야간·휴일 가산 basis에도 단일 시급을 넣는다', () => {
+    const lines = buildEarningLines(
+      member({
+        byWage: [{ hourlyWage: 10_320, recognizedSeconds: 10 * 3600 }],
+        allowances: { ...NO_ALLOWANCES, nightPremium: 10_320, nightSeconds: 2 * 3600, holidayPremium: 41_280, holidaySeconds: 8 * 3600 },
+      }),
+    );
+    expect(lines.map((l) => l.basis)).toEqual(['2시간 × 10,320원 × 0.5', '8시간 × 10,320원 (8시간까지 × 0.5, 넘는 분 × 1.0)']);
+  });
+
+  it('시급이 여럿이면 수당 basis에 시급을 넣지 않는다', () => {
+    const lines = buildEarningLines(
+      member({
+        byWage: [
+          { hourlyWage: 10_000, recognizedSeconds: 20 * 3600 },
+          { hourlyWage: 10_320, recognizedSeconds: 10 * 3600 },
+        ],
+        allowances: { ...NO_ALLOWANCES, weeklyHolidayPay: 40_000, weeklyHolidayWeeks: 4, overtimePremium: 15_000, overtimeSeconds: 3 * 3600 },
+      }),
+    );
+    expect(lines.map((l) => l.basis)).toEqual(['4주', '3시간 × 0.5']);
   });
 });
 
