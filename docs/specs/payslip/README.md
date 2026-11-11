@@ -245,7 +245,7 @@ model PushToken {
 - 앱: `@react-native-firebase/app` + `@react-native-firebase/messaging` (Expo config plugin, 개발 빌드). iOS는 APNs 키를 Firebase에 등록.
 - 서버: `firebase-admin` 의 `messaging().send()`. 서비스 계정은 환경 변수 `FIREBASE_SERVICE_ACCOUNT` (JSON, 시크릿).
 - **권한 요청**: 기기 등록(handoff) 끝난 직후, 그리고 이미 등록된 기기는 업데이트 후 처음 앱을 켤 때 1회, 앱이 안내 화면을 보여 주고 OS 권한을 묻는다. 거절해도 앱은 쓸 수 있다.
-- **인증**: `POST /push-tokens` 는 SecureStore의 기기 토큰을 Bearer로 보낸다. 기존 `getSessionUserId` 의 Bearer 처리를 그대로 쓰고, 기기 행은 새 `findDeviceCredential` 로 찾아 `deviceCredentialId`를 얻는다 (새 가드는 만들지 않는다).
+- **인증**: `POST /push-tokens` 는 SecureStore의 기기 토큰을 Bearer로 보낸다. 라우트가 `Authorization: Bearer` 헤더를 직접 읽고(`defineRoute` `auth: 'public'`, 기기 id가 필요해 `getSessionUserId`를 거치지 않는다), 기기 행은 `findDeviceCredential` 로 찾아 `deviceCredentialId`·`userId`를 얻는다. 헤더가 없거나 기기를 못 찾으면 `UNAUTHENTICATED`. 새 가드는 만들지 않는다.
 - **토큰 등록**: 앱이 토큰을 얻거나 갱신되면 `POST /api/v1/push-tokens` (기기 토큰 Bearer, `auth` §5). `deviceCredentialId` 기준 upsert. 기기 재등록·폐기 시 삭제. OS 알림 권한이 거절됐거나 아직 묻지 않았으면 등록하지 않는다 (사장님 목록에 "알림 미수신").
 - **보내는 알림**
 

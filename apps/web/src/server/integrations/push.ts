@@ -19,10 +19,14 @@ export interface PushSender {
 /** FCM이 "이 토큰은 더 못 쓴다"고 답하는 에러 코드 (§6) */
 const INVALID_TOKEN_CODES = new Set(['messaging/registration-token-not-registered', 'messaging/invalid-registration-token']);
 
+/** dev 로그에 남기는 토큰 뒤 글자 수 */
+const TOKEN_LOG_TAIL = 6;
+
 const devPushSender: PushSender = {
   async send(token, message) {
     assertDevFallbackAllowed('PUSH_PROVIDER');
-    console.info(`[push:dev] ${token} ← ${message.title} / ${message.body} (${message.path})`);
+    // 토큰 원문은 로그에 남기지 않는다. 기기 구분용 뒤 6자리만
+    console.info(`[push:dev] …${token.slice(-TOKEN_LOG_TAIL)} ← ${message.title} / ${message.body} (${message.path})`);
     return 'SENT';
   },
 };
