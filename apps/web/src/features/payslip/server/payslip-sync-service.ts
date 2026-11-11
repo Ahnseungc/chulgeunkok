@@ -12,7 +12,7 @@ import { resolvePeriod } from '@/features/payroll/server/period-attendances';
 import { computePayroll } from '@/features/payroll/server/payroll-service';
 
 import { buildEarningLines, hasCalculatedChange, mergeLines, payDateFor, summaryOf, totalsOf } from '../model/payslip-calc';
-import type { LineDraft } from '../model/payslip-types';
+import { CUSTOM_CODE, type LineDraft } from '../model/payslip-types';
 
 /** 일배치가 보는 끝난 정산 기간 수. 사업장 규모 소급 90일을 덮는다 (§4.3) */
 const JOB_PERIOD_COUNT = 3;
@@ -75,20 +75,36 @@ async function syncMemberSafely(db: PrismaClient, context: SyncContext, member: 
   }
 }
 
+/**
+ * 명세서 행을 잠근다. 동기화와 줄 수정(§7 PUT /payslips/:id/lines/:lineId)이 같은 명세서를 동시에 고치지 않게 한다.
+ * 잠근 뒤 줄을 다시 읽어야 한다.
+ */
+export async function lockPayslip(tx: Prisma.TransactionClient, payslipId: string): Promise<void> {
+  await tx.$queryRaw`SELECT "id" FROM "Payslip" WHERE "id" = ${payslipId} FOR UPDATE`;
+}
+
 async function syncMember(tx: Prisma.TransactionClient, context: SyncContext, member: PayrollMemberDto): Promise<SyncOutcome> {
   const latest = await tx.payslip.findFirst({
     where: { membershipId: member.memberId, periodStart: toDateColumn(context.period.start) },
     orderBy: { version: 'desc' },
+    select: { id: true },
+  });
+  if (!latest) return totalsOf(buildEarningLines(member)).grossPay > 0 ? createFirstDraft(tx, context, member) : null;
+  await lockPayslip(tx, latest.id);
+  const payslip = await tx.payslip.findUniqueOrThrow({
+    where: { id: latest.id },
     include: { lines: { orderBy: [{ kind: 'asc' }, { sortOrder: 'asc' }] } },
   });
-  const fresh = buildEarningLines(member);
-  if (!latest) return totalsOf(fresh).grossPay > 0 ? createFirstDraft(tx, context, member) : null;
-  if (latest.status === 'DRAFT') return refreshDraft(tx, latest, member);
-  if (latest.status === 'SENT') return createCorrectionDraft(tx, latest, member);
+  if (payslip.status === 'DRAFT') return refreshDraft(tx, payslip, member);
+  if (payslip.status === 'SENT') return createCorrectionDraft(tx, payslip, member);
   return null;
 }
 
-const toLineDraft = (line: PayslipLine): LineDraft => ({
+/** 저장된 줄. mergeLines는 줄을 펼쳐 복사하므로 id가 결과까지 따라온다 */
+type StoredLineDraft = LineDraft & { id: string };
+
+const toLineDraft = (line: PayslipLine): StoredLineDraft => ({
+  id: line.id,
   kind: line.kind,
   code: line.code,
   label: line.label,
@@ -144,19 +160,66 @@ async function previousSentLines(tx: Prisma.TransactionClient, membershipId: str
   return previous?.lines.map(toLineDraft) ?? [];
 }
 
-/** 최신이 DRAFT: 계산 줄·스냅숏이 달라졌을 때만 고친다 (§4.3) */
+/** 줄 짝짓기 키. 계산·수기 공제 줄은 (kind, code), CUSTOM은 줄 id */
+const lineKey = (line: LineDraft) =>
+  line.code === CUSTOM_CODE ? `id:${(line as Partial<StoredLineDraft>).id ?? ''}` : `${line.kind}:${line.code}`;
+
+const WRITABLE_FIELDS = ['calculatedAmount', 'amount', 'basis', 'sortOrder'] as const;
+
+/** 달라진 쓰기 가능 필드만. CUSTOM·수기 공제는 merge가 sortOrder만 바꾸므로 sortOrder만 나온다 */
+const changedFields = (stored: LineDraft, next: LineDraft): Prisma.PayslipLineUpdateInput =>
+  Object.fromEntries(WRITABLE_FIELDS.filter((field) => stored[field] !== next[field]).map((field) => [field, next[field]]));
+
+interface LineWrites {
+  updates: { id: string; data: Prisma.PayslipLineUpdateInput }[];
+  creates: LineDraft[];
+  deleteIds: string[];
+}
+
+/** 저장된 줄 → merge 결과로 가는 최소 쓰기. 삭제는 공제 방식이 바뀌어 빠진 공제 줄뿐이다 (§4.3) */
+function planLineWrites(stored: readonly StoredLineDraft[], merged: readonly LineDraft[]): LineWrites {
+  const storedByKey = new Map(stored.map((line) => [lineKey(line), line]));
+  const mergedKeys = new Set(merged.map(lineKey));
+  const updates: LineWrites['updates'] = [];
+  const creates: LineDraft[] = [];
+  for (const line of merged) {
+    const previous = storedByKey.get(lineKey(line));
+    if (!previous) creates.push(line);
+    else if (Object.keys(changedFields(previous, line)).length > 0) updates.push({ id: previous.id, data: changedFields(previous, line) });
+  }
+  const deleteIds = stored.filter((line) => !mergedKeys.has(lineKey(line))).map((line) => line.id);
+  return { updates, creates, deleteIds };
+}
+
+const toLineRow = ({ kind, code, label, basis, calculatedAmount, amount, adjustReason, sortOrder }: LineDraft) => ({
+  kind,
+  code,
+  label,
+  basis,
+  calculatedAmount,
+  amount,
+  adjustReason,
+  sortOrder,
+});
+
+async function applyLineWrites(tx: Prisma.TransactionClient, payslipId: string, writes: LineWrites): Promise<void> {
+  if (writes.deleteIds.length > 0) await tx.payslipLine.deleteMany({ where: { id: { in: writes.deleteIds } } });
+  for (const { id, data } of writes.updates) await tx.payslipLine.update({ where: { id }, data });
+  if (writes.creates.length > 0) {
+    await tx.payslipLine.createMany({ data: writes.creates.map((line) => ({ payslipId, ...toLineRow(line) })) });
+  }
+}
+
+/** 최신이 DRAFT: 계산 줄은 제자리에서 고치고 CUSTOM·수기 공제·조정 금액은 그대로 둔다 (§4.3) */
 async function refreshDraft(tx: Prisma.TransactionClient, draft: PayslipWithLines, member: PayrollMemberDto): Promise<SyncOutcome> {
   const lines = remerge(draft, member);
   const snapshot = snapshotOf(member, lines);
-  const unchanged =
-    JSON.stringify(lines) === JSON.stringify(draft.lines.map(toLineDraft)) &&
-    Object.entries(snapshot).every(([key, value]) => draft[key as keyof typeof snapshot] === value);
-  if (unchanged) return null;
-  await tx.payslipLine.deleteMany({ where: { payslipId: draft.id } });
-  await tx.payslip.update({
-    where: { id: draft.id },
-    data: { ...snapshot, lines: { createMany: { data: lines.map((line) => ({ ...line })) } } },
-  });
+  const writes = planLineWrites(draft.lines.map(toLineDraft), lines);
+  const linesUnchanged = writes.updates.length + writes.creates.length + writes.deleteIds.length === 0;
+  const snapshotUnchanged = Object.entries(snapshot).every(([key, value]) => draft[key as keyof typeof snapshot] === value);
+  if (linesUnchanged && snapshotUnchanged) return null;
+  await applyLineWrites(tx, draft.id, writes);
+  await tx.payslip.update({ where: { id: draft.id }, data: snapshot });
   return 'updated';
 }
 
@@ -202,7 +265,7 @@ async function createDraft(
       employeeNumber: await employeeNumberOf(tx, { id: base.membershipId, storeId: base.storeId }),
       deductionType: input.deductionType,
       ...input.snapshot,
-      lines: { createMany: { data: input.lines.map((line) => ({ ...line })) } },
+      lines: { createMany: { data: input.lines.map(toLineRow) } },
     },
   });
 }
@@ -219,19 +282,33 @@ function endedPeriodStarts(store: Parameters<typeof payPeriodConfigOf>[0], today
   return starts;
 }
 
-/** 일배치 payslip-drafts (매일 06:10): ACTIVE 매장마다 끝난 최근 3기간을 동기화 (§4.3) */
+/** 배치용: 실패는 로그만 남기고 다음 배치에서 다시 본다. 사장님 목록 조회 경로는 그대로 던진다 */
+async function syncPeriodPayslipsSafely(
+  db: PrismaClient,
+  input: { storeId: string; periodStart: string; now: Date },
+): Promise<{ created: number; updated: number } | null> {
+  try {
+    return await syncPeriodPayslips(db, input);
+  } catch (error) {
+    console.error('[payslip] 명세서 동기화 실패, 다음 배치에서 다시', input.storeId, input.periodStart, error);
+    return null;
+  }
+}
+
+/** 일배치 payslip-drafts (매일 06:10): ACTIVE 매장마다 끝난 최근 3기간을 동기화. 매장·기간별로 실패를 격리한다 (§4.3) */
 export async function runPayslipDraftJob(
   db: PrismaClient,
   now: Date,
-): Promise<{ stores: number; created: number; updated: number }> {
+): Promise<{ stores: number; created: number; updated: number; failed: number }> {
   const stores = await db.store.findMany({ where: { status: 'ACTIVE' } });
   const today = toLocalDate(now);
-  const totals = { stores: stores.length, created: 0, updated: 0 };
+  const totals = { stores: stores.length, created: 0, updated: 0, failed: 0 };
   for (const store of stores) {
     for (const periodStart of endedPeriodStarts(store, today)) {
-      const result = await syncPeriodPayslips(db, { storeId: store.id, periodStart, now });
-      totals.created += result.created;
-      totals.updated += result.updated;
+      const result = await syncPeriodPayslipsSafely(db, { storeId: store.id, periodStart, now });
+      if (!result) totals.failed += 1;
+      totals.created += result?.created ?? 0;
+      totals.updated += result?.updated ?? 0;
     }
   }
   return totals;
