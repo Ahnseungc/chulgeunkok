@@ -86,6 +86,8 @@ interface ApiError {
 | 수정 요청 생성 | ❌ | ❌ | ❌ | ❌ | 본인 근태만 |
 | 검토 항목 조회·확인 | ✅ | ❌ | ✅ | ✅ | ❌ |
 | 급여 미리보기·CSV | ✅ | ❌ | ✅ | ❌ | 본인 예상 급여만 |
+| 임금명세서 수정·보내기 | ✅ | ❌ | ❌ | ❌ | ❌ |
+| 임금명세서 조회 | ✅ | ❌ | ✅ | ❌ | 본인만 (보낸 것) |
 | 구독 | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 - 권한 검사는 서버 공통 가드 `requireMembership(storeId, check)` 한 곳에서 한다. 비활성 Membership은 모든 매장 API에서 `FORBIDDEN`.
@@ -151,4 +153,5 @@ interface ApiError {
 | `StoreInvitation` | `memberId`(기기 재등록 대상), `phone` 제거 | staff §3 (`0003_device_auth`) |
 | `Store` | `businessNumber`, `businessVerifiedAt`, `placeProvider`, `placeId` + 운영 중 매장 장소 부분 유니크 | store §3 (`0004_store_onboarding`) |
 | `DeviceHandoffCode` (신규) | `userId`, `codeHash`, `expiresAt`, `usedAt` — 앱 ↔ WebView 세션 연결 60초 코드 | auth §6.2 (`0005_device_handoff`) |
+| `Payslip`·`PayslipLine`·`PushToken` (신규), `Store.payDay`, `EmploymentTerms.deductionType` | 임금명세서와 FCM 토큰. DRAFT 부분 유니크·`payDay` 1~31 CHECK. 사원번호 컬럼 없음(순번 계산 후 스냅숏) | payslip §4.1 (`0006_payslip`) |
 | `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |

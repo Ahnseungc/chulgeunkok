@@ -40,7 +40,7 @@
 | 기재사항 | 출처 |
 | --- | --- |
 | 성명 | `User.name` (보낸 시점 스냅숏) |
-| 생년월일 **또는 사원번호** | `Membership.employeeNumber` — 매장 안 1부터 순번. 생년월일은 받지 않는다 |
+| 생년월일 **또는 사원번호** | 매장 안 Membership을 `(joinedAt, id)` 순으로 센 1부터 순번 (컬럼 없이 계산, 보낼 때 `Payslip.employeeNumber`로 스냅숏). 생년월일은 받지 않는다 |
 | 임금 지급일 | `Payslip.payDate` (매장 지급일로 기본값, 초안에서 수정 가능, §3.4) |
 | 임금 총액 | 지급 항목 합계 |
 | 항목별 금액 | `PayslipLine` (EARNING) |
@@ -115,7 +115,6 @@ model Payslip {
   periodEnd          DateTime      @db.Date // 미포함
   version            Int           // 1 = 최초, 2부터 정정본
   status             PayslipStatus @default(DRAFT)
-  needsRecalculation Boolean       @default(false) // §4.3
   payDate            DateTime?     @db.Date
   // 보낼 때 고정되는 스냅숏
   employeeName       String
@@ -172,9 +171,9 @@ model PushToken {
 추가 필드:
 - `EmploymentTerms.deductionType DeductionType @default(NONE)` — 근로조건 새 버전으로 바꾼다 (`labor` §3, 불변 버전).
 - `Store.payDay Int?`
-- `Membership.employeeNumber Int` — 매장 안 순번, `@@unique([storeId, employeeNumber])`. 기존 데이터는 `joinedAt` 순으로 채우는 마이그레이션.
+- 사원번호는 컬럼을 만들지 않는다. 매장 안 Membership을 `(joinedAt, id)` 순으로 센 순번이며 (Membership은 삭제되지 않아 순번이 바뀌지 않는다), 보낼 때 `Payslip.employeeNumber`로 스냅숏한다.
 
-같은 `(membershipId, periodStart)` 에 `DRAFT`는 최대 1개 (raw SQL 부분 유니크).
+같은 `(membershipId, periodStart)` 에 `DRAFT`는 최대 1개 (raw SQL 부분 유니크). `Store.payDay`는 1~31 CHECK. 마이그레이션 `0006_payslip`.
 
 ### 4.2 상태 전이
 
@@ -188,20 +187,21 @@ model PushToken {
 - **보내기**: 트랜잭션에서 스냅숏 확정 → `SENT` → 같은 기간 이전 `SENT`는 `SUPERSEDED` → 푸시 발송 (트랜잭션 밖, 실패해도 롤백하지 않음, §6).
 - `SENT`·`SUPERSEDED`는 수정할 수 없다 (`PAYSLIP_NOT_EDITABLE`). 보존 기간은 퇴사 후 3년 (근기법 §42).
 
-### 4.3 초안 생성과 재계산
+### 4.3 초안 생성과 동기화
 
-**일배치 `payslip-drafts`** (`/api/internal/jobs/[job]`, 매일 06:10, `daily-reviews` 뒤):
-- 매장별로 `end ≤ 오늘`인 **최근 3개** 정산 기간에 대해 (사업장 규모 소급 90일을 덮는다), 대상 직원(`payroll` §4 미리보기 대상과 같음) 중 그 기간 Payslip이 하나도 없으면 version 1 DRAFT를 만든다.
-- 인정 근무와 수당이 모두 0원인 직원은 만들지 않는다.
-- 미해결 항목(퇴근 누락·대기 중 수정 요청)이 있어도 만든다. 화면에 배지로 보인다.
+쓰기 서비스별 재계산 트리거와 `needsRecalculation` 플래그는 두지 않는다. 대신 `syncPeriodPayslips(store, period)` 한 함수가 아래를 모두 한다. 호출 시점은 두 곳이다.
+- **사장님이 명세서 목록을 읽을 때** (`GET /stores/:storeId/payslips?periodStart=`) 그 기간.
+- **일배치 `payslip-drafts`** (`/api/internal/jobs/[job]`, 매일 06:10, `daily-reviews` 뒤): 매장별로 `end ≤ 오늘`인 **최근 3개** 정산 기간 (사업장 규모 소급 90일을 덮는다).
 
-**재계산 트리거** — 그 근태·근로조건이 걸친 기간에 Payslip이 있으면:
-- 근태 직접 수정, 수정 요청 승인, 퇴근 누락 처리, 근로조건 새 버전, 사업장 규모 신고 변경.
-- 최신이 `DRAFT` → 계산 줄의 `calculatedAmount`를 다시 계산. 사장님이 고치지 않은 줄(`adjustReason` 없음)은 `amount`도 따라간다. 고친 줄은 `amount` 유지, 화면에 "계산값이 바뀌었어요" 표시.
+`syncPeriodPayslips` 규칙:
+- 대상 직원(`payroll` §4 미리보기 대상과 같음) 중 그 기간 Payslip이 하나도 없으면 version 1 DRAFT를 만든다. 인정 근무와 수당이 모두 0원인 직원은 만들지 않는다. 미해결 항목(퇴근 누락·대기 중 수정 요청)이 있어도 만든다. 화면에 배지로 보인다.
+- 최신이 `DRAFT` → 계산 줄의 `calculatedAmount`를 다시 계산한다. 사장님이 고치지 않은 줄(`adjustReason` 없음)은 `amount`도 따라간다. 고친 줄은 `amount` 유지, 화면에 "계산값이 바뀌었어요" 표시.
 - 최신이 `SENT` → 다시 계산해 계산 줄 하나라도 달라지면 version+1 DRAFT를 만든다. 이전 SENT의 `CUSTOM` 줄·수기 공제·`payDate`·수정한 줄을 복사한다. 달라진 게 없으면 만들지 않는다.
-- 그 기간이 끝났고 그 직원 Payslip이 아직 없으면(퇴근 누락만 있어 빠졌던 경우 등) 트리거가 version 1 DRAFT를 만든다.
-- 사업장 규모 소급 신고(`store` §6, 최대 90일)는 35일 넘은 기간도 정정본을 만든다. 사장님이 확인하고 보내므로 자동으로 나가지 않는다.
-- 재계산은 트리거한 쓰기 트랜잭션 뒤에 실행한다. 실패하면 `needsRecalculation = true` 로 남기고 일배치가 다시 한다.
+- 사업장 규모 소급 신고(`store` §6, 최대 90일)로 35일 넘은 기간이 바뀌어도 최근 3기간 안이면 같은 방식으로 정정본 DRAFT가 만들어진다. 사장님이 확인하고 보내므로 자동으로 나가지 않는다.
+
+대시보드 "명세서 확인 n건"은 다음 동기화(목록 조회 또는 일배치) 전까지 늦을 수 있다.
+
+---
 
 ## 5. 화면
 
@@ -233,7 +233,7 @@ model PushToken {
 - 앱: `@react-native-firebase/app` + `@react-native-firebase/messaging` (Expo config plugin, 개발 빌드). iOS는 APNs 키를 Firebase에 등록.
 - 서버: `firebase-admin` 의 `messaging().send()`. 서비스 계정은 환경 변수 `FIREBASE_SERVICE_ACCOUNT` (JSON, 시크릿).
 - **권한 요청**: 기기 등록(handoff) 끝난 직후, 그리고 이미 등록된 기기는 업데이트 후 처음 앱을 켤 때 1회, 앱이 안내 화면을 보여 주고 OS 권한을 묻는다. 거절해도 앱은 쓸 수 있다.
-- **인증**: `POST /push-tokens` 는 SecureStore의 기기 토큰을 Bearer로 보낸다. `/auth/handoff` 의 기기 토큰 검증을 공통 가드 `requireDeviceBearer` 로 빼서 쓴다.
+- **인증**: `POST /push-tokens` 는 SecureStore의 기기 토큰을 Bearer로 보낸다. 기존 `getSessionUserId` 의 Bearer 처리를 그대로 쓰고, 기기 행은 새 `findDeviceCredential` 로 찾아 `deviceCredentialId`를 얻는다 (새 가드는 만들지 않는다).
 - **토큰 등록**: 앱이 토큰을 얻거나 갱신되면 `POST /api/v1/push-tokens` (기기 토큰 Bearer, `auth` §5). `deviceCredentialId` 기준 upsert. 기기 재등록·폐기 시 삭제.
 - **보내는 알림**
 
