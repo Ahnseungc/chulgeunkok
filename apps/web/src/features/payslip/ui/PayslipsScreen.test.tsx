@@ -34,6 +34,7 @@ const item = (overrides: Partial<PayslipListItemDto>): PayslipListItemDto => ({
   viewed: false,
   pushEnabled: true,
   isCorrection: false,
+  unresolvedCount: 0,
   ...overrides,
 });
 
@@ -85,5 +86,14 @@ describe('PayslipsScreen', () => {
     const sheet = screen.getByRole('dialog');
     expect(within(sheet).getByText('2명 · 실지급 합계 1,734,560원')).toBeTruthy();
     expect(within(sheet).getByRole('button', { name: '보내기' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('미해결 근태가 있으면 배지와 보내기 시트 경고', async () => {
+    respondWith(list([item({ unresolvedCount: 2 }), item({ payslipId: 'p2', memberId: 'm2', name: '박신입' })]));
+    render(<PayslipsScreen storeId="s1" />);
+    const row = (await screen.findByText('이알바')).closest('a');
+    expect(within(row as HTMLElement).getByText('미해결 근태 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
+    expect(within(screen.getByRole('dialog')).getByRole('note').textContent).toContain('1명에게');
   });
 });

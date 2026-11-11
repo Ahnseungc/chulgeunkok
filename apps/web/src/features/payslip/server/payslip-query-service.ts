@@ -5,7 +5,7 @@
 
 import type { DbClient, Membership, Payslip, PayslipLine, PrismaClient } from '@chulgeunkok/db';
 
-import { payPeriodConfigOf } from '@/features/payroll/model/work-time';
+import { localMidnight, payPeriodConfigOf, type PayPeriod } from '@/features/payroll/model/work-time';
 import { resolvePeriod } from '@/features/payroll/server/period-attendances';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
@@ -43,13 +43,45 @@ export async function listStorePayslips(
   const latestByMember = new Map<string, (typeof payslips)[number]>();
   for (const payslip of payslips) if (!latestByMember.has(payslip.membershipId)) latestByMember.set(payslip.membershipId, payslip);
 
+  const unresolved = await countUnresolved(db, { storeId: input.storeId, period });
   const items = [...latestByMember.values()]
-    .map((payslip) => toListItem(payslip, payslip.membership.user._count.pushTokens > 0))
+    .map((payslip) =>
+      toListItem(payslip, {
+        pushEnabled: payslip.membership.user._count.pushTokens > 0,
+        unresolvedCount: unresolved.get(payslip.membershipId) ?? 0,
+      }),
+    )
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   return { period, counts: countsOf(items), items };
 }
 
-const toListItem = (payslip: Payslip, pushEnabled: boolean): PayslipListItemDto => ({
+const countBy = (keys: readonly string[]) =>
+  keys.reduce((counts, key) => counts.set(key, (counts.get(key) ?? 0) + 1), new Map<string, number>());
+
+/**
+ * 직원별 미해결 항목 수 (§4.3 배지): 기간 안에 출근한 퇴근 누락 + 그 근무에 걸린 대기 중 수정 요청.
+ * 정산 미리보기 플래그(payroll §4)와 같은 상태값을 보되, 목록·상세가 같은 수를 보이도록 기간 안 출근으로 한정한다.
+ */
+export async function countUnresolved(
+  db: DbClient,
+  input: { storeId: string; period: PayPeriod; membershipId?: string },
+): Promise<Map<string, number>> {
+  const inPeriod = {
+    storeId: input.storeId,
+    ...(input.membershipId ? { membershipId: input.membershipId } : {}),
+    clockInAt: { gte: localMidnight(input.period.start), lt: localMidnight(input.period.end) },
+  };
+  const [missing, corrections] = await Promise.all([
+    db.attendance.findMany({ where: { ...inPeriod, status: 'MISSING_CLOCK_OUT' }, select: { membershipId: true } }),
+    db.correctionRequest.findMany({
+      where: { status: 'PENDING', attendance: inPeriod },
+      select: { attendance: { select: { membershipId: true } } },
+    }),
+  ]);
+  return countBy([...missing.map((row) => row.membershipId), ...corrections.map((row) => row.attendance.membershipId)]);
+}
+
+const toListItem = (payslip: Payslip, extra: Pick<PayslipListItemDto, 'pushEnabled' | 'unresolvedCount'>): PayslipListItemDto => ({
   payslipId: payslip.id,
   memberId: payslip.membershipId,
   name: payslip.employeeName,
@@ -58,8 +90,8 @@ const toListItem = (payslip: Payslip, pushEnabled: boolean): PayslipListItemDto 
   netPay: payslip.netPay,
   payDate: payslip.payDate ? toIsoDate(payslip.payDate) : null,
   viewed: payslip.viewedAt !== null,
-  pushEnabled,
   isCorrection: payslip.version > 1,
+  ...extra,
 });
 
 const countsOf = (items: readonly PayslipListItemDto[]): PayslipListDto['counts'] => ({
@@ -72,11 +104,24 @@ const countsOf = (items: readonly PayslipListItemDto[]): PayslipListDto['counts'
 export async function getPayslip(db: DbClient, input: { payslipId: string; actorUserId: string }): Promise<PayslipDetailDto> {
   const payslip = await db.payslip.findUnique({
     where: { id: input.payslipId },
-    include: { membership: true, lines: { orderBy: LINE_ORDER } },
+    include: { membership: true, store: { select: { name: true } }, lines: { orderBy: LINE_ORDER } },
   });
   if (!payslip) throw new ApiError('NOT_FOUND');
   await assertCanRead(db, { payslip, membership: payslip.membership, actorUserId: input.actorUserId });
-  return { ...toDetailDto(payslip), previousSent: await findPreviousSent(db, payslip) };
+  return {
+    ...toDetailDto(payslip),
+    storeName: payslip.store.name,
+    unresolvedCount: await draftUnresolvedCount(db, payslip),
+    previousSent: await findPreviousSent(db, payslip),
+  };
+}
+
+/** DRAFT의 미해결 항목 수 (§4.3 배지·§5.2 경고). 보낸 명세서는 0 */
+async function draftUnresolvedCount(db: DbClient, payslip: Payslip): Promise<number> {
+  if (payslip.status !== 'DRAFT') return 0;
+  const period = { start: toIsoDate(payslip.periodStart), end: toIsoDate(payslip.periodEnd) };
+  const counts = await countUnresolved(db, { storeId: payslip.storeId, period, membershipId: payslip.membershipId });
+  return counts.get(payslip.membershipId) ?? 0;
 }
 
 /** 본인 명세서면 조회 권한이 없어도 보낸 것은 볼 수 있다. DRAFT는 본인에게 없는 것으로 보인다 (§5.3) */
@@ -104,12 +149,12 @@ async function findPreviousSent(db: DbClient, payslip: Payslip): Promise<Payslip
       status: { in: ['SENT', 'SUPERSEDED'] },
     },
     orderBy: { version: 'desc' },
-    include: { lines: { orderBy: LINE_ORDER } },
+    include: { store: { select: { name: true } }, lines: { orderBy: LINE_ORDER } },
   });
-  return previous ? { ...toDetailDto(previous), previousSent: null } : null;
+  return previous ? { ...toDetailDto(previous), storeName: previous.store.name, unresolvedCount: 0, previousSent: null } : null;
 }
 
-function toDetailDto(payslip: PayslipWithLines): Omit<PayslipDetailDto, 'previousSent'> {
+function toDetailDto(payslip: PayslipWithLines): Omit<PayslipDetailDto, 'previousSent' | 'storeName' | 'unresolvedCount'> {
   return {
     id: payslip.id,
     storeId: payslip.storeId,

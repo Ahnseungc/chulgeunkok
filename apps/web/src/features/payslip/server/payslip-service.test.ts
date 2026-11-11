@@ -142,6 +142,25 @@ describe('listStorePayslips', () => {
     await registerStaffToken();
     expect((await list()).items[0]?.pushEnabled).toBe(true);
   });
+
+  it('기간 안 퇴근 누락·대기 중 수정 요청 수를 목록과 상세에 준다', async () => {
+    const missing = (date: string) => ({
+      storeId: 'store',
+      membershipId: 'm-staff',
+      termsId: 't-staff',
+      clockInAt: kst(`${date}T18:00:00`),
+      status: 'MISSING_CLOCK_OUT' as const,
+    });
+    // 11/24 퇴근 누락은 세고, 10/27(지난 기간)은 세지 않는다
+    await db.attendance.createMany({ data: [missing('2026-11-24'), missing('2026-10-27')] });
+    const monday = await db.attendance.findFirstOrThrow({ where: { clockInAt: kst('2026-11-09T18:00:00') } });
+    await db.correctionRequest.create({
+      data: { attendanceId: monday.id, requesterId: 'staff', type: 'TIME', reason: '퇴근 시각 정정' },
+    });
+    const { items } = await list();
+    const detail = await getPayslip(db, { payslipId: items[0]?.payslipId ?? '', actorUserId: 'owner' });
+    expect([items[0]?.unresolvedCount, detail.unresolvedCount, detail.storeName]).toEqual([2, 2, '골목카페']);
+  });
 });
 
 describe('명세서 수정', () => {

@@ -39,6 +39,7 @@ const item = (overrides: Partial<MyPayslipListItemDto>): MyPayslipListItemDto =>
 const detail = (overrides: Partial<PayslipDetailDto> = {}): PayslipDetailDto => ({
   id: 'p1',
   storeId: 's1',
+  storeName: '골목카페',
   membershipId: 'm1',
   periodStart: '2026-11-01',
   periodEnd: '2026-12-01',
@@ -60,6 +61,7 @@ const detail = (overrides: Partial<PayslipDetailDto> = {}): PayslipDetailDto => 
   sentAt: '2026-12-02T01:00:00Z',
   viewedAt: null,
   lines: [],
+  unresolvedCount: 0,
   previousSent: null,
   ...overrides,
 });

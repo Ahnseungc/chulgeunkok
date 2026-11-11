@@ -13,7 +13,7 @@ import Sheet from '@/shared/ui/Sheet';
 
 import type { PayslipListItemDto } from '../model/payslip-types';
 
-import { payslipChipOf } from './payslip-labels';
+import { payslipChipOf, UNRESOLVED_WARNING, unresolvedLabelOf } from './payslip-labels';
 import { bulkSendTargetOf, usePayslips } from './usePayslips';
 
 interface PayslipsScreenProps {
@@ -86,6 +86,11 @@ export default function PayslipsScreen({ storeId }: PayslipsScreenProps) {
             ? `지급일이 없는 명세서가 ${target.missingPayDate}건 있어요. 매장 설정에서 급여 지급일을 정하거나 명세서마다 넣어 주세요.`
             : '보내면 직원 앱에 알림이 가요. 보낸 명세서는 고칠 수 없어요.'}
         </Text>
+        {target.unresolved > 0 ? (
+          <Text as="p" textStyle="t4Regular" color="fg.warning" role="note">
+            {target.unresolved}명에게 {UNRESOLVED_WARNING}
+          </Text>
+        ) : null}
         <div className="sheet__actions">
           <ActionButton variant="neutralWeak" size="large" flexGrow onClick={() => setConfirmOpen(false)}>
             취소
@@ -108,6 +113,7 @@ export default function PayslipsScreen({ storeId }: PayslipsScreenProps) {
 
 function PayslipRow({ storeId, item }: { storeId: string; item: PayslipListItemDto }) {
   const chip = payslipChipOf(item);
+  const unresolved = item.status === 'DRAFT' ? unresolvedLabelOf(item.unresolvedCount) : null;
   return (
     <AppLink className="store-list__item" href={`/owner/${storeId}/payslips/${item.payslipId}`}>
       <div className="payroll-row">
@@ -116,6 +122,7 @@ function PayslipRow({ storeId, item }: { storeId: string; item: PayslipListItemD
       </div>
       <div className="badges">
         <span className={chip.className}>{chip.label}</span>
+        {unresolved ? <span className="badge badge--critical">{unresolved}</span> : null}
         {item.status !== 'DRAFT' && item.viewed ? <span className="badge">읽음</span> : null}
         {item.pushEnabled ? null : <span className="badge">알림 미수신</span>}
       </div>

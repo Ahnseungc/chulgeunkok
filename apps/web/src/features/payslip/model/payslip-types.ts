@@ -75,6 +75,8 @@ export interface PayslipListItemDto {
   pushEnabled: boolean;
   /** version 2 이상 (정정본) */
   isCorrection: boolean;
+  /** 기간 안 퇴근 누락 + 대기 중 수정 요청 수. 0이 아니면 배지 (§4.3) */
+  unresolvedCount: number;
 }
 
 export interface PayslipListDto {
@@ -87,6 +89,8 @@ export interface PayslipListDto {
 export interface PayslipDetailDto {
   id: string;
   storeId: string;
+  /** 매장명 (직원 화면 표시용, §5.3) */
+  storeName: string;
   membershipId: string;
   periodStart: string;
   /** 미포함 */
@@ -109,6 +113,8 @@ export interface PayslipDetailDto {
   sentAt: string | null;
   viewedAt: string | null;
   lines: PayslipLineDto[];
+  /** DRAFT의 기간 안 퇴근 누락 + 대기 중 수정 요청 수. 보낸 명세서는 0 (§4.3·§5.2) */
+  unresolvedCount: number;
   /** 정정본이면 같은 기간 직전 보낸 본 (그 안의 previousSent는 null) */
   previousSent: PayslipDetailDto | null;
 }
