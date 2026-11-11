@@ -8,6 +8,9 @@ import { WEB_ORIGIN } from './config';
  */
 const TOKEN_KEY = 'chulgeunkok.deviceToken';
 
+/** 저장된 기기 토큰 (없으면 null) */
+export const getDeviceToken = (): Promise<string | null> => SecureStore.getItemAsync(TOKEN_KEY);
+
 interface HandoffResponse {
   code: string;
 }

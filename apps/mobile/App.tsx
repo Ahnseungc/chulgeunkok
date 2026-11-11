@@ -7,8 +7,9 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { parseWebToApp, toAppPath, type AppToWebMessage } from '@chulgeunkok/app-bridge';
 
 import { HOME_PATH, WEB_ORIGIN } from './src/config';
-import { buildEntryUrl, saveDeviceFromHandoff } from './src/device-session';
+import { buildEntryUrl, getDeviceToken, saveDeviceFromHandoff } from './src/device-session';
 import { getNativeLocation } from './src/native-location';
+import { askPushPermissionOnce, onPushOpen, onPushTokenRefresh, syncPushToken } from './src/push';
 import ScannerModal from './src/ScannerModal';
 
 /**
@@ -43,12 +44,33 @@ export default function App() {
     return () => subscription.remove();
   }, [openPath]);
 
+  /** 알림 권한 안내(처음 한 번) 뒤 FCM 토큰을 서버에 등록 */
+  const setUpPush = useCallback(async () => {
+    await askPushPermissionOnce();
+    await syncPushToken();
+  }, []);
+
+  // 앱 시작: 기기가 이미 등록돼 있으면 푸시 준비. 토큰 갱신·알림 탭 이동 구독
+  useEffect(() => {
+    void (async () => {
+      if (await getDeviceToken()) await setUpPush();
+    })();
+    const offRefresh = onPushTokenRefresh(() => void syncPushToken());
+    const offOpen = onPushOpen((path) => void openPath(path));
+    return () => {
+      offRefresh();
+      offOpen();
+    };
+  }, [openPath, setUpPush]);
+
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
     const message = parseWebToApp(event.nativeEvent.data);
     if (message?.type === 'OPEN_SCANNER') setScannerOpen(true);
-    if (message?.type === 'DEVICE_REGISTERED') await saveDeviceFromHandoff(message.handoffCode);
+    if (message?.type === 'DEVICE_REGISTERED' && (await saveDeviceFromHandoff(message.handoffCode))) {
+      await setUpPush();
+    }
     if (message?.type === 'REQUEST_LOCATION') postToWeb(await getNativeLocation(message.requestId));
-  }, [postToWeb]);
+  }, [postToWeb, setUpPush]);
 
   if (!uri) {
     return (
