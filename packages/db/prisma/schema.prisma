@@ -112,6 +112,23 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum PayslipStatus {
+  DRAFT // 사장님 확인 전
+  SENT // 교부됨 (현재 유효본)
+  SUPERSEDED // 정정본이 보내져 대체됨
+}
+
+enum DeductionType {
+  NONE
+  WITHHOLDING_3_3
+  SOCIAL_INSURANCE
+}
+
+enum PayslipLineKind {
+  EARNING
+  DEDUCTION
+}
+
 // ─── 사용자·매장 ─────────────────────────────────────────
 
 model User {
@@ -134,6 +151,8 @@ model User {
   attendanceRevisions    AttendanceRevision[]
   laborReviewsAcked      LaborReview[]
   employmentTermsCreated EmploymentTerms[]
+  payslipsSent           Payslip[]
+  pushTokens             PushToken[]
 }
 
 model Store {
@@ -154,6 +173,8 @@ model Store {
   placeProvider                  PlaceProvider?
   placeId                        String?
   status                         StoreStatus    @default(ACTIVE)
+  // 급여 지급일 1~31 (docs/specs/payslip §3.4). CHECK는 raw SQL
+  payDay                         Int?
   createdAt                      DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt                      DateTime       @updatedAt @db.Timestamptz(3)
 
@@ -163,6 +184,7 @@ model Store {
   headcountDeclarations StoreHeadcountDeclaration[]
   attendances           Attendance[]
   subscriptions         Subscription[]
+  payslips              Payslip[]
 }
 
 model Membership {
@@ -181,6 +203,7 @@ model Membership {
   attendances           Attendance[]
   laborReviews          LaborReview[]
   reregisterInvitations StoreInvitation[]
+  payslips              Payslip[]
 
   @@unique([storeId, userId])
   @@index([userId])
@@ -230,7 +253,8 @@ model DeviceCredential {
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  pushToken PushToken?
 
   @@index([userId])
 }
@@ -255,19 +279,20 @@ model StoreHeadcountDeclaration {
 
 // 버전은 불변. 수정은 새 버전 생성 + 이전 버전 effectiveTo 설정
 model EmploymentTerms {
-  id                           String    @id @default(cuid())
+  id                           String        @id @default(cuid())
   membershipId                 String
   version                      Int
-  effectiveFrom                DateTime  @db.Timestamptz(3)
-  effectiveTo                  DateTime? @db.Timestamptz(3) // 미포함 경계
+  effectiveFrom                DateTime      @db.Timestamptz(3)
+  effectiveTo                  DateTime?     @db.Timestamptz(3) // 미포함 경계
   hourlyWage                   Int // 원
-  scheduleVaries               Boolean   @default(false) // 주마다 다름
+  scheduleVaries               Boolean       @default(false) // 주마다 다름
   averageWeeklyMinutesOverride Int? // scheduleVaries일 때 4주 평균
   weeklyHolidayWeekday         Int? // 0=일 ~ 6=토
-  contractStartDate            DateTime  @db.Date
-  contractEndDate              DateTime? @db.Date
+  contractStartDate            DateTime      @db.Date
+  contractEndDate              DateTime?     @db.Date
+  deductionType                DeductionType @default(NONE) // 임금명세서 공제 방식 (docs/specs/payslip §3.3)
   createdById                  String
-  createdAt                    DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt                    DateTime      @default(now()) @db.Timestamptz(3)
 
   membership  Membership                @relation(fields: [membershipId], references: [id])
   createdBy   User                      @relation(fields: [createdById], references: [id])
@@ -460,4 +485,76 @@ model Subscription {
   store Store @relation(fields: [storeId], references: [id])
 
   @@index([storeId, periodStart])
+}
+
+// ─── 임금명세서 (docs/specs/payslip §4.1) ────────────────
+
+// SENT·SUPERSEDED는 불변. 같은 (membershipId, periodStart)에 DRAFT는 최대 1개 (raw SQL 부분 유니크)
+model Payslip {
+  id                String        @id @default(cuid())
+  storeId           String
+  membershipId      String
+  periodStart       DateTime      @db.Date
+  periodEnd         DateTime      @db.Date // 미포함
+  version           Int // 1 = 최초, 2부터 정정본
+  status            PayslipStatus @default(DRAFT)
+  payDate           DateTime?     @db.Date
+  // 보낼 때 고정되는 스냅숏. 사원번호 = 매장 안 Membership을 (joinedAt, id) 순으로 센 순번
+  employeeName      String
+  employeeNumber    Int
+  workDays          Int
+  recognizedSeconds Int
+  overtimeSeconds   Int
+  nightSeconds      Int
+  holidaySeconds    Int
+  deductionType     DeductionType
+  grossPay          Int
+  totalDeduction    Int
+  netPay            Int
+  correctionNote    String? // 정정본일 때 직원에게 보이는 사유
+  sentAt            DateTime?     @db.Timestamptz(3)
+  sentById          String?
+  viewedAt          DateTime?     @db.Timestamptz(3) // 직원이 처음 연 시각
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(3)
+
+  store      Store         @relation(fields: [storeId], references: [id])
+  membership Membership    @relation(fields: [membershipId], references: [id])
+  sentBy     User?         @relation(fields: [sentById], references: [id])
+  lines      PayslipLine[]
+
+  @@unique([membershipId, periodStart, version])
+  @@index([storeId, periodStart])
+}
+
+model PayslipLine {
+  id               String          @id @default(cuid())
+  payslipId        String
+  kind             PayslipLineKind
+  code             String // §3.2·§3.3 code
+  label            String
+  basis            String // 계산방법 문구
+  calculatedAmount Int? // 시스템 계산값. CUSTOM·수기 공제는 null
+  amount           Int // 최종 금액
+  adjustReason     String? // amount ≠ calculatedAmount 이면 필수
+  sortOrder        Int
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payslipId])
+}
+
+// 기기 1대 = FCM 토큰 1개 (docs/specs/payslip §6)
+model PushToken {
+  id                 String   @id @default(cuid())
+  deviceCredentialId String   @unique
+  userId             String
+  token              String   @unique // FCM registration token
+  platform           String // 'ios' | 'android'
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  deviceCredential DeviceCredential @relation(fields: [deviceCredentialId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }

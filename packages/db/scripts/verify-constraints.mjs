@@ -47,3 +47,11 @@ console.log('규칙 버전이 다르면 같은 사유도 새 행 OK');
 await expectFail('같은 규칙 버전 검토 중복', `INSERT INTO "LaborReview"(id,"membershipId",type,"sourceType","sourceId","ruleVersion","reasonCode","updatedAt") VALUES ('r3','m1','MINIMUM_WAGE','EMPLOYMENT_TERMS','t2','2026.1','BELOW_MINIMUM',now())`);
 await expectFail('정산 시작일 이전 값만 있음', `UPDATE "Store" SET "previousPayPeriodStartDay"=1 WHERE id='s1'`);
 await expectFail('인증 시도 6회', `INSERT INTO "OtpCode"(id,phone,"codeHash",attempts,"expiresAt") VALUES ('o1','+821012345678','h',6,now())`);
+
+// 0006
+const payslipRow = (id, version, status) => `INSERT INTO "Payslip"(id,"storeId","membershipId","periodStart","periodEnd",version,status,"employeeName","employeeNumber","workDays","recognizedSeconds","overtimeSeconds","nightSeconds","holidaySeconds","deductionType","grossPay","totalDeduction","netPay","updatedAt") VALUES ('${id}','s1','m1','2026-10-01','2026-11-01',${version},'${status}','알바',1,0,0,0,0,0,'NONE',0,0,0,now())`;
+await db.exec(payslipRow('p1', 1, 'SENT'));
+await db.exec(payslipRow('p2', 2, 'DRAFT'));
+console.log('SENT 1건 + DRAFT 1건 OK');
+await expectFail('같은 직원·기간 DRAFT 2건', payslipRow('p3', 3, 'DRAFT'));
+await expectFail('급여 지급일 32', `UPDATE "Store" SET "payDay"=32 WHERE id='s1'`);
