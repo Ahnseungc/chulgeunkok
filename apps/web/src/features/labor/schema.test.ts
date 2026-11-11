@@ -22,6 +22,12 @@ describe('CreateTermsBody', () => {
     expect(CreateTermsBody.safeParse(validTerms).success).toBe(true);
   });
 
+  it('공제 방식은 기본 없음이고 3.3%·4대보험만 받는다', () => {
+    expect(CreateTermsBody.parse(validTerms).deductionType).toBe('NONE');
+    expect(CreateTermsBody.parse({ ...validTerms, deductionType: 'WITHHOLDING_3_3' }).deductionType).toBe('WITHHOLDING_3_3');
+    expect(CreateTermsBody.safeParse({ ...validTerms, deductionType: 'FREELANCER' }).success).toBe(false);
+  });
+
   it('같은 요일이 두 번 있으면 실패한다', () => {
     const schedule = validTerms.schedules[0];
     const result = CreateTermsBody.safeParse({ ...validTerms, schedules: [schedule, schedule] });

@@ -3,80 +3,36 @@
  * 조회 권한: Owner·`PAYROLL_READ` Manager, 본인은 보낸 명세서(SENT·SUPERSEDED)만 (인덱스 §2.5).
  */
 
-import type { DbClient, DeductionType, Membership, Payslip, PayslipLine, PayslipStatus, PrismaClient } from '@chulgeunkok/db';
+import type { DbClient, Membership, Payslip, PayslipLine, PrismaClient } from '@chulgeunkok/db';
 
-import { payPeriodConfigOf, type PeriodWithNav } from '@/features/payroll/model/work-time';
+import { payPeriodConfigOf } from '@/features/payroll/model/work-time';
 import { resolvePeriod } from '@/features/payroll/server/period-attendances';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
-import { syncPeriodPayslips, toDateColumn, toLineDraft, type StoredLineDraft } from './payslip-sync-service';
+import type { MyPayslipListItemDto, PayslipDetailDto, PayslipListDto, PayslipListItemDto } from '../model/payslip-types';
 
-export interface PayslipListItemDto {
-  payslipId: string;
-  memberId: string;
-  name: string;
-  version: number;
-  status: PayslipStatus;
-  netPay: number;
-  /** 직원이 한 번이라도 열었는지 */
-  viewed: boolean;
-  /** 직원 기기에 푸시 토큰이 하나라도 있는지. 없으면 "알림 미수신" 배지 (§5.1) */
-  pushEnabled: boolean;
-  /** version 2 이상 (정정본) */
-  isCorrection: boolean;
-}
-
-export interface PayslipListDto {
-  period: PeriodWithNav;
-  /** draft = 확인 필요(v1 DRAFT), sent = 보냄, correction = 정정본 확인 필요 (§5.1) */
-  counts: { draft: number; sent: number; correction: number };
-  items: PayslipListItemDto[];
-}
-
-export interface PayslipDetailDto {
-  id: string;
-  storeId: string;
-  membershipId: string;
-  periodStart: string;
-  /** 미포함 */
-  periodEnd: string;
-  version: number;
-  status: PayslipStatus;
-  payDate: string | null;
-  employeeName: string;
-  employeeNumber: number;
-  workDays: number;
-  recognizedSeconds: number;
-  overtimeSeconds: number;
-  nightSeconds: number;
-  holidaySeconds: number;
-  deductionType: DeductionType;
-  grossPay: number;
-  totalDeduction: number;
-  netPay: number;
-  correctionNote: string | null;
-  sentAt: string | null;
-  viewedAt: string | null;
-  lines: StoredLineDraft[];
-  /** 정정본이면 같은 기간 직전 보낸 본 (그 안의 previousSent는 null) */
-  previousSent: PayslipDetailDto | null;
-}
+import { syncPeriodPayslips, toDateColumn, toLineDraft } from './payslip-sync-service';
 
 type PayslipWithLines = Payslip & { lines: PayslipLine[] };
 
 const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
 const LINE_ORDER = [{ kind: 'asc' as const }, { sortOrder: 'asc' as const }];
 
-/** GET /stores/:storeId/payslips — §7. 끝난 기간이면 먼저 동기화해 초안·정정본을 맞춘다 (§4.3) */
+/**
+ * GET /stores/:storeId/payslips — §7. 끝난 기간이면 먼저 동기화해 초안·정정본을 맞춘다 (§4.3).
+ * 기간을 빼면 끝난 최근 기간 (명세서는 끝난 기간에만 생긴다, §5.1).
+ */
 export async function listStorePayslips(
   db: PrismaClient,
   input: { storeId: string; actorUserId: string; periodStart?: string; now: Date },
 ): Promise<PayslipListDto> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'PAYROLL' }, db);
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
-  const period = resolvePeriod({ periodStart: input.periodStart, payPeriod: payPeriodConfigOf(store), now: input.now });
+  const payPeriod = payPeriodConfigOf(store);
+  const periodStart = input.periodStart ?? resolvePeriod({ payPeriod, now: input.now }).prevStart;
+  const period = resolvePeriod({ periodStart, payPeriod, now: input.now });
   await syncPeriodPayslips(db, { storeId: input.storeId, periodStart: period.start, now: input.now });
 
   const payslips = await db.payslip.findMany({
@@ -100,6 +56,7 @@ const toListItem = (payslip: Payslip, pushEnabled: boolean): PayslipListItemDto 
   version: payslip.version,
   status: payslip.status,
   netPay: payslip.netPay,
+  payDate: payslip.payDate ? toIsoDate(payslip.payDate) : null,
   viewed: payslip.viewedAt !== null,
   pushEnabled,
   isCorrection: payslip.version > 1,
@@ -178,19 +135,6 @@ function toDetailDto(payslip: PayslipWithLines): Omit<PayslipDetailDto, 'previou
     viewedAt: payslip.viewedAt?.toISOString() ?? null,
     lines: payslip.lines.map(toLineDraft),
   };
-}
-
-export interface MyPayslipListItemDto {
-  payslipId: string;
-  periodStart: string;
-  periodEnd: string;
-  version: number;
-  status: PayslipStatus;
-  payDate: string | null;
-  netPay: number;
-  sentAt: string | null;
-  viewed: boolean;
-  isCorrection: boolean;
 }
 
 /** GET /attendance/me/payslips — §5.3·§7. 본인 SENT·SUPERSEDED만, 최신 기간 먼저. INACTIVE 본인도 (§1-6) */

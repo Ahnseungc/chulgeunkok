@@ -58,6 +58,8 @@ export const CreateTermsBody = z
     contractStartDate: LocalDate,
     contractEndDate: LocalDate.nullable(),
     confirmBelowMinimumWage: z.boolean().default(false),
+    /** 임금명세서 공제 방식 (docs/specs/payslip §3.3) */
+    deductionType: z.enum(['NONE', 'WITHHOLDING_3_3', 'SOCIAL_INSURANCE']).default('NONE'),
   })
   .superRefine((terms, ctx) => {
     const weekdays = terms.schedules.map((schedule) => schedule.weekday);

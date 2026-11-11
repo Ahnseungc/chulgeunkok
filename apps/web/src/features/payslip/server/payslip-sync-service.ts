@@ -12,7 +12,7 @@ import { resolvePeriod } from '@/features/payroll/server/period-attendances';
 import { computePayroll } from '@/features/payroll/server/payroll-service';
 
 import { buildEarningLines, hasCalculatedChange, mergeLines, payDateFor, summaryOf, totalsOf } from '../model/payslip-calc';
-import { CUSTOM_CODE, type LineDraft } from '../model/payslip-types';
+import { CUSTOM_CODE, type LineDraft, type PayslipLineDto } from '../model/payslip-types';
 
 /** 일배치가 보는 끝난 정산 기간 수. 사업장 규모 소급 90일을 덮는다 (§4.3) */
 const JOB_PERIOD_COUNT = 3;
@@ -101,7 +101,7 @@ async function syncMember(tx: Prisma.TransactionClient, context: SyncContext, me
 }
 
 /** 저장된 줄. mergeLines는 줄을 펼쳐 복사하므로 id가 결과까지 따라온다 */
-export type StoredLineDraft = LineDraft & { id: string };
+export type StoredLineDraft = PayslipLineDto;
 
 export const toLineDraft = (line: PayslipLine): StoredLineDraft => ({
   id: line.id,

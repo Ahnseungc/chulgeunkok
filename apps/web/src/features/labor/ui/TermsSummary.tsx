@@ -2,7 +2,7 @@ import { Text } from '@seed-design/react';
 
 import { formatDuration } from '@/shared/lib/format-time';
 
-import type { TermsDto } from '../model/labor-types';
+import { DEDUCTION_TYPE_LABEL, type TermsDto } from '../model/labor-types';
 import { WEEKDAY_LABELS } from '../model/review-copy';
 
 const MINUTE_MS = 60_000;
@@ -28,6 +28,8 @@ export default function TermsSummary({ terms }: { terms: TermsDto }) {
       <dd>{formatDuration(terms.weeklyContractMinutes * MINUTE_MS)}</dd>
       <dt>주휴일</dt>
       <dd>{terms.weeklyHolidayWeekday === null ? '정하지 않음' : `${WEEKDAY_LABELS[terms.weeklyHolidayWeekday]}요일`}</dd>
+      <dt>급여 공제</dt>
+      <dd>{DEDUCTION_TYPE_LABEL[terms.deductionType]}</dd>
       <dt>적용</dt>
       <dd>
         {formatDate(terms.effectiveFrom)}부터

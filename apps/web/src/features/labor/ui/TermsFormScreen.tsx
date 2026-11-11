@@ -11,7 +11,7 @@ import LabeledTextField from '@/shared/ui/LabeledTextField';
 import Sheet from '@/shared/ui/Sheet';
 import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
-import type { LaborReviewDto } from '../model/labor-types';
+import { DEDUCTION_TYPE_LABEL, type DeductionTypeValue, type LaborReviewDto } from '../model/labor-types';
 import { WEEKDAY_LABELS } from '../model/review-copy';
 
 import ReviewSheet from './ReviewSheet';
@@ -19,6 +19,8 @@ import ScheduleEditor from './ScheduleEditor';
 import { initialTermsValues, useSaveTerms, type TermsFormValues } from './useTermsForm';
 import { useBackTo } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
+
+const DEDUCTION_TYPES = ['NONE', 'WITHHOLDING_3_3', 'SOCIAL_INSURANCE'] as const satisfies readonly DeductionTypeValue[];
 
 interface TermsFormScreenProps {
   storeId: string;
@@ -105,6 +107,26 @@ export default function TermsFormScreen({ storeId, memberId }: TermsFormScreenPr
                 ))}
               </select>
             </label>
+
+            {/* 임금명세서 공제 줄을 정한다 (docs/specs/payslip §3.3) */}
+            <div className="labeled-field">
+              <Text as="span" textStyle="t4Medium">
+                급여 공제
+              </Text>
+              <div className="headcount__options" role="group" aria-label="급여 공제">
+                {DEDUCTION_TYPES.map((type) => (
+                  <ActionButton
+                    key={type}
+                    size="small"
+                    variant={values.deductionType === type ? 'neutralSolid' : 'neutralWeak'}
+                    aria-pressed={values.deductionType === type}
+                    onClick={() => update({ deductionType: type })}
+                  >
+                    {DEDUCTION_TYPE_LABEL[type]}
+                  </ActionButton>
+                ))}
+              </div>
+            </div>
 
             <LabeledTextField label="계약 시작일" type="date" value={values.contractStartDate} onValueChange={(contractStartDate) => update({ contractStartDate })} />
             <LabeledTextField label="계약 종료일 (없으면 비워 두세요)" type="date" value={values.contractEndDate} onValueChange={(contractEndDate) => update({ contractEndDate })} />

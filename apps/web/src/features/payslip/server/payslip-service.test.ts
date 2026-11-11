@@ -133,6 +133,11 @@ describe('listStorePayslips', () => {
     ]);
   });
 
+  it('기간을 빼면 끝난 최근 기간을 보여 주고, 지급일도 함께 준다', async () => {
+    const result = await listStorePayslips(db, { storeId: 'store', actorUserId: 'owner', now: NOW });
+    expect([result.period.start, result.items[0]?.payDate]).toEqual([NOVEMBER, '2026-12-10']);
+  });
+
   it('푸시 토큰이 있으면 pushEnabled', async () => {
     await registerStaffToken();
     expect((await list()).items[0]?.pushEnabled).toBe(true);

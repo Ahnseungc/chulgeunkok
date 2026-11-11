@@ -13,6 +13,8 @@ export interface StoreSettingsDto {
     pendingChange: { startDay: number; effectiveFrom: string } | null;
     currentPeriod: PayPeriod;
   };
+  /** 급여 지급일 (1~31). 없으면 명세서마다 지급일을 넣는다 (docs/specs/payslip §3.4) */
+  payDay: number | null;
   headcount: {
     current: HeadcountBandValue;
     history: { band: HeadcountBandValue; effectiveFrom: string; declaredByName: string; note: string | null }[];

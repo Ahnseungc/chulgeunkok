@@ -111,7 +111,8 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 
 ## 4. 매장 수정
 
-- `name`, `address`, `latitude`, `longitude`, `payPeriodStartDay`.
+- `name`, `address`, `latitude`, `longitude`, `payPeriodStartDay`, `payDay`.
+- `payDay` 급여 지급일 (1~31, `null`이면 지운다). 바로 적용되고, 임금명세서 초안의 지급일 기본값이 된다 (`payslip` §3.4).
 - `payPeriodStartDay`를 바꾸면 **다음 정산 기간부터** 적용한다. 현재 진행 중인 기간은 그대로. 변경 내역은 `Store.payPeriodStartDay`·`previousPayPeriodStartDay`·`payPeriodStartDayEffectiveFrom`(= 지금 기간의 끝)으로 관리한다.
 - 바뀌는 날을 경계로 짧은 전환 기간이 생긴다. 예: 1일 → 21일, 12/1부터 → `11/1~12/1`, `12/1~12/21`, `12/21~1/21`.
 - 적용 전(대기 중)에 다시 바꾸면 값만 바뀌고 적용일은 그대로. 원래 값으로 되돌리면 변경 취소.

@@ -48,6 +48,7 @@ const CreateTermsBody = z.object({
   contractStartDate: z.string().date(),
   contractEndDate: z.string().date().nullable(),
   confirmBelowMinimumWage: z.boolean().default(false),
+  deductionType: z.enum(['NONE', 'WITHHOLDING_3_3', 'SOCIAL_INSURANCE']).default('NONE'), // 급여 공제: 없음 / 3.3% / 4대보험 (payslip §3.3)
 }).superRefine(/* 아래 검증 */);
 ```
 

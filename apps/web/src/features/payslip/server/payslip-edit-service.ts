@@ -9,10 +9,10 @@ import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
 import { mergeLines, totalsOf } from '../model/payslip-calc';
-import { CUSTOM_CODE, type LineDraft } from '../model/payslip-types';
+import { CUSTOM_CODE, type LineDraft, type PayslipDetailDto } from '../model/payslip-types';
 import type { AddPayslipLineBody, UpdatePayslipBody, UpdatePayslipLineBody } from '../schema';
 
-import { getPayslip, type PayslipDetailDto } from './payslip-query-service';
+import { getPayslip } from './payslip-query-service';
 import {
   applyLineWrites,
   lockPayslip,

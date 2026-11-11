@@ -499,6 +499,58 @@ body {
   text-decoration: none;
 }
 
+/* 임금명세서 표 (features/payslip/ui/PayslipTable) */
+.payslip-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.payslip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.payslip-table caption {
+  padding-bottom: 4px;
+  text-align: left;
+}
+
+.payslip-table th,
+.payslip-table td {
+  padding: 8px 0;
+  border-top: 1px solid var(--seed-color-stroke-neutral-muted);
+  font-weight: inherit;
+  text-align: left;
+  vertical-align: top;
+}
+
+.payslip-table__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.payslip-table__cell--amount {
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.payslip-totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--seed-color-stroke-neutral-weak);
+}
+
+.payslip-totals dd {
+  margin: 0;
+  text-align: right;
+}
+
 /* 공통 모션 (shared/motion) */
 /* 등장 스태거 루트. 상자를 만들지 않아 자식이 부모(.screen·.punch-center) 의 flex gap·정렬을 그대로 쓴다 */
 .motion-contents {

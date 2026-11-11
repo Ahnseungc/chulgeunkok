@@ -44,6 +44,7 @@
 | 3 | 수정 요청 | `CorrectionRequest.status = PENDING` | 관리자 전체 |
 | 4 | 검토 필요 | `LaborReview.status IN (OPEN, NEEDS_INFORMATION)`, 표시 방식이 바텀시트인 것 (`labor` §6.2) | Owner, `PAYROLL_READ`, `TERMS_EDIT` |
 | 5 | 대기 중 초대 | 만료 전, 미수락 | Owner, Manager |
+| 6 | 명세서 확인 | 매장의 `Payslip.status = DRAFT` (초안·정정본). `/owner/[storeId]/payslips` 로 이동 (`payslip` §5.1) | Owner |
 
 - 진입 시 아직 안 본 검토 항목이 있으면 바텀시트 1회 (`labor` §6.2).
 - 퇴근 누락·수정 요청 카드는 근태 화면이 생기기 전까지 건수만 보여 준다 (링크 없음).
@@ -71,6 +72,7 @@ interface Dashboard {
     pendingCorrections: number;
     laborReviews: number | null;   // 권한 없으면 null
     pendingInvitations: number;
+    payslipDrafts: number | null;  // Owner가 아니면 null
   };
   currentPeriod: {
     start: string; end: string;
