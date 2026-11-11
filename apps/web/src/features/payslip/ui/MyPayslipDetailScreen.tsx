@@ -36,12 +36,11 @@ export default function MyPayslipDetailScreen({ payslipId }: MyPayslipDetailScre
 
   return (
     <main className="screen">
-      <ScreenHeader backHref="/me/payslips" backLabel="임금명세서" title="임금명세서" />
+      <ScreenHeader backHref="/me/payslips" backLabel="임금명세서" title={payslip ? formatPeriodRange(payslip.periodStart, payslip.periodEnd) : undefined} />
       <header className="member-header">
         <Text as="h1" textStyle="t8Bold">
-          임금명세서
+          {payslip ? formatPeriodRange(payslip.periodStart, payslip.periodEnd) : TEXT_PLACEHOLDER}
         </Text>
-        <Text textStyle="t5Regular">{payslip ? formatPeriodRange(payslip.periodStart, payslip.periodEnd) : TEXT_PLACEHOLDER}</Text>
         {payslip?.status === 'SUPERSEDED' ? (
           <Text textStyle="t4Regular" color="fg.neutralMuted">
             이전 버전이에요. 정정본이 더 최신이에요.

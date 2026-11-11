@@ -39,11 +39,13 @@ export default function MyScreen() {
   const query = storeId ? new URLSearchParams({ storeId, ...(periodStart ? { periodStart } : {}) }) : null;
   const mine = useApiResource<MyAttendancesDto>(query ? `/api/v1/attendance/me?${query}` : null, EMPLOYEE_OPTIONS);
   const data = mine.data;
-  const payslips = useApiResource<MyPayslipListItemDto[]>(
-    storeId ? `/api/v1/attendance/me/payslips?storeId=${storeId}` : null,
+  // 퇴사자(INACTIVE)도 자기 명세서는 본다 (docs/specs/payslip §1-6)
+  const payslipStoreId = storeId ?? me.data?.memberships[0]?.storeId ?? null;
+  const payslips = useApiResource<{ items: MyPayslipListItemDto[] }>(
+    payslipStoreId ? `/api/v1/attendance/me/payslips?storeId=${payslipStoreId}` : null,
     EMPLOYEE_OPTIONS,
   );
-  const latestPayslip = payslips.data?.find((payslip) => payslip.status === 'SENT');
+  const latestPayslip = payslips.data?.items.find((payslip) => payslip.status === 'SENT');
   const inApp = useIsInApp();
   // 처음 받은 예상 금액만 카운트업. 기간을 옮겨 바뀐 값은 바로 바꾼다
   const estimateTotal = data ? data.summary.basePayEstimate + data.summary.allowances.total : undefined;
@@ -83,8 +85,8 @@ export default function MyScreen() {
       ) : null}
       <InlineAlert message={mine.errorMessage} />
       {/* 명세서 조회 실패는 홈 기록을 가리지 않게 카드만 숨긴다 */}
-      {latestPayslip && storeId ? (
-        <Link className="dash-card" href={`/me/payslips?storeId=${storeId}`} aria-label="최신 임금명세서 보기">
+      {latestPayslip && payslipStoreId ? (
+        <Link className="dash-card" href={`/me/payslips?storeId=${payslipStoreId}`} aria-label="최신 임금명세서 보기">
           <Text textStyle="t5Bold">{latestPayslip.viewed ? '임금명세서' : '새 임금명세서가 도착했어요'}</Text>
           <Text textStyle="t4Regular" color="fg.neutralMuted">
             {formatPeriodRange(latestPayslip.periodStart, latestPayslip.periodEnd)} · 실지급 {formatWon(latestPayslip.netPay)}
