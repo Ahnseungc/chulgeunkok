@@ -18,11 +18,13 @@ import { bulkSendTargetOf, usePayslips } from './usePayslips';
 
 interface PayslipsScreenProps {
   storeId: string;
+  /** URL `?periodStart=`. 없으면 끝난 최근 기간 (§5.1) */
+  initialPeriodStart?: string;
 }
 
 /** `/owner/[storeId]/payslips` — docs/specs/payslip §5.1 */
-export default function PayslipsScreen({ storeId }: PayslipsScreenProps) {
-  const payslips = usePayslips(storeId);
+export default function PayslipsScreen({ storeId, initialPeriodStart }: PayslipsScreenProps) {
+  const payslips = usePayslips(storeId, initialPeriodStart);
   const { data } = payslips;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const target = bulkSendTargetOf(data?.items ?? []);

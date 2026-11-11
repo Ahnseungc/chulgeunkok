@@ -15,7 +15,9 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
   const membersPath = `/owner/${storeId}/members` as const;
   const missingPath = `/owner/${storeId}/attendances?status=MISSING_CLOCK_OUT` as const;
   const correctionsPath = `/owner/${storeId}/corrections` as const;
-  const payslipsPath = `/owner/${storeId}/payslips` as const;
+  const payslipsPath = todo.payslipDraftPeriodStart
+    ? (`/owner/${storeId}/payslips?periodStart=${todo.payslipDraftPeriodStart}` as const)
+    : (`/owner/${storeId}/payslips` as const);
   const cards = [
     { count: todo.termsMissing, title: '근로조건 필요', description: '근로조건이 없으면 출근할 수 없어요', href: membersPath },
     { count: todo.missingClockOut, title: '퇴근 누락', description: '퇴근 시각을 넣어 주세요', href: missingPath },

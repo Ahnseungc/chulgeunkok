@@ -27,9 +27,9 @@ function sendErrorText(error: unknown, items: readonly PayslipListItemDto[]): st
   return blocked ? `${blocked.name}: ${errorMessageOf(error)}` : errorMessageOf(error);
 }
 
-/** 사장님 명세서 목록 + 일괄 보내기 — docs/specs/payslip §5.1 */
-export function usePayslips(storeId: string) {
-  const [periodStart, setPeriodStart] = useState<string | undefined>();
+/** 사장님 명세서 목록 + 일괄 보내기 — docs/specs/payslip §5.1. 처음 기간은 URL `?periodStart=` (대시보드 카드) */
+export function usePayslips(storeId: string, initialPeriodStart?: string) {
+  const [periodStart, setPeriodStart] = useState<string | undefined>(initialPeriodStart);
   const query = periodStart ? `?periodStart=${periodStart}` : '';
   const { data, errorMessage, reload } = useApiResource<PayslipListDto>(`/api/v1/stores/${storeId}/payslips${query}`);
   // 상세에서 고치거나 보낸 뒤 돌아오면 목록을 다시 불러온다

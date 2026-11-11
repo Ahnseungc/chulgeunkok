@@ -23,6 +23,8 @@ export interface DashboardDto {
     pendingInvitations: number;
     /** 보내기 전 임금명세서 초안·정정본 (docs/specs/payslip §5.1). 사장님이 아니면 null */
     payslipDrafts: number | null;
+    /** 가장 오래된 DRAFT의 periodStart. 카드 링크가 그 기간을 연다. 없거나 사장님이 아니면 null */
+    payslipDraftPeriodStart: string | null;
   };
   currentPeriod: {
     start: string;

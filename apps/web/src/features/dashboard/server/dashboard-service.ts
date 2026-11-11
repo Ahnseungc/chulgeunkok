@@ -134,9 +134,23 @@ async function countTodo(
     pendingCorrections,
     laborReviews: canAccessStore(input.actor, 'LABOR_REVIEW') ? await countSheetReviews(db, { ...input, storeId }) : null,
     pendingInvitations,
-    // 다음 동기화(목록 조회·일배치) 전까지 늦을 수 있다 (docs/specs/payslip §4.3)
-    payslipDrafts: canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await db.payslip.count({ where: { storeId, status: 'DRAFT' } }) : null,
+    ...(canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await countPayslipDrafts(db, storeId) : NO_PAYSLIP_ACCESS),
   };
+}
+
+const NO_PAYSLIP_ACCESS = { payslipDrafts: null, payslipDraftPeriodStart: null } as const;
+
+/**
+ * 보내기 전 명세서 수와 가장 오래된 DRAFT 기간 (docs/specs/payslip §5.1). 카드가 그 기간 목록을 연다.
+ * 다음 동기화(목록 조회·일배치) 전까지 늦을 수 있다 (§4.3)
+ */
+async function countPayslipDrafts(db: PrismaClient, storeId: string) {
+  const where = { storeId, status: 'DRAFT' as const };
+  const [payslipDrafts, oldest] = await Promise.all([
+    db.payslip.count({ where }),
+    db.payslip.findFirst({ where, orderBy: { periodStart: 'asc' }, select: { periodStart: true } }),
+  ]);
+  return { payslipDrafts, payslipDraftPeriodStart: oldest?.periodStart.toISOString().slice(0, 10) ?? null };
 }
 
 /** 바텀시트로 띄울 안내만 센다. 5인 미만 배지·목록 전용 안내는 처리할 일이 아니다 (docs/specs/dashboard §4) */
