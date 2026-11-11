@@ -112,6 +112,13 @@ export const ERROR_CODES = {
   // payroll
   PAY_PERIOD_INVALID: { status: 400, message: '정산 기간 시작일이 맞지 않아요.' },
   PAY_PERIOD_IN_FUTURE: { status: 400, message: '아직 시작하지 않은 기간이에요.' },
+
+  // payslip
+  PAYSLIP_NOT_EDITABLE: { status: 409, message: '이미 보낸 명세서는 고칠 수 없어요.' },
+  PAYSLIP_PAY_DATE_REQUIRED: { status: 400, message: '급여 지급일을 넣어 주세요.' },
+  PAYSLIP_NET_NEGATIVE: { status: 400, message: '공제가 지급액보다 많아요.' },
+  PAYSLIP_ADJUST_REASON_REQUIRED: { status: 400, message: '금액을 바꾼 이유를 적어 주세요.' },
+  PAYSLIP_CORRECTION_NOTE_REQUIRED: { status: 400, message: '정정 사유를 적어 주세요.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
