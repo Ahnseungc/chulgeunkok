@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseAppToWeb, parseWebToApp, toAppPath } from './index';
+import { parseAppToWeb, parseWebToApp, toAppPath, toPushPath } from './index';
 
 const ORIGIN = 'https://chulgeunkok.app';
 const TOKEN = 'a'.repeat(43);
@@ -67,5 +67,27 @@ describe('위치 요청·응답', () => {
     ['not json', 'JSON 아님'],
   ] as [unknown, string][])('%j 는 거부 (%s)', (raw) => {
     expect(parseAppToWeb(raw)).toBeNull();
+  });
+});
+
+describe('toPushPath', () => {
+  it.each(['/me', '/me/payslips/abc_DEF-123'])('%s 는 허용', (path) => {
+    expect(toPushPath(path)).toBe(path);
+  });
+
+  it.each([
+    '//evil.com',
+    '/api/v1/auth/handoff',
+    '/me/payslips/../../api',
+    '/me/payslips/',
+    '/me/payslips/a/b',
+    '/me/payslips/a?x=1',
+    'https://evil.com/me',
+    '',
+    42,
+    null,
+    undefined,
+  ])('%j 는 거부', (raw) => {
+    expect(toPushPath(raw)).toBeNull();
   });
 });
