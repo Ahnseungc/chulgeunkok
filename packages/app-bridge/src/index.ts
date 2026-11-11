@@ -12,6 +12,9 @@ export const APP_SCHEME = 'chulgeunkok';
 /** 앱이 열 수 있는 웹 경로. 그 밖의 URL은 무시한다 (임의 사이트를 WebView로 열지 않게) */
 const APP_PATH_PATTERN = /^\/(p|invite)\/[A-Za-z0-9_-]{20,64}$/;
 
+/** 푸시 알림을 눌러 열 수 있는 경로: 내 근무, 내 임금명세서 상세 (docs/specs/payslip §6) */
+const PUSH_PATH_PATTERN = /^\/me(\/payslips\/[A-Za-z0-9_-]+)?$/;
+
 /** 위치 요청 ↔ 응답을 짝짓는 값 (웹이 만든 UUID 등) */
 const RequestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
 
@@ -86,4 +89,9 @@ export function toAppPath(rawUrl: string, origin: string): string | null {
   }
   const path = url.protocol === `${APP_SCHEME}:` ? `/${url.host}${url.pathname}` : url.origin === origin ? url.pathname : null;
   return path && APP_PATH_PATTERN.test(path) ? path : null;
+}
+
+/** 푸시 data.path → 앱이 열어도 되는 경로. 그 밖(외부 주소·API·`..`)은 null */
+export function toPushPath(raw: unknown): string | null {
+  return typeof raw === 'string' && PUSH_PATH_PATTERN.test(raw) ? raw : null;
 }

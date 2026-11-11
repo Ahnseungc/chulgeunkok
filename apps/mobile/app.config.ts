@@ -19,6 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       ...base.android,
+      permissions: [...(base.android?.permissions ?? []), 'android.permission.POST_NOTIFICATIONS'],
       ...(androidGoogleServices ? { googleServicesFile: androidGoogleServices } : {}),
     },
     plugins: [

@@ -1,10 +1,14 @@
-import { Alert, Platform } from 'react-native';
+import { Alert, PermissionsAndroid, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+
+import { toPushPath } from '@chulgeunkok/app-bridge';
 
 import { WEB_ORIGIN } from './config';
 import { getDeviceToken } from './device-session';
 
 const ASKED_KEY = 'chulgeunkok.pushAsked';
+/** POST_NOTIFICATIONS 런타임 권한이 생긴 Android API (13) */
+const ANDROID_NOTIFICATION_PERMISSION_API = 33;
 
 type MessagingModule = typeof import('@react-native-firebase/messaging');
 type MessagingInstance = ReturnType<MessagingModule['getMessaging']>;
@@ -47,14 +51,24 @@ const confirmPushAlert = (): Promise<boolean> =>
     );
   });
 
+/** Android 13+ 는 RN Firebase 가 권한을 묻지 않아 직접 요청한다 (iOS·그 이하는 requestPermission) */
+async function requestOsPermission(push: Push): Promise<void> {
+  if (Platform.OS === 'android' && Platform.Version >= ANDROID_NOTIFICATION_PERMISSION_API) {
+    await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    return;
+  }
+  await push.module.requestPermission(push.messaging);
+}
+
 /** 처음 한 번만 안내 후 OS 알림 권한을 요청한다 */
 export async function askPushPermissionOnce(): Promise<void> {
   const push = loadPush();
   if (!push) return;
   try {
     if (await SecureStore.getItemAsync(ASKED_KEY)) return;
-    await SecureStore.setItemAsync(ASKED_KEY, '1');
-    if (await confirmPushAlert()) await push.module.requestPermission(push.messaging);
+    const accepted = await confirmPushAlert();
+    await SecureStore.setItemAsync(ASKED_KEY, '1'); // 안내에 답한 뒤에만 기록 (앱이 먼저 꺼지면 다음에 다시 묻는다)
+    if (accepted) await requestOsPermission(push);
   } catch (error) {
     console.warn('[push] 알림 권한 요청 실패', error);
   }
@@ -86,10 +100,7 @@ export function onPushTokenRefresh(onRefresh: () => void): () => void {
   return push.module.onTokenRefresh(push.messaging, onRefresh);
 }
 
-const pathOf = (message: PushMessage): string | null => {
-  const path = message?.data?.path;
-  return typeof path === 'string' && path.startsWith('/') ? path : null;
-};
+const pathOf = (message: PushMessage): string | null => toPushPath(message?.data?.path);
 
 /** 알림을 눌러 앱이 열리면 data.path 로 이동 (종료 상태에서 열린 경우 포함). 해제 함수 반환 */
 export function onPushOpen(open: (path: string) => void): () => void {
