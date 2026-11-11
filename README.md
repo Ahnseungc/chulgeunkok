@@ -1,15 +1,23 @@
 <p align="center">
-  <img src="docs/store/feature.png" width="100%" alt="출근콕. 스티커 하나로 찍는 출퇴근" />
+  <img src="docs/readme/hero.png" width="100%" alt="출근콕. QR 기반 소규모 매장 근태관리 SaaS. 스티커 하나로 찍는 출퇴근" />
 </p>
 
 <p align="center">
-  <img src="docs/store/screen-1.png" width="32%" alt="QR 찍고 버튼 하나" />
-  <img src="docs/store/screen-2.png" width="32%" alt="콕! 하면 출근 끝" />
-  <img src="docs/store/screen-3.png" width="32%" alt="이번 달 얼마 일했는지 바로" />
+  <img src="docs/readme/01-qr-clock-in.png" width="100%" alt="01 QR 출퇴근. QR 찍고 버튼 하나" />
 </p>
 
 <p align="center">
-  <img src="docs/store/screen-4.png" width="32%" alt="지금 누가 일하는지 한눈에" />
-  <img src="docs/store/screen-5.png" width="32%" alt="퇴근 누락도 놓치지 않게" />
-  <img src="docs/store/screen-6.png" width="32%" alt="월말 정산은 CSV 한 번" />
+  <img src="docs/readme/02-live-status.png" width="100%" alt="02 실시간 근무 현황. 지금 누가 일하는지 한눈에" />
+</p>
+
+<p align="center">
+  <img src="docs/readme/03-payroll.png" width="100%" alt="03 근무시간 집계와 월말 정산. 월말 정산은 CSV 한 번" />
+</p>
+
+<p align="center">
+  <img src="docs/readme/04-allowances.png" width="100%" alt="04 예상 기본급, 주휴수당, 가산수당. 기본급 따로, 수당 따로" />
+</p>
+
+<p align="center">
+  <img src="docs/readme/05-labor-guide.png" width="100%" alt="05 노무 의무 안내. 놓치기 쉬운 노무 의무를 먼저" />
 </p>
