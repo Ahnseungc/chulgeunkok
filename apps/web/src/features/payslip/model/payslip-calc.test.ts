@@ -1,3 +1,4 @@
+import type { DeductionType } from '@chulgeunkok/db';
 import { describe, expect, it } from 'vitest';
 
 import type { AllowanceEstimate } from '@/features/payroll/model/allowances';
@@ -14,6 +15,15 @@ import {
   totalsOf,
 } from './payslip-calc';
 import type { LineDraft } from './payslip-types';
+
+/** 공제 방식이 그대로인 mergeLines 입력 */
+const same = (type: DeductionType) => ({ currentDeductionType: type, deductionType: type, previousSent: [] });
+/** 공제 방식을 바꾸는 mergeLines 입력 */
+const changed = (from: DeductionType, to: DeductionType, previousSent: LineDraft[] = []) => ({
+  currentDeductionType: from,
+  deductionType: to,
+  previousSent,
+});
 
 const NO_ALLOWANCES: AllowanceEstimate = {
   weeklyHolidayPay: 0,
@@ -166,26 +176,26 @@ describe('mergeLines', () => {
   it('조정한 줄은 금액을 유지하고 계산값만 바꾼다', () => {
     const current = [line({ calculatedAmount: 400_000, amount: 500_000, adjustReason: '식대 포함' })];
     const fresh = [line({ calculatedAmount: 469_560, amount: 469_560 })];
-    const [merged] = mergeLines({ current, fresh, deductionType: 'NONE' });
+    const [merged] = mergeLines({ current, fresh, ...same('NONE') });
     expect(merged).toMatchObject({ amount: 500_000, calculatedAmount: 469_560, adjustReason: '식대 포함' });
   });
 
   it('조정 안 한 줄은 amount도 따라간다', () => {
     const current = [line({ calculatedAmount: 400_000, amount: 400_000 })];
     const fresh = [line({ calculatedAmount: 469_560, amount: 469_560 })];
-    const [merged] = mergeLines({ current, fresh, deductionType: 'NONE' });
+    const [merged] = mergeLines({ current, fresh, ...same('NONE') });
     expect(merged).toMatchObject({ amount: 469_560, calculatedAmount: 469_560 });
   });
 
   it('사라진 계산 줄은 0원으로 남는다', () => {
     const current = [line({ code: 'NIGHT_PREMIUM', label: '야간근로 가산', calculatedAmount: 5_000, amount: 5_000 })];
-    const [merged] = mergeLines({ current, fresh: [], deductionType: 'NONE' });
+    const [merged] = mergeLines({ current, fresh: [], ...same('NONE') });
     expect(merged).toMatchObject({ code: 'NIGHT_PREMIUM', calculatedAmount: 0, amount: 0 });
   });
 
   it('사라졌어도 조정한 줄은 금액을 유지한다', () => {
     const current = [line({ code: 'NIGHT_PREMIUM', calculatedAmount: 5_000, amount: 7_000, adjustReason: '합의' })];
-    const [merged] = mergeLines({ current, fresh: [], deductionType: 'NONE' });
+    const [merged] = mergeLines({ current, fresh: [], ...same('NONE') });
     expect(merged).toMatchObject({ calculatedAmount: 0, amount: 7_000 });
   });
 
@@ -195,7 +205,7 @@ describe('mergeLines', () => {
       line({ calculatedAmount: 1, amount: 1 }),
       line({ code: 'WEEKLY_HOLIDAY_PAY', calculatedAmount: 9_000, amount: 9_000 }),
     ];
-    const merged = mergeLines({ current, fresh, deductionType: 'NONE' });
+    const merged = mergeLines({ current, fresh, ...same('NONE') });
     expect(merged.map((l) => [l.code, l.sortOrder])).toEqual([
       ['BASE_PAY', 0],
       ['WEEKLY_HOLIDAY_PAY', 1],
@@ -205,7 +215,7 @@ describe('mergeLines', () => {
 
   it('CUSTOM 줄은 그대로 둔다', () => {
     const custom = line({ code: 'CUSTOM', label: '식대', calculatedAmount: null, amount: 100_000 });
-    const merged = mergeLines({ current: [custom], fresh: [], deductionType: 'NONE' });
+    const merged = mergeLines({ current: [custom], fresh: [], ...same('NONE') });
     expect(merged[0]).toMatchObject({ code: 'CUSTOM', amount: 100_000, calculatedAmount: null });
   });
 
@@ -214,7 +224,11 @@ describe('mergeLines', () => {
       line({ calculatedAmount: 500_000, amount: 500_000 }),
       ...buildDeductionLines({ type: 'WITHHOLDING_3_3', grossPay: 500_000, previousSent: [] }),
     ];
-    const merged = mergeLines({ current, fresh: [line({ calculatedAmount: 500_000, amount: 500_000 })], deductionType: 'SOCIAL_INSURANCE' });
+    const merged = mergeLines({
+      current,
+      fresh: [line({ calculatedAmount: 500_000, amount: 500_000 })],
+      ...changed('WITHHOLDING_3_3', 'SOCIAL_INSURANCE'),
+    });
     const deductions = merged.filter((l) => l.kind === 'DEDUCTION');
     expect(deductions.map((l) => l.code)).toEqual([
       'NATIONAL_PENSION',
@@ -232,8 +246,25 @@ describe('mergeLines', () => {
       line({ calculatedAmount: 500_000, amount: 500_000 }),
       ...buildDeductionLines({ type: 'WITHHOLDING_3_3', grossPay: 500_000, previousSent: [] }),
     ];
-    const merged = mergeLines({ current, fresh: [], deductionType: 'NONE' });
+    const merged = mergeLines({ current, fresh: [], ...changed('WITHHOLDING_3_3', 'NONE') });
     expect(merged.some((l) => l.kind === 'DEDUCTION')).toBe(false);
+  });
+
+  it('4대보험으로 바꾸면 previousSent의 직전 보낸 금액을 기본값으로 쓴다', () => {
+    const current = [line({ calculatedAmount: 500_000, amount: 500_000 })];
+    const previousSent = [line({ kind: 'DEDUCTION', code: 'NATIONAL_PENSION', calculatedAmount: null, amount: 40_000 })];
+    const merged = mergeLines({ current, fresh: current, ...changed('NONE', 'SOCIAL_INSURANCE', previousSent) });
+    const pension = merged.find((l) => l.code === 'NATIONAL_PENSION');
+    expect([pension?.amount, pension?.basis, merged.find((l) => l.code === 'HEALTH_INSURANCE')?.amount]).toEqual([40_000, '직전 명세서 금액', 0]);
+  });
+
+  it('fresh의 공제 줄은 직전 보낸 금액으로 쓰지 않는다', () => {
+    const fresh = [
+      line({ calculatedAmount: 500_000, amount: 500_000 }),
+      line({ kind: 'DEDUCTION', code: 'NATIONAL_PENSION', calculatedAmount: null, amount: 40_000 }),
+    ];
+    const merged = mergeLines({ current: [], fresh, ...changed('NONE', 'SOCIAL_INSURANCE') });
+    expect(merged.find((l) => l.code === 'NATIONAL_PENSION')?.amount).toBe(0);
   });
 
   it('같은 3.3%면 새 지급 총액으로 다시 계산한다', () => {
@@ -242,7 +273,7 @@ describe('mergeLines', () => {
       ...buildDeductionLines({ type: 'WITHHOLDING_3_3', grossPay: 500_000, previousSent: [] }),
     ];
     const fresh = [line({ calculatedAmount: 1_000_000, amount: 1_000_000 })];
-    const deductions = mergeLines({ current, fresh, deductionType: 'WITHHOLDING_3_3' }).filter((l) => l.kind === 'DEDUCTION');
+    const deductions = mergeLines({ current, fresh, ...same('WITHHOLDING_3_3') }).filter((l) => l.kind === 'DEDUCTION');
     expect(deductions.map((l) => [l.code, l.amount, l.calculatedAmount])).toEqual([
       ['INCOME_TAX', 30_000, 30_000],
       ['LOCAL_INCOME_TAX', 3_000, 3_000],
@@ -257,7 +288,7 @@ describe('mergeLines', () => {
       line({ ...local }),
     ];
     const fresh = [line({ calculatedAmount: 1_000_000, amount: 1_000_000 })];
-    const deductions = mergeLines({ current, fresh, deductionType: 'WITHHOLDING_3_3' }).filter((l) => l.kind === 'DEDUCTION');
+    const deductions = mergeLines({ current, fresh, ...same('WITHHOLDING_3_3') }).filter((l) => l.kind === 'DEDUCTION');
     expect(deductions[0]).toMatchObject({ amount: 12_000, calculatedAmount: 30_000 });
   });
 
@@ -266,7 +297,7 @@ describe('mergeLines', () => {
       line({ calculatedAmount: 500_000, amount: 500_000 }),
       ...buildDeductionLines({ type: 'SOCIAL_INSURANCE', grossPay: 500_000, previousSent: [] }).map((l) => ({ ...l, amount: 1_000 })),
     ];
-    const merged = mergeLines({ current, fresh: [line({ calculatedAmount: 800_000, amount: 800_000 })], deductionType: 'SOCIAL_INSURANCE' });
+    const merged = mergeLines({ current, fresh: [line({ calculatedAmount: 800_000, amount: 800_000 })], ...same('SOCIAL_INSURANCE') });
     expect(merged.filter((l) => l.kind === 'DEDUCTION').every((l) => l.amount === 1_000 && l.calculatedAmount === null)).toBe(true);
   });
 });
