@@ -65,6 +65,11 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
           {payslip ? `${formatPeriodRange(payslip.periodStart, payslip.periodEnd)} · 사원번호 ${payslip.employeeNumber}` : TEXT_PLACEHOLDER}
         </Text>
         {payslip ? <StatusLine payslip={payslip} /> : null}
+        {payslip && !isDraft && payslip.correctionNote ? (
+          <Text textStyle="t4Regular" color="fg.neutralMuted">
+            정정 사유: {payslip.correctionNote}
+          </Text>
+        ) : null}
       </header>
       <InlineAlert message={detail.loadErrorMessage} />
       {payslip ? (
@@ -163,7 +168,8 @@ function StatusLine({ payslip }: { payslip: PayslipDetailDto }) {
   }
   return (
     <Text textStyle="t4Regular" color="fg.neutralMuted">
-      {chip.label} · {formatLocalDate(toStoreLocalDate(new Date(payslip.sentAt)))} 보냄 · {payslip.viewedAt ? '읽음' : '아직 안 읽음'}
+      {payslip.status === 'SUPERSEDED' ? '이전 버전 · ' : ''}
+      {formatLocalDate(toStoreLocalDate(new Date(payslip.sentAt)))} 보냄 · {payslip.viewedAt ? '읽음' : '아직 안 읽음'}
     </Text>
   );
 }
