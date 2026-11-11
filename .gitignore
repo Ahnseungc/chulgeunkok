@@ -5,3 +5,6 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 .pglite/
+
+GoogleService-Info.plist
+google-services.json
