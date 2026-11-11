@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PushMessage, PushSender } from '@/server/integrations/push';
 
 import { addPayslipLine, deletePayslipLine, updatePayslip, upsertPayslipLine } from './payslip-edit-service';
-import { getPayslip, listStorePayslips } from './payslip-query-service';
+import { getPayslip, listMyPayslips, listStorePayslips, markPayslipViewed } from './payslip-query-service';
 import { sendPayslip, sendPayslips } from './payslip-send-service';
 
 const kst = (local: string) => new Date(`${local}+09:00`);
@@ -301,5 +301,99 @@ describe('권한', () => {
     await send([draft.id]);
     const mine = await getPayslip(db, { payslipId: draft.id, actorUserId: 'staff' });
     expect([mine.status, mine.netPay, mine.previousSent]).toEqual(['SENT', GROSS, null]);
+  });
+});
+
+/** 다른 매장(owner2)에 이미 만들어 둔 명세서 */
+const createOtherStorePayslip = async () => {
+  await db.user.createMany({ data: [{ id: 'owner2', name: '다른사장' }, { id: 'staff2', name: '다른알바' }] });
+  await db.store.create({ data: { id: 'store2', name: '다른가게', payDay: 10 } });
+  await db.membership.createMany({
+    data: [
+      { id: 'm-owner2', storeId: 'store2', userId: 'owner2', role: 'OWNER', joinedAt: kst('2026-06-01T00:00:00') },
+      { id: 'm-staff2', storeId: 'store2', userId: 'staff2', role: 'EMPLOYEE', joinedAt: kst('2026-06-02T00:00:00') },
+    ],
+  });
+  return db.payslip.create({
+    data: {
+      storeId: 'store2',
+      membershipId: 'm-staff2',
+      periodStart: new Date(NOVEMBER),
+      periodEnd: new Date('2026-12-01'),
+      version: 1,
+      payDate: new Date('2026-12-10'),
+      employeeName: '다른알바',
+      employeeNumber: 2,
+      workDays: 0,
+      recognizedSeconds: 0,
+      overtimeSeconds: 0,
+      nightSeconds: 0,
+      holidaySeconds: 0,
+      deductionType: 'NONE',
+      grossPay: 0,
+      totalDeduction: 0,
+      netPay: 0,
+    },
+  });
+};
+
+describe('다른 매장 격리', () => {
+  it('다른 매장 사용자는 getPayslip에서 NOT_FOUND', async () => {
+    const other = await createOtherStorePayslip();
+    await expect(getPayslip(db, { payslipId: other.id, actorUserId: 'owner' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('일괄 보내기에 다른 매장 명세서 id가 섞이면 NOT_FOUND, 내 매장 것도 보내지지 않는다', async () => {
+    const other = await createOtherStorePayslip();
+    const draft = await openDraft();
+    await expect(send([draft.id, other.id])).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect((await db.payslip.findUniqueOrThrow({ where: { id: draft.id } })).status).toBe('DRAFT');
+    expect((await db.payslip.findUniqueOrThrow({ where: { id: other.id } })).status).toBe('DRAFT');
+  });
+});
+
+describe('직원 본인 조회', () => {
+  it('직원은 DRAFT를 못 본다(NOT_FOUND)', async () => {
+    const draft = await openDraft();
+    expect(await listMyPayslips(db, { userId: 'staff', storeId: 'store' })).toEqual([]);
+    await expect(markPayslipViewed(db, { payslipId: draft.id, userId: 'staff', now: NOW })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('INACTIVE 본인도 SENT 명세서를 보고 열람을 남긴다', async () => {
+    const draft = await openDraft();
+    await send([draft.id]);
+    await db.membership.update({ where: { id: 'm-staff' }, data: { status: 'INACTIVE' } });
+    const mine = await listMyPayslips(db, { userId: 'staff', storeId: 'store' });
+    expect(mine.map((p) => [p.payslipId, p.status, p.viewed])).toEqual([[draft.id, 'SENT', false]]);
+    expect((await getPayslip(db, { payslipId: draft.id, actorUserId: 'staff' })).status).toBe('SENT');
+    await markPayslipViewed(db, { payslipId: draft.id, userId: 'staff', now: NOW });
+    expect((await listMyPayslips(db, { userId: 'staff', storeId: 'store' }))[0]?.viewed).toBe(true);
+  });
+
+  it('처음 연 시각만 남는다', async () => {
+    const draft = await openDraft();
+    await send([draft.id]);
+    const later = new Date(NOW.getTime() + 60_000);
+    await markPayslipViewed(db, { payslipId: draft.id, userId: 'staff', now: NOW });
+    await markPayslipViewed(db, { payslipId: draft.id, userId: 'staff', now: later });
+    expect((await db.payslip.findUniqueOrThrow({ where: { id: draft.id } })).viewedAt?.toISOString()).toBe(NOW.toISOString());
+  });
+
+  it('다른 직원 명세서는 NOT_FOUND', async () => {
+    const draft = await openDraft();
+    await send([draft.id]);
+    await expect(markPayslipViewed(db, { payslipId: draft.id, userId: 'reader', now: NOW })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(await listMyPayslips(db, { userId: 'reader', storeId: 'store' })).toEqual([]);
+  });
+
+  it('목록은 SENT·SUPERSEDED를 최신 버전 먼저 보여 준다', async () => {
+    const first = await openDraft();
+    await send([first.id]);
+    await extendFirstShift();
+    const correctionId = (await list()).items[0]?.payslipId ?? '';
+    await updatePayslip(db, { payslipId: correctionId, actorUserId: 'owner', body: { correctionNote: '정정' } });
+    await send([correctionId]);
+    const mine = await listMyPayslips(db, { userId: 'staff', storeId: 'store' });
+    expect(mine.map((p) => [p.version, p.status, p.isCorrection])).toEqual([[2, 'SENT', true], [1, 'SUPERSEDED', false]]);
   });
 });
