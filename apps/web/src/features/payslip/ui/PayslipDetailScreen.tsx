@@ -174,7 +174,7 @@ function StatusLine({ payslip }: { payslip: PayslipDetailDto }) {
   );
 }
 
-function WorkSummary({ payslip }: { payslip: PayslipDetailDto }) {
+export function WorkSummary({ payslip }: { payslip: PayslipDetailDto }) {
   const hours = (seconds: number) => formatDuration(seconds * SECOND_MS);
   const extra = [
     payslip.overtimeSeconds > 0 ? `연장 ${hours(payslip.overtimeSeconds)}` : null,
