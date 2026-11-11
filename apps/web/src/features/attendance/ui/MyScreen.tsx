@@ -8,7 +8,7 @@ import { useState } from 'react';
 import type { MeDto } from '@/features/auth/model/me-types';
 import { PAYROLL_DISCLAIMER, formatAllowanceBreakdown, formatWon } from '@/features/payroll/model/payroll-types';
 import { postToApp, useIsInApp } from '@/shared/lib/app-shell';
-import { formatClock, formatDuration, formatLocalDate } from '@/shared/lib/format-time';
+import { formatClock, formatDuration, formatLocalDate, formatPeriodRange } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
 import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
@@ -17,6 +17,8 @@ import { useIntroCountUp } from '@/shared/motion/useIntroCountUp';
 import InlineAlert from '@/shared/ui/InlineAlert';
 import PeriodNav from '@/shared/ui/PeriodNav';
 import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
+
+import type { MyPayslipListItemDto } from '@/features/payslip/model/payslip-types';
 
 import type { MyAttendancesDto } from '../model/my-attendance-types';
 
@@ -37,6 +39,11 @@ export default function MyScreen() {
   const query = storeId ? new URLSearchParams({ storeId, ...(periodStart ? { periodStart } : {}) }) : null;
   const mine = useApiResource<MyAttendancesDto>(query ? `/api/v1/attendance/me?${query}` : null, EMPLOYEE_OPTIONS);
   const data = mine.data;
+  const payslips = useApiResource<MyPayslipListItemDto[]>(
+    storeId ? `/api/v1/attendance/me/payslips?storeId=${storeId}` : null,
+    EMPLOYEE_OPTIONS,
+  );
+  const latestPayslip = payslips.data?.find((payslip) => payslip.status === 'SENT');
   const inApp = useIsInApp();
   // 처음 받은 예상 금액만 카운트업. 기간을 옮겨 바뀐 값은 바로 바꾼다
   const estimateTotal = data ? data.summary.basePayEstimate + data.summary.allowances.total : undefined;
@@ -75,6 +82,15 @@ export default function MyScreen() {
         </Text>
       ) : null}
       <InlineAlert message={mine.errorMessage} />
+      {/* 명세서 조회 실패는 홈 기록을 가리지 않게 카드만 숨긴다 */}
+      {latestPayslip && storeId ? (
+        <Link className="dash-card" href={`/me/payslips?storeId=${storeId}`} aria-label="최신 임금명세서 보기">
+          <Text textStyle="t5Bold">{latestPayslip.viewed ? '임금명세서' : '새 임금명세서가 도착했어요'}</Text>
+          <Text textStyle="t4Regular" color="fg.neutralMuted">
+            {formatPeriodRange(latestPayslip.periodStart, latestPayslip.periodEnd)} · 실지급 {formatWon(latestPayslip.netPay)}
+          </Text>
+        </Link>
+      ) : null}
 
       {/* 첫 조회 때만 내려온다. 기간·매장을 바꿔도 다시 마운트되지 않아 재생하지 않는다 */}
       {data ? (

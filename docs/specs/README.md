@@ -113,6 +113,8 @@ interface ApiError {
 | `/p/[qrToken]` | Employee | attendance (QR 랜딩) |
 | `/invite/[token]` | Employee | staff |
 | `/me` | Employee | attendance · payroll (본인 기록·예상 급여) |
+| `/me/payslips` | Employee | payslip §5.3 (본인 명세서 목록) |
+| `/me/payslips/[payslipId]` | Employee | payslip §5.3 (명세서 상세·열람 기록) |
 | `/owner/stores/new` | Owner | store |
 | `/owner/[storeId]` | Owner·Manager | dashboard |
 | `/owner/[storeId]/members` | Owner·Manager | staff |
