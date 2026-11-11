@@ -236,7 +236,7 @@ model PushToken {
 ### 5.3 직원 `/me/payslips`, `/me/payslips/[payslipId]`
 
 - 목록: 기간, 실지급액, 새 명세서·정정 배지. `SENT`·`SUPERSEDED`만 보인다 (`SUPERSEDED`는 "이전 버전"으로 접힘).
-- 상세: §3.1 항목 전부. 처음 열면 `viewedAt` 기록. 정정본이면 상단에 `correctionNote`.
+- 상세: §3.1 항목 전부 (매장명·성명·사원번호 포함, 상세 응답 `storeName`). 처음 열면 `viewedAt` 기록. 정정본이면 상단에 `correctionNote`.
 - `/me` 홈에 최신 명세서 카드.
 
 ## 6. 푸시 (FCM)

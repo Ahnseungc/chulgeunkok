@@ -56,6 +56,9 @@ export default function MyPayslipDetailScreen({ payslipId }: MyPayslipDetailScre
       {payslip ? (
         <PageStaggerEntrance className="motion-contents">
           <PageStaggerEntranceItem>
+            <EmployeeInfo payslip={payslip} />
+          </PageStaggerEntranceItem>
+          <PageStaggerEntranceItem>
             <WorkSummary payslip={payslip} />
           </PageStaggerEntranceItem>
           <PageStaggerEntranceItem>
@@ -64,5 +67,19 @@ export default function MyPayslipDetailScreen({ payslipId }: MyPayslipDetailScre
         </PageStaggerEntrance>
       ) : null}
     </main>
+  );
+}
+
+/** 법정 기재사항 중 성명·사원번호와 매장명 (§3.1). 보낸 시점 스냅숏 */
+function EmployeeInfo({ payslip }: { payslip: PayslipDetailDto }) {
+  return (
+    <dl className="terms-summary" aria-label="받는 사람">
+      <dt>매장</dt>
+      <dd>{payslip.storeName}</dd>
+      <dt>성명</dt>
+      <dd>{payslip.employeeName}</dd>
+      <dt>사원번호</dt>
+      <dd>{payslip.employeeNumber}</dd>
+    </dl>
   );
 }
