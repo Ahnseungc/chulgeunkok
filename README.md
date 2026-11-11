@@ -27,3 +27,20 @@
 환경 변수 `GOOGLE_SERVICES_JSON`(Android `google-services.json` 경로), `GOOGLE_SERVICE_INFO_PLIST`(iOS `GoogleService-Info.plist` 경로)를 주면 Firebase 플러그인이 켜진다. 없으면 푸시 없이 기존처럼 동작한다.
 개발 빌드: `cd apps/mobile && GOOGLE_SERVICES_JSON=./google-services.json GOOGLE_SERVICE_INFO_PLIST=./GoogleService-Info.plist npx expo prebuild --clean`
 실행: `WEB_ORIGIN=http://<PC LAN IP>:3020 npx expo run:android` (또는 `run:ios`). Expo Go 에서는 푸시가 꺼진다. 두 파일은 `.gitignore` 대상이다.
+
+## 배치
+
+`/api/internal/jobs/[job]` 를 `Authorization: Bearer $CRON_SECRET` 로 호출한다. 스케줄러(KST 기준)는 레포 밖에서 건다. 레포에는 vercel.json 크론 설정이 없다.
+
+| job | 시각 | 내용 |
+| --- | --- | --- |
+| `daily-reviews` | 매일 06:00 | 결근 의심 + 최근 근무 재평가 |
+| `payslip-drafts` | 매일 06:10 (UTC cron `10 21 * * *`) | 끝난 최근 3개 정산 기간 임금명세서 초안·정정본, `daily-reviews` 뒤에 돈다 |
+
+## 환경 변수 (임금명세서 푸시)
+
+- `PUSH_PROVIDER` (web): `dev`(로그만) | `fcm`. 기본 `dev`.
+- `FIREBASE_SERVICE_ACCOUNT` (web): `fcm`일 때 서비스 계정 JSON 한 줄. 시크릿.
+- `GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_INFO_PLIST` (앱 빌드): 위 "앱 푸시 (FCM)" 참고.
+
+값 예시는 `apps/web/.env.example`.
