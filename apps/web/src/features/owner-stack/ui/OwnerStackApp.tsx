@@ -47,6 +47,11 @@ const Terms = ({ storeId }: OwnerStackAppProps) => {
   return <TermsFormScreen storeId={storeId} memberId={memberId} />;
 };
 
+const Payslips = ({ storeId }: OwnerStackAppProps) => {
+  const { query } = useActivity();
+  return <PayslipsScreen storeId={storeId} initialPeriodStart={query.periodStart} />;
+};
+
 const PayslipDetail = ({ storeId }: OwnerStackAppProps) => {
   const { payslipId } = useParams<{ payslipId: string }>();
   return <PayslipDetailScreen storeId={storeId} payslipId={payslipId} />;
@@ -67,7 +72,7 @@ export default function OwnerStackApp({ storeId }: OwnerStackAppProps) {
       { path: '/owner/:storeId/members/:memberId', element: <MemberDetail storeId={storeId} /> },
       { path: '/owner/:storeId/members/:memberId/terms', element: <Terms storeId={storeId} /> },
       { path: '/owner/:storeId/payroll', element: <PayrollScreen storeId={storeId} />, keepAlive: true },
-      { path: '/owner/:storeId/payslips', element: <PayslipsScreen storeId={storeId} />, keepAlive: true },
+      { path: '/owner/:storeId/payslips', element: <Payslips storeId={storeId} />, keepAlive: true },
       { path: '/owner/:storeId/payslips/:payslipId', element: <PayslipDetail storeId={storeId} /> },
       { path: '/owner/:storeId/corrections', element: <CorrectionsScreen storeId={storeId} /> },
       { path: '/owner/:storeId/settings', element: <SettingsScreen storeId={storeId} /> },

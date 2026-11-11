@@ -96,4 +96,12 @@ describe('PayslipsScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
     expect(within(screen.getByRole('dialog')).getByRole('note').textContent).toContain('1명에게');
   });
+
+  it('URL의 periodStart로 첫 기간을 연다', async () => {
+    respondWith(list([item({})]));
+    render(<PayslipsScreen storeId="s1" initialPeriodStart="2026-09-01" />);
+    await screen.findByText('이알바');
+    const [url] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(String(url)).toContain('/api/v1/stores/s1/payslips?periodStart=2026-09-01');
+  });
 });
