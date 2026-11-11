@@ -179,3 +179,47 @@ function toDetailDto(payslip: PayslipWithLines): Omit<PayslipDetailDto, 'previou
     lines: payslip.lines.map(toLineDraft),
   };
 }
+
+export interface MyPayslipListItemDto {
+  payslipId: string;
+  periodStart: string;
+  periodEnd: string;
+  version: number;
+  status: PayslipStatus;
+  payDate: string | null;
+  netPay: number;
+  sentAt: string | null;
+  viewed: boolean;
+  isCorrection: boolean;
+}
+
+/** GET /attendance/me/payslips — §5.3·§7. 본인 SENT·SUPERSEDED만, 최신 기간 먼저. INACTIVE 본인도 (§1-6) */
+export async function listMyPayslips(db: DbClient, input: { userId: string; storeId: string }): Promise<MyPayslipListItemDto[]> {
+  const payslips = await db.payslip.findMany({
+    where: {
+      storeId: input.storeId,
+      status: { in: ['SENT', 'SUPERSEDED'] },
+      membership: { userId: input.userId },
+    },
+    orderBy: [{ periodStart: 'desc' }, { version: 'desc' }],
+  });
+  return payslips.map((payslip) => ({
+    payslipId: payslip.id,
+    periodStart: toIsoDate(payslip.periodStart),
+    periodEnd: toIsoDate(payslip.periodEnd),
+    version: payslip.version,
+    status: payslip.status,
+    payDate: payslip.payDate ? toIsoDate(payslip.payDate) : null,
+    netPay: payslip.netPay,
+    sentAt: payslip.sentAt?.toISOString() ?? null,
+    viewed: payslip.viewedAt !== null,
+    isCorrection: payslip.version > 1,
+  }));
+}
+
+/** POST /payslips/:id/view — §5.3·§7. 본인 보낸 명세서의 첫 열람 시각만 남긴다. 남의 것·DRAFT는 NOT_FOUND */
+export async function markPayslipViewed(db: DbClient, input: { payslipId: string; userId: string; now: Date }): Promise<void> {
+  const payslip = await db.payslip.findUnique({ where: { id: input.payslipId }, include: { membership: true } });
+  if (!payslip || payslip.membership.userId !== input.userId || payslip.status === 'DRAFT') throw new ApiError('NOT_FOUND');
+  await db.payslip.updateMany({ where: { id: payslip.id, viewedAt: null }, data: { viewedAt: input.now } });
+}

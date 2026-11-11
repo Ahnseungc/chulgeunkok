@@ -1,5 +1,5 @@
 import { DEVICE_COOKIE } from '@chulgeunkok/app-bridge';
-import type { DbClient } from '@chulgeunkok/db';
+import type { DbClient, DeviceCredential } from '@chulgeunkok/db';
 import type { NextResponse } from 'next/server';
 
 import { generateToken } from '@/server/crypto/generate-token';
@@ -21,8 +21,9 @@ export async function registerDevice(
   return token;
 }
 
-/** 그 사람의 기기 전부 폐기. 기기 재등록 시 (docs/specs/auth §3.4) */
+/** 그 사람의 기기 전부 폐기. 기기 재등록 시 (docs/specs/auth §3.4). 푸시 토큰도 함께 지운다 (docs/specs/payslip §6) */
 export async function revokeUserDevices(db: DbClient, input: { userId: string; now: Date }) {
+  await db.pushToken.deleteMany({ where: { userId: input.userId } });
   await db.deviceCredential.updateMany({
     where: { userId: input.userId, revokedAt: null },
     data: { revokedAt: input.now },
@@ -33,6 +34,12 @@ export async function revokeUserDevices(db: DbClient, input: { userId: string; n
 export async function findDeviceUserId(db: DbClient, token: string): Promise<string | null> {
   const device = await db.deviceCredential.findUnique({ where: { tokenHash: hashToken(token) } });
   return device && !device.revokedAt ? device.userId : null;
+}
+
+/** 푸시 토큰 등록처럼 기기 id가 필요한 곳용. 폐기됐거나 없으면 null */
+export async function findDeviceCredential(db: DbClient, token: string): Promise<DeviceCredential | null> {
+  const device = await db.deviceCredential.findUnique({ where: { tokenHash: hashToken(token) } });
+  return device && !device.revokedAt ? device : null;
 }
 
 export function setDeviceCookie(response: NextResponse, token: string): void {
@@ -46,8 +53,9 @@ export function setDeviceCookie(response: NextResponse, token: string): void {
   });
 }
 
-/** 로그아웃: 이 기기 하나만 폐기 */
+/** 로그아웃: 이 기기 하나만 폐기. 이 기기의 푸시 토큰도 지운다 (docs/specs/payslip §6) */
 export async function revokeDeviceToken(db: DbClient, input: { token: string; now: Date }) {
+  await db.pushToken.deleteMany({ where: { deviceCredential: { tokenHash: hashToken(input.token) } } });
   await db.deviceCredential.updateMany({
     where: { tokenHash: hashToken(input.token), revokedAt: null },
     data: { revokedAt: input.now },

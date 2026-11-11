@@ -271,7 +271,7 @@ model PushToken {
 | GET | `/attendance/me/payslips?storeId=` | 본인 |
 | POST | `/push-tokens` body `{ token, platform }` | 기기 |
 
-- 쓰기 요청은 공통대로 Zod 검증·권한 가드·멱등 키(보내기).
+- 쓰기 요청은 공통대로 Zod 검증·권한 가드. 보내기는 멱등 키 없이 조건부 DRAFT → SENT 전이에 기댄다: 재시도하면 409 `PAYSLIP_NOT_EDITABLE`이고 두 번 보내지지 않는다.
 - 서버 푸시 발송기는 `PUSH_PROVIDER` 로 고른다: `fcm`(firebase-admin, `FIREBASE_SERVICE_ACCOUNT` 필요) / 그 밖은 dev(로그만, production에서는 `INTERNAL`).
 - 인덱스 §2.5 권한 매트릭스에 "임금명세서 수정·보내기: Owner만", "조회: Owner·`PAYROLL_READ`·본인" 줄 추가.
 

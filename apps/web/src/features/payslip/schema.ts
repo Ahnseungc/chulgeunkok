@@ -40,3 +40,6 @@ export const SendPayslipsBody = z.object({ payslipIds: z.array(z.string().min(1)
 export type UpdatePayslipBody = z.output<typeof UpdatePayslipBody>;
 export type UpdatePayslipLineBody = z.output<typeof UpdatePayslipLineBody>;
 export type AddPayslipLineBody = z.output<typeof AddPayslipLineBody>;
+
+/** GET /attendance/me/payslips — docs/specs/payslip §7 */
+export const MyPayslipsQuery = z.object({ storeId: z.string().min(1) });
