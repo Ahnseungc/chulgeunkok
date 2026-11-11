@@ -74,13 +74,23 @@ export async function askPushPermissionOnce(): Promise<void> {
   }
 }
 
-/** FCM 토큰을 서버에 등록한다. 기기 토큰이 없으면(미등록 기기) 건너뛴다 */
+/** OS 알림이 허용됐는지. 거절·아직 안 물음이면 false (알림이 화면에 뜨지 않는다) */
+async function notificationsAllowed(push: Push): Promise<boolean> {
+  const { AuthorizationStatus } = push.module;
+  const status = await push.module.hasPermission(push.messaging);
+  return status !== AuthorizationStatus.DENIED && status !== AuthorizationStatus.NOT_DETERMINED;
+}
+
+/**
+ * FCM 토큰을 서버에 등록한다. 기기 토큰이 없거나(미등록 기기) OS 알림을 거절했으면 건너뛴다 —
+ * 등록하지 않아야 사장님 목록에 "알림 미수신"이 보인다 (docs/specs/payslip §5.1·§6)
+ */
 export async function syncPushToken(): Promise<void> {
   const push = loadPush();
   if (!push) return;
   try {
     const deviceToken = await getDeviceToken();
-    if (!deviceToken) return;
+    if (!deviceToken || !(await notificationsAllowed(push))) return;
     const token = await push.module.getToken(push.messaging);
     const response = await fetch(`${WEB_ORIGIN}/api/v1/push-tokens`, {
       method: 'POST',
@@ -102,17 +112,24 @@ export function onPushTokenRefresh(onRefresh: () => void): () => void {
 
 const pathOf = (message: PushMessage): string | null => toPushPath(message?.data?.path);
 
-/** 알림을 눌러 앱이 열리면 data.path 로 이동 (종료 상태에서 열린 경우 포함). 해제 함수 반환 */
+/** 종료 상태에서 알림을 눌러 앱이 열렸으면 그 알림의 data.path. 없거나 확인 실패면 null */
+export async function initialPushPath(): Promise<string | null> {
+  const push = loadPush();
+  if (!push) return null;
+  try {
+    return pathOf(await push.module.getInitialNotification(push.messaging));
+  } catch (error) {
+    console.warn('[push] 초기 알림 확인 실패', error);
+    return null;
+  }
+}
+
+/** 백그라운드에서 알림을 눌러 앱으로 돌아오면 data.path 로 이동. 종료 상태는 initialPushPath. 해제 함수 반환 */
 export function onPushOpen(open: (path: string) => void): () => void {
   const push = loadPush();
   if (!push) return () => undefined;
-  const openIfPath = (message: PushMessage) => {
+  return push.module.onNotificationOpenedApp(push.messaging, (message: PushMessage) => {
     const path = pathOf(message);
     if (path) open(path);
-  };
-  push.module
-    .getInitialNotification(push.messaging)
-    .then(openIfPath)
-    .catch((error: unknown) => console.warn('[push] 초기 알림 확인 실패', error));
-  return push.module.onNotificationOpenedApp(push.messaging, openIfPath);
+  });
 }

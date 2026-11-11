@@ -9,7 +9,7 @@ import { parseWebToApp, toAppPath, type AppToWebMessage } from '@chulgeunkok/app
 import { HOME_PATH, WEB_ORIGIN } from './src/config';
 import { buildEntryUrl, getDeviceToken, saveDeviceFromHandoff } from './src/device-session';
 import { getNativeLocation } from './src/native-location';
-import { askPushPermissionOnce, onPushOpen, onPushTokenRefresh, syncPushToken } from './src/push';
+import { askPushPermissionOnce, initialPushPath, onPushOpen, onPushTokenRefresh, syncPushToken } from './src/push';
 import ScannerModal from './src/ScannerModal';
 
 /**
@@ -26,16 +26,22 @@ export default function App() {
     webViewRef.current?.postMessage(JSON.stringify(message));
   }, []);
 
-  /** 앱 경로로 이동. 저장된 기기 토큰이 있으면 세션을 복원하며 연다 */
+  // 마지막 이동 요청 번호. buildEntryUrl 이 비동기라 늦게 끝난 이전 요청이 새 화면을 덮지 않게 한다
+  const openRequest = useRef(0);
+
+  /** 앱 경로로 이동. 저장된 기기 토큰이 있으면 세션을 복원하며 연다. 가장 나중 요청만 반영 */
   const openPath = useCallback(async (path: string) => {
-    setUri(await buildEntryUrl(path));
+    const request = ++openRequest.current;
+    const url = await buildEntryUrl(path);
+    if (request === openRequest.current) setUri(url);
   }, []);
 
-  // 첫 화면: 앱을 연 딥링크(QR·NFC·초대 링크)가 있으면 그 경로, 없으면 내 근무
+  // 첫 화면은 한 번에 정한다: 앱을 연 딥링크(QR·NFC·초대 링크) → 앱을 연 알림(명세서) → 내 근무
   useEffect(() => {
     void (async () => {
       const initialUrl = await Linking.getInitialURL();
-      await openPath((initialUrl && toAppPath(initialUrl, WEB_ORIGIN)) ?? HOME_PATH);
+      const linkPath = initialUrl ? toAppPath(initialUrl, WEB_ORIGIN) : null;
+      await openPath(linkPath ?? (await initialPushPath()) ?? HOME_PATH);
     })();
     const subscription = Linking.addEventListener('url', ({ url }) => {
       const path = toAppPath(url, WEB_ORIGIN);

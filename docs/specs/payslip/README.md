@@ -246,7 +246,7 @@ model PushToken {
 - 서버: `firebase-admin` 의 `messaging().send()`. 서비스 계정은 환경 변수 `FIREBASE_SERVICE_ACCOUNT` (JSON, 시크릿).
 - **권한 요청**: 기기 등록(handoff) 끝난 직후, 그리고 이미 등록된 기기는 업데이트 후 처음 앱을 켤 때 1회, 앱이 안내 화면을 보여 주고 OS 권한을 묻는다. 거절해도 앱은 쓸 수 있다.
 - **인증**: `POST /push-tokens` 는 SecureStore의 기기 토큰을 Bearer로 보낸다. 기존 `getSessionUserId` 의 Bearer 처리를 그대로 쓰고, 기기 행은 새 `findDeviceCredential` 로 찾아 `deviceCredentialId`를 얻는다 (새 가드는 만들지 않는다).
-- **토큰 등록**: 앱이 토큰을 얻거나 갱신되면 `POST /api/v1/push-tokens` (기기 토큰 Bearer, `auth` §5). `deviceCredentialId` 기준 upsert. 기기 재등록·폐기 시 삭제.
+- **토큰 등록**: 앱이 토큰을 얻거나 갱신되면 `POST /api/v1/push-tokens` (기기 토큰 Bearer, `auth` §5). `deviceCredentialId` 기준 upsert. 기기 재등록·폐기 시 삭제. OS 알림 권한이 거절됐거나 아직 묻지 않았으면 등록하지 않는다 (사장님 목록에 "알림 미수신").
 - **보내는 알림**
 
   | 이벤트 | 제목 | 본문 | 열 곳 |
@@ -255,7 +255,7 @@ model PushToken {
   | 정정본 보내기 | `임금명세서가 정정됐어요` | `<매장명> · 10/1~10/31` | 같음 |
 
   금액을 잠금 화면에 보이기 싫을 수 있으므로 정정 알림엔 금액을 넣지 않는다. (최초 알림 금액 노출은 사장님 피드백 보고 조정.)
-- 알림 탭 → 앱이 data의 `path`로 WebView 이동 (브릿지 `OPEN_PATH` 없이 앱이 직접 URL 로드).
+- 알림 탭 → 앱이 data의 `path`로 WebView 이동 (브릿지 `OPEN_PATH` 없이 앱이 직접 URL 로드). 종료 상태에서 알림으로 앱을 열면 첫 화면을 한 번에 정한다: 앱을 연 딥링크 → 앱을 연 알림의 `path` → 홈. 이동 요청이 겹치면 가장 나중 요청만 반영한다.
 - 발송 실패(`registration-token-not-registered`)면 그 토큰 삭제. 실패는 명세서 교부를 되돌리지 않는다 — 교부는 앱 안에서 열람 가능해진 시점.
 
 ## 7. API
