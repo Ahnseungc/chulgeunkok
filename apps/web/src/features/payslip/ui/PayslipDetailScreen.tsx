@@ -17,7 +17,7 @@ import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 import type { PayslipDetailDto } from '../model/payslip-types';
 
 import LineEditSheet, { type LineEditTarget } from './LineEditSheet';
-import { payslipChipOf } from './payslip-labels';
+import { payslipChipOf, UNRESOLVED_WARNING } from './payslip-labels';
 import PayslipTable from './PayslipTable';
 import { changedLineIdsOf, usePayslipDetail } from './usePayslipDetail';
 
@@ -65,6 +65,11 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
           {payslip ? `${formatPeriodRange(payslip.periodStart, payslip.periodEnd)} · 사원번호 ${payslip.employeeNumber}` : TEXT_PLACEHOLDER}
         </Text>
         {payslip ? <StatusLine payslip={payslip} /> : null}
+        {isDraft && payslip.unresolvedCount > 0 ? (
+          <Text textStyle="t4Regular" color="fg.warning" role="note">
+            미해결 근태 {payslip.unresolvedCount}건 · {UNRESOLVED_WARNING}
+          </Text>
+        ) : null}
         {payslip && !isDraft && payslip.correctionNote ? (
           <Text textStyle="t4Regular" color="fg.neutralMuted">
             정정 사유: {payslip.correctionNote}

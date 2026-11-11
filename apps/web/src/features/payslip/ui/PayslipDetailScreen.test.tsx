@@ -38,6 +38,7 @@ const basePay: PayslipLineDto = {
 const detail = (overrides: Partial<PayslipDetailDto> = {}): PayslipDetailDto => ({
   id: 'p1',
   storeId: 's1',
+  storeName: '골목카페',
   membershipId: 'm1',
   periodStart: '2026-11-01',
   periodEnd: '2026-12-01',
@@ -59,6 +60,7 @@ const detail = (overrides: Partial<PayslipDetailDto> = {}): PayslipDetailDto => 
   sentAt: null,
   viewedAt: null,
   lines: [basePay],
+  unresolvedCount: 0,
   previousSent: null,
   ...overrides,
 });
@@ -95,5 +97,11 @@ describe('PayslipDetailScreen', () => {
     expect(send.hasAttribute('disabled')).toBe(true);
     fireEvent.change(note, { target: { value: '11/2 퇴근 시각을 고쳤어요' } });
     expect(send.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('미해결 근태가 있으면 경고 줄을 보여 준다', async () => {
+    respondWith(detail({ unresolvedCount: 2 }));
+    render(<PayslipDetailScreen storeId="s1" payslipId="p1" />);
+    expect((await screen.findByRole('note')).textContent).toContain('미해결 근태 2건');
   });
 });

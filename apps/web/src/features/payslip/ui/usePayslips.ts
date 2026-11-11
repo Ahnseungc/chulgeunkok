@@ -15,6 +15,8 @@ export function bulkSendTargetOf(items: readonly PayslipListItemDto[]) {
     payslipIds: targets.map((item) => item.payslipId),
     netPayTotal: targets.reduce((sum, item) => sum + item.netPay, 0),
     missingPayDate: targets.filter((item) => item.payDate === null).length,
+    /** 미해결 근태가 남은 대상 수 (§4.3). 막지는 않고 경고만 */
+    unresolved: targets.filter((item) => item.unresolvedCount > 0).length,
   };
 }
 
