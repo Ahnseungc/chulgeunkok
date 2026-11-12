@@ -176,6 +176,21 @@ describe('updateMember', () => {
     expect([member.role, member.permissions]).toEqual(['EMPLOYEE', []]);
   });
 
+  it('퇴사한 직원의 역할·권한은 바꾸지 않고 이력도 남기지 않는다', async () => {
+    await db.membership.update({ where: { id: 'm-a' }, data: { status: 'INACTIVE', leftAt: NOW } });
+    await expect(
+      updateMember(db, {
+        storeId: 'store',
+        actorUserId: 'owner',
+        memberId: 'm-a',
+        change: { role: 'MANAGER', permissions: ['PAYROLL_READ'] },
+        now: NOW,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', message: '퇴사한 직원의 역할은 바꿀 수 없어요.' });
+    const member = await db.membership.findUniqueOrThrow({ where: { id: 'm-a' } });
+    expect([member.role, member.permissions, await db.membershipEvent.count()]).toEqual(['EMPLOYEE', [], 0]);
+  });
+
   it('Manager는 직원 상태를 바꿀 수 없다', async () => {
     await expect(
       updateMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-a', change: { status: 'INACTIVE' }, now: NOW }),
