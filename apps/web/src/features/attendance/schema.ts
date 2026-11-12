@@ -86,6 +86,15 @@ export const AdminUpdateAttendanceBody = z.object({
   reason: Reason,
 });
 
+/** 근무 한 건에 넣을 수 있는 휴게 수 상한 (docs/specs/attendance §7.6) */
+export const MAX_BREAKS_PER_ATTENDANCE = 20;
+
+/** docs/specs/attendance §7.6 — 관리자가 끝난 근무의 휴게를 통째로 바꾼다. 빈 목록 = 기록한 휴게 없음 */
+export const AdminReplaceBreaksBody = z.object({
+  breaks: z.array(z.object({ startAt: IsoDateTime, endAt: IsoDateTime })).max(MAX_BREAKS_PER_ATTENDANCE),
+  reason: Reason,
+});
+
 /** docs/specs/attendance §7.5 — 관리자가 빠진 근무를 직접 추가한다 */
 export const AdminCreateAttendanceBody = z.object({
   memberId: z.string().min(1),

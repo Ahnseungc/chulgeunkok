@@ -35,11 +35,18 @@ export interface AttendanceRevisionDto {
   createdAt: string;
 }
 
+export interface BreakSnapshot {
+  startAt: string;
+  endAt: string | null;
+}
+
 export interface AttendanceSnapshot {
   clockInAt: string;
   clockOutAt: string | null;
   status: AttendanceStatus;
   breakWaived: boolean;
+  /** 휴게를 고친 이력에만 있다 (docs/specs/attendance §7.6). 이전 이력에는 없다 */
+  breaks?: BreakSnapshot[];
 }
 
 export type CorrectionType = 'TIME' | 'BREAK_WAIVED' | 'MISSING_CLOCK_OUT';

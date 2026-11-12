@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe('AttendanceDetailScreen 휴게 기록 (attendance §3.6)', () => {
-  it('직원이 남긴 휴게 시각과 합계를 보여 준다 (읽기 전용)', async () => {
+  it('직원이 남긴 휴게 시각과 합계를 보여 준다', async () => {
     render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
     const section = await screen.findByRole('region', { name: '휴게 기록' });
     expect(within(section).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
@@ -41,6 +41,15 @@ describe('AttendanceDetailScreen 휴게 기록 (attendance §3.6)', () => {
       '21:00 ~ 21:05 · 5분',
     ]);
     expect(within(section).getByText('합계 25분')).toBeTruthy();
+    expect(within(section).getByRole('button', { name: '휴게 고치기' })).toBeTruthy();
+  });
+
+  it('근무 중인 기록은 휴게를 보여 주기만 하고 고칠 수 없다', async () => {
+    const open = { ...DETAIL, status: 'OPEN', clockOutAt: null, breaks: [{ id: 'b1', startAt: '2026-11-02T11:00:00.000Z', endAt: null }] };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => open })));
+    render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
+    const section = await screen.findByRole('region', { name: '휴게 기록' });
+    expect(within(section).getByText('20:00 ~ 휴게 중')).toBeTruthy();
     expect(within(section).queryByRole('button')).toBeNull();
   });
 
@@ -64,6 +73,8 @@ describe('AttendanceDetailScreen 휴게 기록 (attendance §3.6)', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => mistap })));
     render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
     expect(await screen.findByRole('checkbox')).toBeTruthy();
-    expect(screen.queryByRole('region', { name: '휴게 기록' })).toBeNull();
+    const section = screen.getByRole('region', { name: '휴게 기록' });
+    expect(within(section).queryByRole('listitem')).toBeNull();
+    expect(within(section).getByText('남긴 휴게가 없어요')).toBeTruthy();
   });
 });

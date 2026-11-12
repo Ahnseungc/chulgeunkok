@@ -425,6 +425,14 @@ body {
   width: 100%;
 }
 
+/* 휴게 고치기 시트 한 줄: 시작·끝 칸과 지우기 버튼 (docs/specs/attendance §7.6) */
+.break-edit-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
 .invite-qr {
   display: flex;
   flex-direction: column;
