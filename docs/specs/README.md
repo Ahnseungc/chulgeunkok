@@ -124,6 +124,7 @@ interface ApiError {
 | `/owner/[storeId]/attendances` | Owner·Manager | attendance |
 | `/owner/[storeId]/payroll` | Owner·`PAYROLL_READ` | payroll |
 | `/owner/[storeId]/settings` | Owner | store |
+| `/owner/[storeId]/qr-card` | Owner | qr-card §5 (QR 카드 꾸미기·PDF·PNG 받기) |
 
 ---
 

@@ -11,6 +11,7 @@ import TermsFormScreen from '@/features/labor/ui/TermsFormScreen';
 import PayrollScreen from '@/features/payroll/ui/PayrollScreen';
 import PayslipDetailScreen from '@/features/payslip/ui/PayslipDetailScreen';
 import PayslipsScreen from '@/features/payslip/ui/PayslipsScreen';
+import QrCardScreen from '@/features/qr-card/ui/QrCardScreen';
 import MemberDetailScreen from '@/features/staff/ui/MemberDetailScreen';
 import MembersScreen from '@/features/staff/ui/MembersScreen';
 import SettingsScreen from '@/features/store/ui/SettingsScreen';
@@ -76,6 +77,7 @@ export default function OwnerStackApp({ storeId }: OwnerStackAppProps) {
       { path: '/owner/:storeId/payslips/:payslipId', element: <PayslipDetail storeId={storeId} /> },
       { path: '/owner/:storeId/corrections', element: <CorrectionsScreen storeId={storeId} /> },
       { path: '/owner/:storeId/settings', element: <SettingsScreen storeId={storeId} /> },
+      { path: '/owner/:storeId/qr-card', element: <QrCardScreen storeId={storeId} /> },
     ];
     return { initialActivity: dashboard, activities: list };
   }, [base, storeId]);
