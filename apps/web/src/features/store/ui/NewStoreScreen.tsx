@@ -43,7 +43,7 @@ export default function NewStoreScreen() {
   if (store.created) {
     return (
       <main className="screen">
-        <StoreQrCard storeName={store.created.store.name} url={store.created.qr.url} />
+        <StoreQrCard storeId={store.created.store.id} storeName={store.created.store.name} url={store.created.qr.url} />
         <div className="punch-bottom">
           <ActionButton asChild variant="neutralSolid" size="large" flexGrow>
             <Link href="/owner">확인</Link>

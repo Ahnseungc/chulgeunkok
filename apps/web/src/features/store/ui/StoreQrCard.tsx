@@ -4,16 +4,18 @@ import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
 import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from '@/shared/motion/SuccessEntrance';
+import { AppLink } from '@/shared/ui/AppLink';
 import KokMark from '@/shared/ui/KokMark';
 import QrImage from '@/shared/ui/QrImage';
 
 interface StoreQrCardProps {
+  storeId: string;
   storeName: string;
   url: string;
 }
 
-/** 매장 출근 QR. 원문 URL은 생성 직후에만 있으므로 이 화면에서 인쇄·저장한다 (docs/specs/store §5.3) */
-export default function StoreQrCard({ storeName, url }: StoreQrCardProps) {
+/** 매장 생성·QR 재발급 직후의 출근 QR. 인쇄·저장하거나 QR 카드 화면으로 간다 (docs/specs/store §5.3·§5.4) */
+export default function StoreQrCard({ storeId, storeName, url }: StoreQrCardProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   return (
@@ -52,6 +54,10 @@ export default function StoreQrCard({ storeName, url }: StoreQrCardProps) {
               </a>
             </ActionButton>
           ) : null}
+          {/* 스탠드·스티커 카드는 QR 카드 화면에서 만든다 (docs/specs/store §5.4, qr-card §5.1) */}
+          <ActionButton asChild variant="neutralWeak" size="medium">
+            <AppLink href={`/owner/${storeId}/qr-card`}>QR 카드 만들기</AppLink>
+          </ActionButton>
         </SuccessEntranceItem>
       </SuccessEntrance>
     </section>
