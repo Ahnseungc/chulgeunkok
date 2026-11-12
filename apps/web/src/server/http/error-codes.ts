@@ -81,6 +81,10 @@ export const ERROR_CODES = {
     message: '이미 정리된 항목은 확인 처리할 수 없어요.',
   },
 
+  // qr-card
+  QR_LOGO_TOO_LARGE: { status: 400, message: '로고 파일이 너무 커요. 200KB 이하로 올려 주세요.' },
+  QR_LOGO_INVALID: { status: 400, message: 'PNG나 JPG 이미지만 올릴 수 있어요.' },
+
   // attendance
   QR_TOKEN_INVALID: { status: 404, message: 'QR을 확인할 수 없어요.' },
   QR_TOKEN_REVOKED: {
