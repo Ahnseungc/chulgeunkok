@@ -103,17 +103,30 @@ export async function verifyOtp(
 }
 
 /**
- * 초대로 등록한 Manager가 급여를 보려고 번호를 인증할 때 (§4.2). 기기·세션은 그대로 두고 번호만 붙인다.
- * 그 번호가 다른 사람 것이면 합치지 않는다 (§4 "번호가 없던 User와는 합치지 않는다").
+ * 초대로 등록한 급여 권한 Manager가 번호를 인증할 때 (§4.2). 기기·세션은 그대로 두고 번호만 붙인다.
+ * - 이미 번호가 있으면 바꾸지 않는다 (같은 번호면 그대로, 다르면 PHONE_ALREADY_SET). 훔친 기기 쿠키로 계정 번호를 옮기지 못하게
+ * - 어느 매장에서든 ACTIVE `PAYROLL_READ` Manager여야 한다. 직원이 번호를 붙여 OTP로 기기를 늘리지 못하게 (§3.4)
+ * - 그 번호가 다른 사람 것이면 합치지 않는다 (§4 "번호가 없던 User와는 합치지 않는다")
  */
 async function attachPhone(
   tx: Prisma.TransactionClient,
   input: { userId: string; phone: string },
 ): Promise<{ deviceToken: null; needsName: boolean }> {
-  const owner = await tx.user.findUnique({ where: { phone: input.phone }, select: { id: true } });
-  if (owner && owner.id !== input.userId) throw new ApiError('PHONE_IN_USE');
-  const user = await tx.user.update({ where: { id: input.userId }, data: { phone: input.phone } });
-  return { deviceToken: null, needsName: user.name === PENDING_NAME };
+  const user = await tx.user.findUnique({ where: { id: input.userId } });
+  if (!user) throw new ApiError('UNAUTHENTICATED');
+  const result = { deviceToken: null, needsName: user.name === PENDING_NAME };
+  if (user.phone === input.phone) return result;
+  if (user.phone) throw new ApiError('PHONE_ALREADY_SET');
+  // ponytail: enum 배열 `has` 필터가 PGlite 어댑터에서 깨져 Manager 소속을 읽어 거른다 (사람당 매장 수는 작다)
+  const managing = await tx.membership.findMany({
+    where: { userId: user.id, status: 'ACTIVE', role: 'MANAGER' },
+    select: { permissions: true },
+  });
+  if (!managing.some((membership) => membership.permissions.includes('PAYROLL_READ'))) throw new ApiError('FORBIDDEN');
+  const taken = await tx.user.findUnique({ where: { phone: input.phone }, select: { id: true } });
+  if (taken) throw new ApiError('PHONE_IN_USE');
+  await tx.user.update({ where: { id: user.id }, data: { phone: input.phone } });
+  return result;
 }
 
 async function recordFailedAttempt(

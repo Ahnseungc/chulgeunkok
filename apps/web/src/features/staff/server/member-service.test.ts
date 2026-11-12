@@ -82,6 +82,22 @@ describe('getMember', () => {
   });
 });
 
+describe('getMember — 시급 노출 (auth §4.2)', () => {
+  it('PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 전엔 근로조건을 못 보고, 인증하면 본다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
+    const before = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
+    await db.user.update({ where: { id: 'manager' }, data: { phone: '+821000000009' } });
+    const after = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
+    expect([before.canReadTerms, before.currentTerms, after.canReadTerms, after.currentTerms?.hourlyWage]).toEqual([false, null, true, 10320]);
+  });
+
+  it('TERMS_EDIT Manager는 인증 없이도 본다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['TERMS_EDIT'] } });
+    const member = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
+    expect(member.currentTerms?.hourlyWage).toBe(10320);
+  });
+});
+
 describe('updateMember', () => {
   it('비활성화하면 퇴사일이 남고 근로조건이 닫힌다', async () => {
     const member = await updateMember(db, {
@@ -155,6 +171,19 @@ describe('변경 이력 (staff §4.3)', () => {
   it('값이 그대로면 이력을 남기지 않는다', async () => {
     await update('m-manager', { role: 'MANAGER', permissions: [] });
     expect(await eventsOf('m-manager')).toEqual([]);
+  });
+
+  it('매니저를 퇴사 처리하면 위임 권한도 비우고 PERMISSIONS_CHANGED를 남긴다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
+    const member = await update('m-manager', { status: 'INACTIVE' });
+    const events = await eventsOf('m-manager');
+    expect(member.permissions).toEqual([]);
+    expect(events.map((event) => [event.type, event.after])).toEqual(
+      expect.arrayContaining([
+        ['DEACTIVATED', { status: 'INACTIVE' }],
+        ['PERMISSIONS_CHANGED', { permissions: [] }],
+      ]),
+    );
   });
 
   it('퇴사 처리는 DEACTIVATED, 최근 것이 먼저 온다', async () => {

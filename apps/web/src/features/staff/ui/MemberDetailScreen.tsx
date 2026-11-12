@@ -149,8 +149,8 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
 
             {detail.role !== 'OWNER' && detail.canViewHistory ? (
               <PageStaggerEntranceItem>
-                {/* 퇴사 처리·복귀로 상태가 바뀌면 다시 불러온다 */}
-                <MemberHistorySection key={`${detail.status}-${detail.role}`} memberPath={memberPath} />
+                {/* 상태·역할·권한이 바뀌면 다시 불러온다 */}
+                <MemberHistorySection key={`${detail.status}-${detail.role}-${detail.permissions.join(',')}`} memberPath={memberPath} />
               </PageStaggerEntranceItem>
             ) : null}
           </PageStaggerEntrance>

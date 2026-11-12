@@ -3,7 +3,7 @@ import type { Membership, PrismaClient, User } from '@chulgeunkok/db';
 import { toTermsDto } from '@/features/labor/server/labor-context';
 import { OPEN_REVIEW_STATUSES } from '@/features/labor/server/review-service';
 import { canAccessStore } from '@/server/auth/access';
-import { requireMembership } from '@/server/auth/require-membership';
+import { canAccessVerified, requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
 import type { MemberDetailDto, MemberSummaryDto } from '../model/member-types';
@@ -61,7 +61,8 @@ export async function getMember(
   });
   if (!member) throw new ApiError('NOT_FOUND');
 
-  const canReadTerms = canAccessStore(actor, 'TERMS_READ');
+  // 시급이 보이므로 PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 뒤에만 (auth §4.2)
+  const canReadTerms = await canAccessVerified(db, actor, 'TERMS_READ');
   const latestTerms = member.employmentTerms[0];
   return {
     ...toSummary(member),
@@ -98,45 +99,48 @@ interface MemberChange {
   now: Date;
 }
 
-/** 위임 권한은 Manager에게만 의미가 있다. 직원으로 내리면 비운다 */
+/** 위임 권한은 Manager에게만 의미가 있다. 직원으로 내리면 비운다. 이력 before는 트랜잭션 안에서 다시 읽은 값 */
 async function changeRole(
   db: PrismaClient,
   input: MemberChange & Pick<UpdateMemberInput, 'role' | 'permissions'>,
 ) {
-  const { member } = input;
-  const role = input.role ?? member.role;
-  const permissions = role === 'MANAGER' ? (input.permissions ?? member.permissions) : [];
   await db.$transaction(async (tx) => {
-    await tx.membership.update({ where: { id: member.id }, data: { role, permissions } });
+    const current = await tx.membership.findUniqueOrThrow({ where: { id: input.member.id } });
+    const role = input.role ?? current.role;
+    const permissions = role === 'MANAGER' ? (input.permissions ?? current.permissions) : [];
+    await tx.membership.update({ where: { id: current.id }, data: { role, permissions } });
     await recordMembershipChange(tx, {
-      membershipId: member.id,
+      membershipId: current.id,
       actorId: input.actorId,
-      before: member,
-      after: { role, permissions, status: member.status },
+      before: current,
+      after: { role, permissions, status: current.status },
       now: input.now,
     });
   });
 }
 
-/** 근무 중이면 막는다. 열린 근로조건은 지금 닫는다. leftAt은 기록 보관 3년의 시작점 */
+/**
+ * 근무 중이면 막는다. 열린 근로조건은 지금 닫는다. leftAt은 기록 보관 3년의 시작점.
+ * 위임 권한도 비운다 — 새 직원 초대로 복귀할 때 예전 급여 권한이 조용히 되살아나지 않게 (staff §4.1)
+ */
 async function deactivateMember(db: PrismaClient, input: MemberChange) {
-  const { member } = input;
   await db.$transaction(async (tx) => {
-    const working = await tx.attendance.findFirst({ where: { membershipId: member.id, status: 'OPEN' } });
+    const current = await tx.membership.findUniqueOrThrow({ where: { id: input.member.id } });
+    const working = await tx.attendance.findFirst({ where: { membershipId: current.id, status: 'OPEN' } });
     if (working) throw new ApiError('MEMBER_HAS_OPEN_ATTENDANCE');
     await tx.membership.update({
-      where: { id: member.id },
-      data: { status: 'INACTIVE', leftAt: input.now },
+      where: { id: current.id },
+      data: { status: 'INACTIVE', leftAt: input.now, permissions: [] },
     });
     await tx.employmentTerms.updateMany({
-      where: { membershipId: member.id, effectiveTo: null, effectiveFrom: { lt: input.now } },
+      where: { membershipId: current.id, effectiveTo: null, effectiveFrom: { lt: input.now } },
       data: { effectiveTo: input.now },
     });
     await recordMembershipChange(tx, {
-      membershipId: member.id,
+      membershipId: current.id,
       actorId: input.actorId,
-      before: member,
-      after: { ...member, status: 'INACTIVE' },
+      before: current,
+      after: { ...current, status: 'INACTIVE', permissions: [] },
       now: input.now,
     });
   });

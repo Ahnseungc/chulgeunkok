@@ -37,10 +37,20 @@ export function canAccessStore(
   );
 }
 
+/** 시급이 보이는 동작. `TERMS_EDIT` 없이 `PAYROLL_READ`로만 들어오는 Manager는 휴대폰 인증 뒤에만 */
+const WAGE_READ_ACTIONS: readonly StoreAction[] = ['TERMS_READ', 'LABOR_REVIEW'];
+
 /**
- * 급여 권한을 위임받은 Manager는 휴대폰 인증(User.phone)까지 해야 급여를 본다 (docs/specs/auth §4.2, 인덱스 Q8).
+ * 급여 권한을 위임받은 Manager는 휴대폰 인증(User.phone)까지 해야 급여·시급을 본다 (docs/specs/auth §4.2, 인덱스 Q8).
+ * - `PAYROLL`: Manager는 항상
+ * - 근로조건·검토 안내(시급 포함): `TERMS_EDIT`이 없는 Manager (`PAYROLL_READ`로 들어온 경우)
  * 사장님은 휴대폰 인증으로만 기기를 등록하므로 따로 묻지 않는다.
  */
-export function needsVerifiedPhone(membership: { role: Role }, action: StoreAction): boolean {
-  return action === 'PAYROLL' && membership.role === 'MANAGER';
+export function needsVerifiedPhone(
+  membership: { role: Role; permissions: readonly Permission[] },
+  action: StoreAction,
+): boolean {
+  if (membership.role !== 'MANAGER') return false;
+  if (action === 'PAYROLL') return true;
+  return WAGE_READ_ACTIONS.includes(action) && !membership.permissions.includes('TERMS_EDIT');
 }

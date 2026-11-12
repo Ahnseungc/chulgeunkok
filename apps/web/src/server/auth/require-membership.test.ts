@@ -2,7 +2,7 @@ import type { PrismaClient } from '@chulgeunkok/db';
 import { createTestDb } from '@chulgeunkok/db/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { canReadPayroll, requireMembership } from './require-membership';
+import { canAccessVerified, requireMembership } from './require-membership';
 
 let db: PrismaClient;
 let close: () => Promise<void>;
@@ -47,7 +47,24 @@ describe('requireMembership — 급여 권한 Manager 휴대폰 인증 (auth §4
   });
 
   it('급여가 아닌 동작은 휴대폰 인증을 묻지 않는다', async () => {
+    await expect(guard('manager', 'DASHBOARD')).resolves.toMatchObject({ id: 'm-manager' });
+  });
+
+  it('PAYROLL_READ로만 근로조건·검토 안내(시급)를 보는 Manager도 인증 전이면 PHONE_VERIFICATION_REQUIRED', async () => {
+    await expect(guard('manager', 'TERMS_READ')).rejects.toMatchObject({ code: 'PHONE_VERIFICATION_REQUIRED' });
+    await expect(guard('manager', 'LABOR_REVIEW')).rejects.toMatchObject({ code: 'PHONE_VERIFICATION_REQUIRED' });
+    await expect(guard('verified', 'TERMS_READ')).resolves.toMatchObject({ id: 'm-verified' });
+  });
+
+  it('TERMS_EDIT Manager는 인증 없이 근로조건·검토 안내를 보지만 급여는 인증 뒤에만', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ', 'TERMS_EDIT'] } });
     await expect(guard('manager', 'TERMS_READ')).resolves.toMatchObject({ id: 'm-manager' });
+    await expect(guard('manager', 'LABOR_REVIEW')).resolves.toMatchObject({ id: 'm-manager' });
+    await expect(guard('manager')).rejects.toMatchObject({ code: 'PHONE_VERIFICATION_REQUIRED' });
+  });
+
+  it('사장님은 근로조건도 그대로', async () => {
+    await expect(guard('owner', 'TERMS_READ')).resolves.toMatchObject({ id: 'm-owner' });
   });
 
   it('권한 없는 Manager는 인증 여부와 상관없이 FORBIDDEN', async () => {
@@ -56,10 +73,10 @@ describe('requireMembership — 급여 권한 Manager 휴대폰 인증 (auth §4
   });
 });
 
-describe('canReadPayroll', () => {
+describe('canAccessVerified', () => {
   it('인증 전 Manager는 false, 인증한 Manager·사장님은 true', async () => {
     const members = await db.membership.findMany({ orderBy: { id: 'asc' } });
-    const results = await Promise.all(members.map(async (member) => [member.id, await canReadPayroll(db, member)]));
+    const results = await Promise.all(members.map(async (member) => [member.id, await canAccessVerified(db, member, 'PAYROLL')]));
     expect(results).toEqual([
       ['m-manager', false],
       ['m-owner', true],

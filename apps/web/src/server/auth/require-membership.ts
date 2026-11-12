@@ -10,7 +10,7 @@ import { canAccessStore, needsVerifiedPhone, type StoreAction } from './access';
  * - Membership 없음 → NOT_FOUND (다른 매장 존재 여부를 숨긴다)
  * - 비활성 → FORBIDDEN
  * - 동작 권한 없음 → FORBIDDEN
- * - 급여(PAYROLL)를 보는 Manager가 휴대폰 인증 전 → PHONE_VERIFICATION_REQUIRED (auth §4.2)
+ * - 급여·시급을 보는 Manager가 휴대폰 인증 전 → PHONE_VERIFICATION_REQUIRED (auth §4.2, access.needsVerifiedPhone)
  */
 export async function requireMembership(
   input: { storeId: string; userId: string; action: StoreAction },
@@ -28,10 +28,13 @@ export async function requireMembership(
   return membership;
 }
 
-/** 실패 대신 값을 숨길 때(대시보드 금액 등) 쓰는 급여 조회 판정. 활성 여부는 호출부가 본다 */
-export async function canReadPayroll(database: DbClient, membership: Membership): Promise<boolean> {
-  if (!canAccessStore(membership, 'PAYROLL')) return false;
-  return !needsVerifiedPhone(membership, 'PAYROLL') || hasVerifiedPhone(database, membership.userId);
+/**
+ * 실패 대신 값을 숨길 때(대시보드 금액·검토 수, 직원 상세 근로조건 등) 쓰는 판정. requireMembership과 같은 규칙.
+ * 활성 여부는 호출부가 본다.
+ */
+export async function canAccessVerified(database: DbClient, membership: Membership, action: StoreAction): Promise<boolean> {
+  if (!canAccessStore(membership, action)) return false;
+  return !needsVerifiedPhone(membership, action) || hasVerifiedPhone(database, membership.userId);
 }
 
 async function hasVerifiedPhone(database: DbClient, userId: string): Promise<boolean> {
