@@ -165,6 +165,8 @@ async function insertAdminAttendance(
 ) {
   const clockInAt = new Date(input.body.clockInAt);
   const clockOutAt = new Date(input.body.clockOutAt);
+  // 겹침 확인을 punch·휴게·근태 수정과 직렬화한다
+  await lockMembership(tx, input.membershipId);
   await assertNoOverlap(tx, { membershipId: input.membershipId, clockInAt, clockOutAt });
   const terms = await findEffectiveTerms(tx, { membershipId: input.membershipId, at: clockInAt });
   if (!terms) throw new ApiError('TERMS_NOT_SET', { message: CREATE_TERMS_NOT_SET_MESSAGE });
@@ -194,12 +196,13 @@ async function insertAdminAttendance(
 
 /**
  * 근태 변경 적용 + 변경 이력. 관리자 직접 수정과 수정 요청 승인이 같은 규칙을 쓴다.
- * 호출부 트랜잭션 안에서 부른다.
+ * 호출부 트랜잭션 안에서 부른다. `current`는 근태 id·직원을 찾는 데만 쓰고,
+ * 잠금 뒤 다시 읽은 값으로 계산한다 (밖에서 읽은 뒤 퇴근·휴게가 들어왔을 수 있다)
  */
 export async function applyAttendanceChange(
   tx: Prisma.TransactionClient,
   input: {
-    current: Attendance;
+    current: Pick<Attendance, 'id' | 'membershipId'>;
     change: AdminAttendanceChange;
     actorUserId: string;
     now: Date;
@@ -208,16 +211,18 @@ export async function applyAttendanceChange(
 ) {
   // punch·휴게·퇴근 누락 전환과 직렬화한다
   await lockMembership(tx, input.current.membershipId);
-  const next = await buildNextState(tx, { current: input.current, change: input.change, now: input.now });
-  await tx.attendance.update({ where: { id: input.current.id }, data: next });
-  await syncBreaks(tx, { current: input.current, next, now: input.now });
+  const current = await tx.attendance.findUniqueOrThrow({ where: { id: input.current.id } });
+  if (current.status === 'VOID') throw new ApiError('ATTENDANCE_NOT_EDITABLE');
+  const next = await buildNextState(tx, { current, change: input.change, now: input.now });
+  await tx.attendance.update({ where: { id: current.id }, data: next });
+  await syncBreaks(tx, { current, next, now: input.now });
   await tx.attendanceRevision.create({
     data: {
-      attendanceId: input.current.id,
+      attendanceId: current.id,
       actorId: input.actorUserId,
       reason: input.change.reason,
-      before: snapshot(input.current),
-      after: snapshot({ ...input.current, ...next }),
+      before: snapshot(current),
+      after: snapshot({ ...current, ...next }),
       correctionRequestId: input.correctionRequestId,
     },
   });
