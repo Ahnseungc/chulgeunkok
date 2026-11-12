@@ -2,6 +2,8 @@
  * QR 카드 화면의 브라우저 파일 일: 이미지 불러오기, 로고 줄이기, PDF·PNG 받기. 정본: docs/specs/qr-card §4.3, §5, §8
  */
 
+import { saveFile } from '@/shared/lib/save-file';
+
 import { QR_CARD_PIXELS } from '../model/qr-card-layout';
 import type { QrCardDesignDto } from '../model/qr-card-types';
 
@@ -12,8 +14,6 @@ import { renderQrCard } from './render-qr-card';
 const LOGO_MAX_SIDE_PX = 512;
 export const QR_LOGO_ACCEPT = 'image/png,image/jpeg';
 const LOGO_TYPES: ReadonlySet<string> = new Set(QR_LOGO_ACCEPT.split(','));
-/** 클릭 직후 바로 풀면 Safari 가 받기를 놓친다 */
-const OBJECT_URL_REVOKE_DELAY_MS = 1000;
 
 export type QrCardFileKind = 'pdf' | 'png';
 
@@ -61,17 +61,9 @@ async function buildQrCardFile(design: QrCardDesignDto, images: QrCardImages, ki
   return new Blob([pdf.slice()], { type: 'application/pdf' });
 }
 
-function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), OBJECT_URL_REVOKE_DELAY_MS);
-}
-
 /** 화면의 지금 값으로 파일을 만들어 받는다. 자동 저장을 기다리지 않는다 (§8) */
 export async function downloadQrCard(design: QrCardDesignDto, images: QrCardImages, kind: QrCardFileKind): Promise<void> {
   const blob = await buildQrCardFile(design, images, kind);
-  saveBlob(blob, qrCardFileName({ storeName: design.title, layout: design.layout, ext: kind }));
+  const fileName = qrCardFileName({ storeName: design.title, layout: design.layout, ext: kind });
+  await saveFile(blob, fileName, kind === 'pdf' ? 'application/pdf' : 'image/png');
 }

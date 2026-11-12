@@ -18,6 +18,17 @@ const PUSH_PATH_PATTERN = /^\/me(\/payslips\/[A-Za-z0-9_-]+)?$/;
 /** 위치 요청 ↔ 응답을 짝짓는 값 (웹이 만든 UUID 등) */
 const RequestId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
 
+/** 앱이 받아 저장할 파일 base64 상한. 300dpi 스탠드 PDF·PNG(수백 KB)보다 넉넉하다 (docs/specs/qr-card §5) */
+export const SAVE_FILE_MAX_BASE64_LENGTH = 8 * 1024 * 1024;
+const SAVE_FILE_NAME_MAX = 120;
+/** 경로 구분자·제어 문자 없는 파일 이름. 앱 캐시 폴더 밖으로 나가지 않게 한다 */
+const SaveFileName = z
+  .string()
+  .min(1)
+  .max(SAVE_FILE_NAME_MAX)
+  .regex(/^[^\\/\u0000-\u001f]+$/)
+  .refine((name) => name !== '.' && name !== '..');
+
 export const WebToAppMessage = z.discriminatedUnion('type', [
   /** 웹 화면의 "QR 찍기" */
   z.object({ type: z.literal('OPEN_SCANNER') }),
@@ -31,6 +42,15 @@ export const WebToAppMessage = z.discriminatedUnion('type', [
    * (iOS 가 앱 권한 + 사이트 권한을 두 번 묻지 않게)
    */
   z.object({ type: z.literal('REQUEST_LOCATION'), requestId: RequestId }),
+  /**
+   * 파일 저장. WebView 는 blob:·data: 다운로드를 못 하므로 웹이 base64 로 넘기고 앱이 공유 시트로 연다 (docs/specs/qr-card §5.5)
+   */
+  z.object({
+    type: z.literal('SAVE_FILE'),
+    fileName: SaveFileName,
+    mime: z.enum(['application/pdf', 'image/png']),
+    base64: z.string().min(1).max(SAVE_FILE_MAX_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  }),
 ]);
 export type WebToAppMessage = z.infer<typeof WebToAppMessage>;
 
