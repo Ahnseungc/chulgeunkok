@@ -14,7 +14,7 @@ describe('HeadcountEstimateNote', () => {
   it('지난달 평균과 참고값 안내를 보여 준다', () => {
     render(<HeadcountEstimateNote estimate={{ ...estimate, mismatch: null }} />);
     expect(screen.getByText('출근 기록으로 보면 지난달 하루 평균 5.2명이 일했어요.')).toBeTruthy();
-    expect(screen.getByText('참고값이며 법적 판단이 아니에요.')).toBeTruthy();
+    expect(screen.getByText('참고값이며 법적 판단이 아니에요. 자동으로 바뀌지 않아요.')).toBeTruthy();
     expect(screen.queryByText(/규모를 다시 확인해 주세요/)).toBeNull();
   });
 
