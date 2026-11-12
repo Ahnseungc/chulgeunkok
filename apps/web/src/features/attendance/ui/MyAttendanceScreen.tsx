@@ -3,6 +3,7 @@
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
+import { hasRecordedBreaks } from '@/features/payroll/model/recorded-breaks';
 import { apiFetch } from '@/shared/lib/api-client';
 import { formatClock, formatDuration, formatLocalDate, fromLocalDateTimeInput, toLocalDateTimeInput } from '@/shared/lib/format-time';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
@@ -88,7 +89,7 @@ function RequestForms({ detail, onDone }: { detail: AttendanceDetailDto; onDone:
   return (
     <>
       {/* 직접 남긴 휴게가 있으면 휴게 못 함은 정산에 쓰지 않는다 (§3.6) */}
-      {detail.status === 'CLOSED' && !detail.breakWaived && detail.breaks.length === 0 ? (
+      {detail.status === 'CLOSED' && !detail.breakWaived && !hasRecordedBreaks(detail.breaks) ? (
         <section className="detail-section" aria-labelledby="break-heading">
           <Text as="h2" id="break-heading" textStyle="t6Bold">
             휴게를 못 썼나요?

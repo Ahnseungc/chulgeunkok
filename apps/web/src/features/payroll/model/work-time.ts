@@ -5,6 +5,8 @@
  * 다른 시간대를 지원하면 @date-fns/tz로 바꾼다.
  */
 
+import { countedBreaks } from './recorded-breaks';
+
 const STORE_UTC_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SECONDS_PER_HOUR = 3600;
@@ -109,7 +111,8 @@ interface Piece {
 
 /**
  * 근태 1건 → 매장 자정 기준 구간들 (docs/specs/payroll §3.2).
- * 직원이 남긴 휴게가 있으면 그 휴게를 각 구간에서 겹친 만큼 뺀다. 없으면 출근 요일 소정 휴게를 첫 구간부터 뺀다.
+ * 직원이 남긴 휴게(1분 미만 제외, recorded-breaks)가 있으면 그 휴게를 각 구간에서 겹친 만큼 뺀다.
+ * 없으면 출근 요일 소정 휴게를 첫 구간부터 뺀다.
  * `breakNotScheduled`: 소정 휴게를 빼야 하는데 출근 요일에 소정 스케줄이 없다 (정산 화면 플래그)
  */
 export function toSegments(input: SegmentInput): { segments: WorkSegment[]; breakNotScheduled: boolean } {
@@ -123,8 +126,9 @@ export function toSegments(input: SegmentInput): { segments: WorkSegment[]; brea
     recognizedSeconds: piece.seconds - breakSeconds,
     hourlyWage: terms.hourlyWage,
   });
-  if (attendance.breaks.length > 0) {
-    const segments = pieces.map((piece) => toSegment(piece, recordedBreakSeconds(piece, attendance.breaks, attendance.clockOutAt)));
+  const recorded = countedBreaks(attendance.breaks);
+  if (recorded.length > 0) {
+    const segments = pieces.map((piece) => toSegment(piece, recordedBreakSeconds(piece, recorded, attendance.clockOutAt)));
     return { segments, breakNotScheduled: false };
   }
 
