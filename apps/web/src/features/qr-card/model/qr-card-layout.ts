@@ -88,7 +88,8 @@ interface LayoutSpec {
 
 /**
  * QR 최소 스탠드 60mm·스티커 50mm (§4.4). 뱃지 글자는 3.2mm 이상 굵게.
- * quiet zone 은 실제 URL(버전 5, 37모듈)을 최소 크기로 그릴 때 3모듈 이상: 60/37×3 ≈ 4.9mm, 50/37×3 ≈ 4.05mm.
+ * quiet zone 은 실제 URL(버전 5, 37모듈)을 **최대** 크기로 그려도 3모듈 이상이 되게 최대값을 묶는다:
+ * 스탠드 64/37×3 ≈ 5.19mm ≤ 5.5mm, 스티커 50/37×3 ≈ 4.05mm ≤ 4.1mm (스티커 QR 은 50mm 고정).
  * 어두운 카드(kokFill·black)에서는 이 흰 테두리가 QR 둘레의 유일한 여백이다.
  */
 const LAYOUT_SPECS: Record<QrCardLayoutKey, LayoutSpec> = {
@@ -98,7 +99,7 @@ const LAYOUT_SPECS: Record<QrCardLayoutKey, LayoutSpec> = {
     logoArea: { width: 40, height: 12 },
     title: { maxFontMm: 7, minFontMm: 5, maxLines: 2 },
     badgeFontMm: 3.6,
-    qr: { minMm: 60, maxMm: 72, quietMm: 5.5 },
+    qr: { minMm: 60, maxMm: 64, quietMm: 5.5 },
     message: { fontMm: 3.6, maxLines: 3 },
     hasWordmark: true,
   },
@@ -108,7 +109,7 @@ const LAYOUT_SPECS: Record<QrCardLayoutKey, LayoutSpec> = {
     logoArea: { width: 24, height: 4 },
     title: { maxFontMm: 4, minFontMm: 3.5, maxLines: 1 },
     badgeFontMm: 3.2,
-    qr: { minMm: 50, maxMm: 54, quietMm: 4.1 },
+    qr: { minMm: 50, maxMm: 50, quietMm: 4.1 },
     message: null,
     hasWordmark: false,
   },
