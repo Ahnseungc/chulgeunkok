@@ -24,6 +24,7 @@
 | [dashboard/README.md](./dashboard/README.md) | ADMIN-01 | 관리자 대시보드 |
 | [payslip/README.md](./payslip/README.md) | P1 임금명세서 | 명세서 초안·수정·보내기·정정, 직원별 공제, FCM 푸시 |
 | [qr-card/README.md](./qr-card/README.md) | store §5 | QR 카드 셀프 제작(레이아웃·색·문구·로고, PDF·PNG), QR 원문 암호화 저장 |
+| [notifications/README.md](./notifications/README.md) | P1 알림 | 출근·퇴근 10분 전·정시 푸시, 중복 방지, 건너뛰기 |
 
 ---
 

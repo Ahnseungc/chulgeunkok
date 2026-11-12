@@ -44,6 +44,7 @@ QR 카드 PDF·PNG 받기는 웹 `SAVE_FILE` 브릿지로 앱에 파일을 넘�
 | --- | --- | --- |
 | `daily-reviews` | 매일 06:00 | 결근 의심 + 최근 근무 재평가 |
 | `payslip-drafts` | 매일 06:10 (UTC cron `10 21 * * *`) | 끝난 최근 3개 정산 기간 임금명세서 초안·정정본, `daily-reviews` 뒤에 돈다 |
+| `shift-reminders` | 5분마다 (`*/5 * * * *`) | 출근·퇴근 10분 전·정시 푸시 (docs/specs/notifications) |
 
 ## 환경 변수 (임금명세서 푸시)
 

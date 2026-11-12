@@ -205,6 +205,7 @@ model Membership {
   laborReviews          LaborReview[]
   reregisterInvitations StoreInvitation[]
   payslips              Payslip[]
+  shiftReminders        ShiftReminder[]
 
   @@unique([storeId, userId])
   @@index([userId])
@@ -583,6 +584,26 @@ model PayslipLine {
 }
 
 // 기기 1대 = FCM 토큰 1개 (docs/specs/payslip §6)
+// 출퇴근 알림 발송 기록. 유니크로 중복 발송을 막는다 (docs/specs/notifications §5)
+enum ShiftReminderKind {
+  START_SOON // 소정 출근 10분 전
+  START_NOW // 소정 출근
+  END_SOON // 소정 퇴근 10분 전
+  END_NOW // 소정 퇴근
+}
+
+model ShiftReminder {
+  id           String            @id @default(cuid())
+  membershipId String
+  kind         ShiftReminderKind
+  scheduledAt  DateTime          @db.Timestamptz(3) // 알림 시각 (소정 출근·퇴근 또는 그 10분 전)
+  sentAt       DateTime          @db.Timestamptz(3) // 배치가 발송을 맡은 시각
+
+  membership Membership @relation(fields: [membershipId], references: [id])
+
+  @@unique([membershipId, kind, scheduledAt])
+}
+
 model PushToken {
   id                 String   @id @default(cuid())
   deviceCredentialId String   @unique
