@@ -36,42 +36,75 @@ export function designInputError({ title, message }: Pick<QrCardDesignDto, 'titl
 
 const bodyOf = ({ layout, color, title, message }: QrCardDesignDto) => ({ layout, color, title, message });
 
-/** 화면 값은 바로 바꾸고, 입력이 멈춘 뒤 PUT 한 번. 화면을 떠나면 남은 저장을 바로 보낸다 */
-function useAutosavedDesign(path: string, loaded: QrCardDesignDto | null) {
-  const [design, setDesignState] = useState<QrCardDesignDto | null>(null);
+/**
+ * PUT 은 한 번에 하나만 보낸다 (§5.4). 보내는 동안 값이 또 바뀌면 끝난 뒤 마지막 값으로 한 번 더 보낸다.
+ * 화면의 저장 상태는 가장 나중에 보낸(또는 검증에서 막힌) 요청만 바꾼다 (saveSeq).
+ */
+function useSerialDesignSave(path: string) {
   const [saveState, setSaveState] = useState<QrCardSaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const latest = useRef<QrCardDesignDto | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeq = useRef(0);
+  const inFlight = useRef(false);
+  const queued = useRef<QrCardDesignDto | null>(null);
 
-  useEffect(() => {
-    if (!loaded || latest.current) return;
-    latest.current = loaded;
-    setDesignState(loaded);
-  }, [loaded]);
+  const showError = useCallback((seq: number, message: string) => {
+    if (seq !== saveSeq.current) return;
+    setSaveState('error');
+    setSaveError(message);
+  }, []);
 
-  const save = useCallback(
-    async (next: QrCardDesignDto) => {
+  const put = useCallback(
+    async function sendPut(next: QrCardDesignDto): Promise<void> {
       const seq = ++saveSeq.current;
-      const failed = (message: string) => {
-        if (seq !== saveSeq.current) return;
-        setSaveState('error');
-        setSaveError(message);
-      };
-      const inputError = designInputError(next);
-      if (inputError) return failed(inputError);
+      inFlight.current = true;
       setSaveState('saving');
       setSaveError(null);
       try {
         await apiFetch<QrCardDesignDto>(path, { method: 'PUT', body: JSON.stringify(bodyOf(next)) });
         if (seq === saveSeq.current) setSaveState('saved');
       } catch (error) {
-        failed(errorMessageOf(error));
+        showError(seq, errorMessageOf(error));
+      } finally {
+        inFlight.current = false;
+        const pending = queued.current;
+        queued.current = null;
+        if (pending) void sendPut(pending);
       }
     },
-    [path],
+    [path, showError],
   );
+
+  const save = useCallback(
+    (next: QrCardDesignDto) => {
+      const inputError = designInputError(next);
+      if (inputError) {
+        queued.current = null;
+        return showError(++saveSeq.current, inputError);
+      }
+      if (inFlight.current) {
+        queued.current = next;
+        return;
+      }
+      void put(next);
+    },
+    [put, showError],
+  );
+
+  return { save, saveState, saveError };
+}
+
+/** 화면 값은 바로 바꾸고, 입력이 멈춘 뒤 저장. 화면을 떠나면 남은 저장을 바로 보낸다 */
+function useAutosavedDesign(path: string, loaded: QrCardDesignDto | null) {
+  const [design, setDesignState] = useState<QrCardDesignDto | null>(null);
+  const { save, saveState, saveError } = useSerialDesignSave(path);
+  const latest = useRef<QrCardDesignDto | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!loaded || latest.current) return;
+    latest.current = loaded;
+    setDesignState(loaded);
+  }, [loaded]);
 
   const setDesign = useCallback(
     (patch: QrCardDesignPatch) => {
@@ -82,7 +115,7 @@ function useAutosavedDesign(path: string, loaded: QrCardDesignDto | null) {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
         timer.current = null;
-        void save(next);
+        save(next);
       }, AUTOSAVE_DELAY_MS);
     },
     [save],
@@ -92,7 +125,7 @@ function useAutosavedDesign(path: string, loaded: QrCardDesignDto | null) {
     () => () => {
       if (!timer.current || !latest.current) return;
       clearTimeout(timer.current);
-      void save(latest.current);
+      save(latest.current);
     },
     [save],
   );
