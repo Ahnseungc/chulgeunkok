@@ -11,6 +11,8 @@ import type { UpdateMemberInput } from '../schema';
 
 import { recordMembershipChange } from './membership-events';
 
+const INACTIVE_ROLE_CHANGE_MESSAGE = '퇴사한 직원의 역할은 바꿀 수 없어요.';
+
 /** 목록 정렬: 근무 중 → 사장님·매니저 → 이름 */
 const ROLE_ORDER = { OWNER: 0, MANAGER: 1, EMPLOYEE: 2 } as const;
 
@@ -109,13 +111,17 @@ interface MemberChange {
   now: Date;
 }
 
-/** 위임 권한은 Manager에게만 의미가 있다. 직원으로 내리면 비운다. 이력 before는 트랜잭션 안에서 다시 읽은 값 */
+/**
+ * 위임 권한은 Manager에게만 의미가 있다. 직원으로 내리면 비운다. 이력 before는 트랜잭션 안에서 다시 읽은 값.
+ * 퇴사한 직원은 막는다 — 퇴사 처리로 비운 권한이 다시 쓰이지 않게 (staff §4.1·§4.2)
+ */
 async function changeRole(
   db: PrismaClient,
   input: MemberChange & Pick<UpdateMemberInput, 'role' | 'permissions'>,
 ) {
   await db.$transaction(async (tx) => {
     const current = await tx.membership.findUniqueOrThrow({ where: { id: input.member.id } });
+    if (current.status !== 'ACTIVE') throw new ApiError('FORBIDDEN', { message: INACTIVE_ROLE_CHANGE_MESSAGE });
     const role = input.role ?? current.role;
     const permissions = role === 'MANAGER' ? (input.permissions ?? current.permissions) : [];
     await tx.membership.update({ where: { id: current.id }, data: { role, permissions } });

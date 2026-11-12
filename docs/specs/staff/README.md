@@ -119,6 +119,7 @@ const UpdateMemberBody = z.object({
 ```
 
 - `permissions`는 `role = MANAGER`일 때만 의미가 있다. EMPLOYEE로 내리면 비운다.
+- 퇴사한(INACTIVE) 직원의 역할·권한은 바꾸지 않는다: `403 FORBIDDEN` "퇴사한 직원의 역할은 바꿀 수 없어요." 퇴사 처리로 비운 권한이 다시 쓰이지 않게 (§4.1). 복귀는 초대 수락으로만.
 - Manager도 본인 근무는 출퇴근한다 (Manager = 직원 + 관리 권한).
 
 ### 4.3 변경 이력
