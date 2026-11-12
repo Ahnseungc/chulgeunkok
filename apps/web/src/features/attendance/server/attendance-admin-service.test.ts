@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AdminCreateAttendanceBody } from '../schema';
 
 import {
+  applyAttendanceChange,
   createAttendanceByAdmin,
   getAttendanceDetail,
   listStoreAttendances,
@@ -153,6 +154,28 @@ describe('updateAttendanceByAdmin', () => {
     await expect(
       updateAttendanceByAdmin(db, { attendanceId: 'closed', actorUserId: 'staff', change: { breakWaived: true, reason: '셀프' }, now: NOW }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('밖에서 읽은 뒤 직원이 퇴근하면 잠금 뒤 다시 읽어 퇴근을 지우지 않는다', async () => {
+    await db.attendance.create({
+      data: { id: 'open', storeId: 'store', membershipId: 'm-other', termsId: 'terms-m-other', clockInAt: kst('2026-11-10T08:00:00'), status: 'OPEN' },
+    });
+    const stale = await db.attendance.findUniqueOrThrow({ where: { id: 'open' } });
+    // 관리자 트랜잭션 전에 직원 퇴근이 먼저 커밋됐다
+    await db.attendance.update({ where: { id: 'open' }, data: { clockOutAt: kst('2026-11-10T11:00:00'), status: 'CLOSED' } });
+
+    await db.$transaction((tx) =>
+      applyAttendanceChange(tx, {
+        current: stale,
+        change: { clockInAt: kst('2026-11-10T08:30:00').toISOString(), reason: '출근 늦게 찍음' },
+        actorUserId: 'owner',
+        now: NOW,
+      }),
+    );
+
+    const saved = await db.attendance.findUniqueOrThrow({ where: { id: 'open' }, include: { revisions: true } });
+    expect([saved.status, saved.clockOutAt?.toISOString()]).toEqual(['CLOSED', kst('2026-11-10T11:00:00').toISOString()]);
+    expect(saved.revisions[0]?.before).toMatchObject({ status: 'CLOSED', clockOutAt: kst('2026-11-10T11:00:00').toISOString() });
   });
 });
 
