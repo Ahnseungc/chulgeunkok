@@ -2,11 +2,11 @@ import type { HeadcountBand, PrismaClient, Store } from '@chulgeunkok/db';
 
 import { getStorePayPeriod, payPeriodConfigOf, toLocalDate } from '@/features/payroll/model/work-time';
 import { requireMembership } from '@/server/auth/require-membership';
-import { generateToken } from '@/server/crypto/generate-token';
-import { hashToken } from '@/server/crypto/hash-token';
 import { ApiError } from '@/server/http/api-error';
 
 import type { StoreSettingsDto } from '../model/store-settings-types';
+
+import { issueQrToken } from './qr-token';
 
 /** 사업장 규모 신고는 오늘부터 이 기간 안의 날짜만 (docs/specs/store §6.1) */
 const HEADCOUNT_BACKDATE_DAYS = 90;
@@ -113,17 +113,16 @@ function planPayPeriodChange(store: Store, input: { startDay: number; now: Date 
   };
 }
 
-/** POST /stores/:storeId/qr/rotate — 지금 QR을 바로 폐기하고 새 QR (docs/specs/store §5.2) */
+/** POST /stores/:storeId/qr/rotate — 지금 QR을 바로 폐기하고 새 QR. 디자인은 그대로 (docs/specs/store §5.2, qr-card §8) */
 export async function rotateStoreQr(
   db: PrismaClient,
   input: { storeId: string; actorUserId: string; origin: string; now: Date },
 ): Promise<{ url: string }> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'STORE_ADMIN' }, db);
-  const token = generateToken();
-  await db.$transaction([
-    db.storeQrToken.updateMany({ where: { storeId: input.storeId, revokedAt: null }, data: { revokedAt: input.now } }),
-    db.storeQrToken.create({ data: { storeId: input.storeId, tokenHash: hashToken(token) } }),
-  ]);
+  const token = await db.$transaction(async (tx) => {
+    await tx.storeQrToken.updateMany({ where: { storeId: input.storeId, revokedAt: null }, data: { revokedAt: input.now } });
+    return issueQrToken(tx, input.storeId);
+  });
   return { url: `${input.origin}/p/${token}` };
 }
 

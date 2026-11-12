@@ -1,8 +1,6 @@
 import { Prisma, type PrismaClient } from '@chulgeunkok/db';
 
 import { requireMembership } from '@/server/auth/require-membership';
-import { generateToken } from '@/server/crypto/generate-token';
-import { hashToken } from '@/server/crypto/hash-token';
 import { ApiError } from '@/server/http/api-error';
 import { isValidBusinessNumber, normalizeBusinessNumber } from '@/server/integrations/business-number';
 import { lookupBusinessStatus } from '@/server/integrations/nts-business-status';
@@ -10,6 +8,8 @@ import { toStoreLocalDate } from '@/shared/lib/format-time';
 
 import type { BusinessVerificationDto, CreateStoreResultDto } from '../model/place-types';
 import type { CreateStoreInput } from '../schema';
+
+import { issueQrToken } from './qr-token';
 
 /** docs/specs/store §3.5 */
 export const MAX_OWNED_STORES = 10;
@@ -75,11 +75,10 @@ async function createStoreRecords(
   tx: Prisma.TransactionClient,
   input: { storeId: string; ownerUserId: string; body: CreateStoreInput; now: Date },
 ): Promise<string> {
-  const qrToken = generateToken();
   await tx.membership.create({
     data: { storeId: input.storeId, userId: input.ownerUserId, role: 'OWNER' },
   });
-  await tx.storeQrToken.create({ data: { storeId: input.storeId, tokenHash: hashToken(qrToken) } });
+  const qrToken = await issueQrToken(tx, input.storeId);
   await tx.storeHeadcountDeclaration.create({
     data: {
       storeId: input.storeId,
