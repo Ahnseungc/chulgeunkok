@@ -352,6 +352,23 @@ body {
   gap: 8px;
 }
 
+/* 토스트(Seed Snackbar). 글자 수만큼만 넓어지고(최대 폭은 Seed 기본 464px·화면 폭) 문구는 가운데. 글꼴은 앱 글꼴을 따른다.
+   Seed 스낵바 CSS 가 이 파일보다 늦게 붙어서 같은 우선순위면 덮이므로 클래스를 겹쳐 쓴다 */
+.seed-snackbar__root.toast {
+  width: fit-content;
+  max-width: min(464px, 100%);
+}
+
+.toast .seed-snackbar__content {
+  justify-content: center;
+}
+
+.toast .seed-snackbar__message {
+  font-family: inherit;
+  text-align: center;
+  word-break: keep-all;
+}
+
 /* 하단 시트. dialog 는 화면 전체를 덮는 투명 틀이고, 배경·패널을 안에서 따로 움직인다 (::backdrop 은 애니메이션이 안 되어 쓰지 않는다) */
 .sheet {
   position: fixed;

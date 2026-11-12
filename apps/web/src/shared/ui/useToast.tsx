@@ -14,7 +14,7 @@ export function useToast() {
     snackbar.create({
       timeout: TOAST_TIMEOUT_MS,
       render: () => (
-        <Snackbar.Root variant={variant}>
+        <Snackbar.Root variant={variant} className="toast">
           <Snackbar.Content>
             <Snackbar.Message>{message}</Snackbar.Message>
           </Snackbar.Content>
