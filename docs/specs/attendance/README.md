@@ -23,7 +23,7 @@
 | 출근 위치 기록·"매장 밖" 배지 | 위치로 출근 차단 |
 | 퇴근 누락 자동 전환 | 퇴근 누락 푸시 알림 (P1) |
 | 수정 요청 (시각, 휴게 못 함, 퇴근 누락) | 교대 근무 변경 요청 (P2) |
-| 관리자 직접 수정·무효 처리 | 관리자가 근태 새로 생성 — **미지원, §7.4 참고** |
+| 관리자 직접 수정·무효 처리, 빠진 근무 직접 추가 (§7.4·§7.5) | |
 
 ## 3. Punch
 
@@ -195,7 +195,35 @@ const AdminUpdateAttendanceBody = z.object({
 - 시각을 바꿔도 `termsId`는 바꾸지 않는다. 단, 새 `clockInAt`이 다른 근로조건 기간이면 그 버전으로 다시 연결한다 (시급 적용 일관성).
 - 겹침 검사: 같은 직원의 무효가 아닌 다른 근무와 시간이 겹치면 `ATTENDANCE_CONFLICT`. 퇴근 시각이 없는 기록은 근무 중(`OPEN`)만 끝나지 않은 것으로 본다 (퇴근 누락은 끝을 모르므로 막지 않는다).
 - 목록·상세는 정산 기간 단위 (`?periodStart=`, 생략 시 오늘이 속한 기간). 인정 시간은 정산과 같은 계산 (`payroll` §3).
-- **근태 새로 만들기는 MVP 미지원.** QR을 못 찍은 날은 직원이 다음 날 찍지 않은 이상 기록이 없다. → 미결정 Q7: "관리자 근태 추가"를 P0에 넣을지. 넣는다면 `AttendanceRevision.before = null`.
+- 근태가 아예 없는 날(QR을 못 찍은 날)은 §7.5로 새로 만든다.
+
+### 7.5 관리자 근태 추가 (Q7 결정, 2026-11-12)
+
+QR을 못 찍어 기록이 없는 근무를 Owner·Manager(`ATTENDANCE_ADMIN`)가 직접 만든다.
+
+```ts
+const AdminCreateAttendanceBody = z.object({
+  memberId: z.string().min(1),
+  clockInAt: z.string().datetime(),
+  clockOutAt: z.string().datetime(),
+  breakWaived: z.boolean().default(false),
+  reason: z.string().trim().min(1).max(200),
+});
+```
+
+| 규칙 | 에러 |
+| --- | --- |
+| Owner·Manager만 | `403 FORBIDDEN` |
+| 이 매장 직원이 아니면 | `404 NOT_FOUND` |
+| 퇴근 > 출근, 퇴근 ≤ 지금, 근무 길이 ≤ 24h | `VALIDATION_FAILED` |
+| 근무일(출근 시각의 매장 날짜)이 §7.1 35일 기한 밖 | `409 CORRECTION_WINDOW_CLOSED` "35일이 지난 날짜에는 근무를 추가할 수 없어요." |
+| 같은 직원의 다른 근무와 겹침 (§7.4 겹침 규칙 그대로) | `409 ATTENDANCE_CONFLICT` |
+| 출근 시각에 유효한 근로조건 없음 | `409 TERMS_NOT_SET` "그날 적용되는 근로조건이 없어요. 근로조건을 먼저 등록해 주세요." |
+
+- 상태는 `CLOSED`, `termsId`는 출근 시각에 유효한 버전. 위치 필드는 비운다 ("매장 밖" 배지 없음).
+- 같은 트랜잭션에서 `AttendanceRevision(before = null, after, reason, actor)`를 남긴다. 목록에는 "수정됨" 배지가 붙는다.
+- 저장 뒤 §6 검토를 다시 돌린다. 정산·임금명세서는 근태를 읽어 계산하므로 따로 처리하지 않는다.
+- 비활성 직원도 추가할 수 있다 (퇴사 전 빠진 근무). 직원 선택 목록은 재직 중인 직원만 보여 준다.
 
 ## 8. 화면
 
@@ -205,7 +233,7 @@ const AdminUpdateAttendanceBody = z.object({
 | `/me` | 직원 | 매장 선택(여러 곳이면), 근무 중 카드, 정산 기간 이동, 이번 기간 근무일·인정 시간·예상 금액(기본급 + 주휴·가산·유급휴일, `payroll` §3.6·§3.7), 근무 목록(배지·"확인 중" 요청) |
 | `/owner/[storeId]/corrections` | 관리자 | 대기 중 요청(오래된 순): 지금 기록 → 요청한 값, 사유, 승인 / 반려(사유 필수). 시각을 고쳐서 처리하려면 근태 상세에서 직접 수정 |
 | `/me/attendances/[id]` | 직원 | 상세, "휴게 못 했어요"(정상 종료·휴게 차감된 근무), 시각 수정·퇴근 시각 입력 요청, 보낸 요청과 사장님 답변, 대기 중 요청 취소 |
-| `/owner/[storeId]/attendances` | 관리자 | 기간·직원 필터, 상태 배지(근무 중·누락·매장 밖·수정됨·무효), 대기 중 요청 탭 |
+| `/owner/[storeId]/attendances` | 관리자 | 기간·직원 필터, 상태 배지(근무 중·누락·매장 밖·수정됨·무효), 대기 중 요청 탭, "근무 추가" 시트(직원·날짜·출근·퇴근·휴게 못 함·사유, 퇴근이 출근보다 이르면 다음 날로 본다) → 성공 토스트·목록 갱신 (§7.5) |
 | `/owner/[storeId]/attendances/[id]` | 관리자 | 상세, 직접 수정, 변경 이력 |
 
 ## 9. API
@@ -217,6 +245,7 @@ const AdminUpdateAttendanceBody = z.object({
 | GET | `/attendance/current?storeId=` | 본인 |
 | GET | `/attendance/me?storeId=&from=&to=` | 본인 |
 | GET | `/stores/:storeId/attendances?from=&to=&memberId=&status=` | 관리자 |
+| POST | `/stores/:storeId/attendances` | 관리자. 근태 추가 (§7.5) |
 | GET | `/attendances/:id` | 관리자, 본인 |
 | PATCH | `/attendances/:id` | 관리자 |
 | GET | `/attendances/:id/revisions` | 관리자 |
@@ -233,12 +262,12 @@ const AdminUpdateAttendanceBody = z.object({
 | `QR_TOKEN_INVALID` | 404 | QR을 확인할 수 없어요. |
 | `QR_TOKEN_REVOKED` | 410 | 새 QR로 바뀌었어요. 매장에 붙은 최신 QR을 찍어 주세요. |
 | `NOT_STORE_MEMBER` | 403 | 이 매장 직원이 아니에요. 사장님께 초대를 요청해 주세요. |
-| `TERMS_NOT_SET` | 409 | 근로조건이 아직 등록되지 않았어요. 사장님께 알려 주세요. |
+| `TERMS_NOT_SET` | 409 | 근로조건이 아직 등록되지 않았어요. 사장님께 알려 주세요. (관리자 근태 추가는 §7.5 문구) |
 | `PUNCH_ACTION_MISMATCH` | 409 | 이미 다른 기기에서 기록됐어요. 다시 확인해 주세요. |
 | `PUNCH_TOO_SOON` | 409 | 방금 출근했어요. 1분 뒤에 퇴근할 수 있어요. |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | 요청을 다시 시작해 주세요. |
 | `CORRECTION_PENDING_EXISTS` | 409 | 이미 처리 중인 수정 요청이 있어요. |
-| `CORRECTION_WINDOW_CLOSED` | 409 | 35일이 지난 기록은 사장님께 직접 수정을 요청해 주세요. |
+| `CORRECTION_WINDOW_CLOSED` | 409 | 35일이 지난 기록은 사장님께 직접 수정을 요청해 주세요. (관리자 근태 추가는 §7.5 문구) |
 | `ATTENDANCE_NOT_EDITABLE` | 409 | 지금 상태에서는 이 요청을 할 수 없어요. |
 | `ATTENDANCE_CONFLICT` | 409 | 다른 근무 기록과 겹쳐요. |
 
@@ -252,3 +281,4 @@ const AdminUpdateAttendanceBody = z.object({
 - [ ] 위치 정확도 300m면 "매장 밖" 판정을 하지 않는다.
 - [ ] 수정 요청 승인 시 `AttendanceRevision`에 before/after가 남고 검토 항목이 다시 계산된다.
 - [ ] Manager(`PAYROLL_READ` 없음) 근태 응답에 시급·금액 필드가 없다.
+- [ ] 관리자가 빠진 근무를 추가하면 `CLOSED` 근태와 `before = null` 변경 이력이 생기고, 목록·정산에 바로 잡힌다.

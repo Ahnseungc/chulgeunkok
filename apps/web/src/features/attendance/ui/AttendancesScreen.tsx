@@ -11,6 +11,8 @@ import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import PeriodNav from '@/shared/ui/PeriodNav';
 
 import type { AttendanceListDto, AttendanceRowDto } from '../model/attendance-admin-types';
+
+import AddAttendanceSheet from './AddAttendanceSheet';
 import { AppLink } from '@/shared/ui/AppLink';
 import InlineAlert from '@/shared/ui/InlineAlert';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
@@ -29,6 +31,7 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
   const [periodStart, setPeriodStart] = useState(initialPeriodStart);
   const [memberId, setMemberId] = useState(initialMemberId ?? '');
   const [onlyMissing, setOnlyMissing] = useState(initialStatus === 'MISSING_CLOCK_OUT');
+  const [adding, setAdding] = useState(false);
   const query = new URLSearchParams({
     ...(periodStart ? { periodStart } : {}),
     ...(memberId ? { memberId } : {}),
@@ -67,6 +70,9 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
         >
           퇴근 누락만
         </ActionButton>
+        <ActionButton size="small" variant="neutralWeak" onClick={() => setAdding(true)}>
+          근무 추가
+        </ActionButton>
       </div>
       <InlineAlert message={list.errorMessage} />
       {list.data && list.data.rows.length === 0 ? (
@@ -90,6 +96,14 @@ export default function AttendancesScreen({ storeId, initialMemberId, initialSta
             <AttendanceBadges row={row} />
           </AppLink>
         )}
+      />
+      <AddAttendanceSheet
+        open={adding}
+        storeId={storeId}
+        members={members.data?.members ?? []}
+        initialMemberId={memberId || undefined}
+        onClose={() => setAdding(false)}
+        onCreated={list.reload}
       />
     </main>
   );

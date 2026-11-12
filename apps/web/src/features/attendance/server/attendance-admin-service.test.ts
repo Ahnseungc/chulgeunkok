@@ -2,7 +2,14 @@ import type { PrismaClient } from '@chulgeunkok/db';
 import { createTestDb } from '@chulgeunkok/db/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getAttendanceDetail, listStoreAttendances, updateAttendanceByAdmin } from './attendance-admin-service';
+import { AdminCreateAttendanceBody } from '../schema';
+
+import {
+  createAttendanceByAdmin,
+  getAttendanceDetail,
+  listStoreAttendances,
+  updateAttendanceByAdmin,
+} from './attendance-admin-service';
 
 const kst = (local: string) => new Date(`${local}+09:00`);
 const NOW = kst('2026-11-10T12:00:00');
@@ -146,6 +153,126 @@ describe('updateAttendanceByAdmin', () => {
     await expect(
       updateAttendanceByAdmin(db, { attendanceId: 'closed', actorUserId: 'staff', change: { breakWaived: true, reason: '셀프' }, now: NOW }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+});
+
+const create = (body: Partial<Parameters<typeof createAttendanceByAdmin>[1]['body']> = {}, actorUserId = 'owner') =>
+  createAttendanceByAdmin(db, {
+    storeId: 'store',
+    actorUserId,
+    body: {
+      memberId: 'm-staff',
+      clockInAt: kst('2026-11-03T18:00:00').toISOString(),
+      clockOutAt: kst('2026-11-03T21:00:00').toISOString(),
+      breakWaived: false,
+      reason: 'QR을 못 찍음',
+      ...body,
+    },
+    now: NOW,
+  });
+
+describe('createAttendanceByAdmin', () => {
+  it('CLOSED 근태와 before = null 변경 이력을 만들고 목록에 잡힌다', async () => {
+    const detail = await create();
+    expect([detail.status, detail.revised]).toEqual(['CLOSED', true]);
+    expect(detail.revisions).toHaveLength(1);
+    expect(detail.revisions[0]).toMatchObject({
+      actorName: '김사장',
+      reason: 'QR을 못 찍음',
+      before: null,
+      after: { status: 'CLOSED', clockInAt: kst('2026-11-03T18:00:00').toISOString(), breakWaived: false },
+    });
+    const { rows } = await list();
+    expect(rows.find((row) => row.id === detail.id)?.workedSeconds).toBe(3 * HOUR);
+  });
+
+  it('출근 시각에 유효한 근로조건 버전으로 잇는다', async () => {
+    const detail = await create();
+    const saved = await db.attendance.findUniqueOrThrow({ where: { id: detail.id } });
+    expect([saved.termsId, saved.clockInOutsideArea]).toEqual(['terms-m-staff', null]);
+  });
+
+  it('휴게 못 함으로 만들 수 있다', async () => {
+    const detail = await create({ breakWaived: true });
+    expect(detail.breakWaived).toBe(true);
+  });
+
+  it('같은 직원의 다른 근무와 겹치면 ATTENDANCE_CONFLICT', async () => {
+    await expect(
+      create({ clockInAt: kst('2026-11-02T22:00:00').toISOString(), clockOutAt: kst('2026-11-03T01:00:00').toISOString() }),
+    ).rejects.toMatchObject({ code: 'ATTENDANCE_CONFLICT' });
+  });
+
+  it('근무 중(OPEN)인 기록 이후로는 만들 수 없다', async () => {
+    await db.attendance.create({
+      data: { id: 'open', storeId: 'store', membershipId: 'm-other', termsId: 'terms-m-other', clockInAt: kst('2026-11-10T09:00:00'), status: 'OPEN' },
+    });
+    await expect(
+      create({ memberId: 'm-other', clockInAt: kst('2026-11-10T10:00:00').toISOString(), clockOutAt: kst('2026-11-10T11:00:00').toISOString() }),
+    ).rejects.toMatchObject({ code: 'ATTENDANCE_CONFLICT' });
+  });
+
+  it('근무일이 35일 기한 밖이면 CORRECTION_WINDOW_CLOSED', async () => {
+    await expect(
+      create({ clockInAt: kst('2026-10-05T18:00:00').toISOString(), clockOutAt: kst('2026-10-05T21:00:00').toISOString() }),
+    ).rejects.toMatchObject({ code: 'CORRECTION_WINDOW_CLOSED', message: '35일이 지난 날짜에는 근무를 추가할 수 없어요.' });
+  });
+
+  it('35일째 되는 날은 만들 수 있다', async () => {
+    const detail = await create({ clockInAt: kst('2026-10-06T18:00:00').toISOString(), clockOutAt: kst('2026-10-06T21:00:00').toISOString() });
+    expect(detail.localDate).toBe('2026-10-06');
+  });
+
+  it('그 시각에 근로조건이 없으면 TERMS_NOT_SET', async () => {
+    await expect(create({ memberId: 'm-owner' })).rejects.toMatchObject({
+      code: 'TERMS_NOT_SET',
+      message: '그날 적용되는 근로조건이 없어요. 근로조건을 먼저 등록해 주세요.',
+    });
+  });
+
+  it('아직 오지 않은 퇴근 시각은 VALIDATION_FAILED', async () => {
+    await expect(
+      create({ clockInAt: kst('2026-11-10T09:00:00').toISOString(), clockOutAt: kst('2026-11-10T13:00:00').toISOString() }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('퇴근이 출근보다 이르거나 같으면 VALIDATION_FAILED', async () => {
+    const clockInAt = kst('2026-11-03T18:00:00').toISOString();
+    await expect(create({ clockInAt, clockOutAt: clockInAt })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(create({ clockOutAt: kst('2026-11-03T17:00:00').toISOString() })).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+  });
+
+  it('사유·퇴근 시각은 필수 (요청 스키마)', () => {
+    const body = { memberId: 'm-staff', clockInAt: kst('2026-11-03T18:00:00').toISOString(), clockOutAt: kst('2026-11-03T21:00:00').toISOString() };
+    expect(AdminCreateAttendanceBody.safeParse({ ...body, reason: '사유' }).success).toBe(true);
+    expect(AdminCreateAttendanceBody.safeParse({ ...body, reason: '  ' }).success).toBe(false);
+    expect(AdminCreateAttendanceBody.safeParse({ ...body, clockOutAt: undefined, reason: '사유' }).success).toBe(false);
+  });
+
+  it('직원은 만들 수 없다', async () => {
+    await expect(create({}, 'staff')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('다른 매장 관리자는 매장 존재도 모른다 (NOT_FOUND)', async () => {
+    await db.user.create({ data: { id: 'stranger', name: '남사장' } });
+    await db.store.create({ data: { id: 'store2', name: '건너편' } });
+    await db.membership.create({ data: { id: 'm-stranger', storeId: 'store2', userId: 'stranger', role: 'OWNER' } });
+    await expect(create({}, 'stranger')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('다른 매장 직원으로는 만들 수 없다 (NOT_FOUND)', async () => {
+    await db.user.create({ data: { id: 'stranger', name: '남알바' } });
+    await db.store.create({ data: { id: 'store2', name: '건너편' } });
+    await db.membership.create({ data: { id: 'm-stranger', storeId: 'store2', userId: 'stranger', role: 'EMPLOYEE' } });
+    await expect(create({ memberId: 'm-stranger' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('저장 뒤 검토 항목을 다시 계산한다 (22시 넘은 근무 → 야간 안내)', async () => {
+    const detail = await create({ clockInAt: kst('2026-11-03T21:00:00').toISOString(), clockOutAt: kst('2026-11-03T23:30:00').toISOString() });
+    const reviews = await db.laborReview.findMany({ where: { sourceId: detail.id } });
+    expect(reviews.map((review) => review.type)).toContain('NIGHT_WORK');
   });
 });
 

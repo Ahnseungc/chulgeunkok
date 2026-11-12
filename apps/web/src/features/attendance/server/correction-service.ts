@@ -1,7 +1,6 @@
 import { Prisma, type Attendance, type PrismaClient } from '@chulgeunkok/db';
 
 import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
-import { toLocalDate } from '@/features/payroll/model/work-time';
 import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
@@ -9,10 +8,8 @@ import type { CorrectionDto, CorrectionStatus } from '../model/attendance-admin-
 
 import { applyAttendanceChange, type AdminAttendanceChange } from './attendance-admin-service';
 import { toCorrectionDto } from './correction-dto';
+import { isOutsideCorrectionWindow } from './correction-window';
 
-/** 근무일로부터 이 기간이 지나면 직원은 요청할 수 없다 (docs/specs/attendance §7.1) */
-export const CORRECTION_WINDOW_DAYS = 35;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_ATTENDANCE_MS = 24 * 60 * 60 * 1000;
 
 const WITH_ATTENDANCE = { attendance: { include: { membership: { include: { user: true } } } } } as const;
@@ -61,8 +58,7 @@ export async function createCorrectionRequest(
 function assertRequestAllowed(input: { attendance: Attendance; body: CreateCorrectionInput; now: Date }) {
   const { attendance, body, now } = input;
   if (attendance.status === 'VOID') throw new ApiError('ATTENDANCE_NOT_EDITABLE');
-  const windowStart = toLocalDate(new Date(now.getTime() - CORRECTION_WINDOW_DAYS * DAY_MS));
-  if (toLocalDate(attendance.clockInAt) < windowStart) throw new ApiError('CORRECTION_WINDOW_CLOSED');
+  if (isOutsideCorrectionWindow(attendance.clockInAt, now)) throw new ApiError('CORRECTION_WINDOW_CLOSED');
 
   if (body.type === 'MISSING_CLOCK_OUT' && attendance.status !== 'MISSING_CLOCK_OUT') {
     throw new ApiError('ATTENDANCE_NOT_EDITABLE');
