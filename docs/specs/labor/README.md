@@ -23,7 +23,7 @@
 | --- | --- |
 | 근로조건 등록·이력 | 수당 **금액** 계산 (`payroll` §3.6에서 예상액만) |
 | `MINIMUM_WAGE`, `BREAK_SHORTAGE`, `WEEKLY_HOLIDAY`, `SHORT_TIME_OVERTIME` | `HOLIDAY_WORK`, `SEVERANCE`, `ANNUAL_LEAVE` (P1) |
-| `NIGHT_WORK`, `OVERTIME`, `ABSENCE_SUSPECTED` (근무 기록 트리거) | 근로계약서 전자 작성 |
+| `NIGHT_WORK`, `OVERTIME`, `ABSENCE_SUSPECTED`, 남긴 휴게의 `BREAK_SHORTAGE` (근무 기록 트리거) | 근로계약서 전자 작성 |
 | 바텀시트·검토 목록 | 노무사 상담 연결 (P2) |
 
 ## 3. 근로조건
@@ -133,13 +133,15 @@ const requiredBreak = (laborMinutes: number) =>
 | 유형 | 시점 | 조건 |
 | --- | --- | --- |
 | `NIGHT_WORK` | 퇴근 확정 | 인정 구간이 22:00–06:00과 1분 이상 겹침 |
+| `BREAK_SHORTAGE` | 퇴근 확정 | 직원이 휴게를 남긴 근무(`attendance` §3.6)만. 남긴 휴게 합계(근무 안 부분, 분) `< requiredBreak(근무분 − 휴게분)` (§4 함수 재사용). 남긴 휴게가 없으면 근무 기록으로 판단하지 않는다 — 근로조건 검토(§4)가 맡는다 |
 | `OVERTIME` | 퇴근 확정 | 통상: 그날 인정 > 480분 또는 그 주 누적 > 2400분. 단시간: 그날 인정 > 그 요일 소정 근로분 |
 | `ABSENCE_SUSPECTED` | 매일 06:00 일배치 | 전날이 소정 근무 요일인데 출근 기록 없음 (계약기간 안, `scheduleVaries = false`) |
 
 - `sourceType = ATTENDANCE`, `sourceId = attendance.id`. `ABSENCE_SUSPECTED`는 `sourceType = PAY_PERIOD`, `sourceId = "<membershipId>:<YYYY-MM-DD>"`.
 - 근무 기록이 수정되면 해당 `sourceId` 항목을 다시 평가한다. 조건이 사라지면 `RESOLVED`, 다시 해당하면 다시 `OPEN`. 이미 `ACKNOWLEDGED`인 항목은 건드리지 않는다.
 - 평가 시점: 퇴근 punch 커밋 뒤, 관리자 근태 수정 뒤, 수정 요청 승인 뒤. 실패해도 응답은 막지 않고 일배치가 최근 2일 퇴근 근무를 다시 평가한다.
-- `reasonCode`: `NIGHT:<날짜>`, `DAILY_OVER_8H|WEEKLY_OVER_40H|SHORT_TIME_DAILY:<날짜>`, `ABSENCE:<날짜>`. 문구는 날짜를 넣어 만든다 (§6.3).
+- `OVERTIME`의 인정 시간도 남긴 휴게가 있으면 남긴 휴게를 뺀 값이다 (`payroll` §3.2).
+- `reasonCode`: `NIGHT:<날짜>`, `RECORDED:<날짜>`(`BREAK_SHORTAGE`), `DAILY_OVER_8H|WEEKLY_OVER_40H|SHORT_TIME_DAILY:<날짜>`, `ABSENCE:<날짜>`. 문구는 날짜를 넣어 만든다 (§6.3).
 - 일배치 실행: `GET|POST /api/internal/jobs/daily-reviews` (`Authorization: Bearer <CRON_SECRET>`), 매일 06:00 KST.
 
 ## 6. 노출 규칙
@@ -174,7 +176,8 @@ ACKNOWLEDGED ─새 ruleVersion 재평가─▶ (새 행 OPEN)
 | 유형 / reasonCode | 제목 | 본문 |
 | --- | --- | --- |
 | `MINIMUM_WAGE` | 최저임금보다 낮아요 | 입력한 시급이 {연도}년 최저임금({금액}원)보다 낮아요. 시급을 확인해 주세요. |
-| `BREAK_SHORTAGE` | 휴게시간이 부족해요 | {요일} 근무에 법정 휴게시간이 부족해요. 4시간마다 30분 이상 쉬어야 해요. |
+| `BREAK_SHORTAGE` / `DAY_<요일>` | 휴게시간이 부족해요 | {요일} 근무에 법정 휴게시간이 부족해요. 4시간마다 30분 이상 쉬어야 해요. |
+| `BREAK_SHORTAGE` / `RECORDED:<날짜>` | 휴게시간이 부족해요 | {날짜} 근무에 남긴 휴게가 법정 휴게시간보다 짧아요. 4시간마다 30분 이상 쉬어야 해요. |
 | `WEEKLY_HOLIDAY` / `ELIGIBLE` | 주휴수당 대상일 수 있어요 | 입력한 근로조건에 따르면 주휴수당 적용 대상일 수 있어요. 소정근로일을 다 나오면 주휴일에 하루치 임금이 생겨요. |
 | `WEEKLY_HOLIDAY` / `HOLIDAY_NOT_SET` | 주휴일을 정해 주세요 | 주 15시간 이상 일하는 직원이에요. 주휴일을 정하면 주휴수당 예상액을 알려드릴 수 있어요. |
 | `SHORT_TIME_OVERTIME` | 정한 시간을 넘기면 가산수당이 생길 수 있어요 | 단시간 근로자는 정한 시간을 넘겨 일하면 5인 이상 사업장에서 가산수당이 생길 수 있어요. |
@@ -226,3 +229,4 @@ CTA: `확인했어요` → `ACKNOWLEDGED` / `근로조건 수정` → 근로조�
 - [ ] `UNDER_5` 매장에서 `NIGHT_WORK`는 바텀시트가 뜨지 않고 배지만 보인다. 항목 자체는 생성된다.
 - [ ] `ACKNOWLEDGED` 항목이 "해당 없음"으로 표시되는 화면이 없다.
 - [ ] 2027 규칙 세트를 추가하면 일배치 후 미달 직원에게 새 `MINIMUM_WAGE`가 생긴다.
+- [ ] 09:00–14:00 근무에 12:00–12:20 휴게를 남기면 그 근무에 `BREAK_SHORTAGE`(`RECORDED:<날짜>`). 12:30까지로 고치면 `RESOLVED`.

@@ -91,6 +91,44 @@ describe('evaluateAttendanceReviews', () => {
   });
 });
 
+describe('evaluateAttendanceReviews — 기록한 휴게 (labor §5)', () => {
+  const recordBreak = (attendanceId: string, start: string, end: string) =>
+    db.attendanceBreak.create({ data: { attendanceId, startAt: kst(start), endAt: kst(end) } });
+
+  it('기록한 휴게가 법정보다 짧으면 그 근무에 휴게 부족 안내', async () => {
+    await work('short-break', 'm-full', '2026-11-09T09:00:00', '2026-11-09T14:00:00');
+    await recordBreak('short-break', '2026-11-09T12:00:00', '2026-11-09T12:20:00');
+    await evaluateAttendanceReviews(db, { attendanceId: 'short-break', now: NOW });
+    expect(await reviewsOf('short-break')).toEqual([['BREAK_SHORTAGE', 'OPEN', 'RECORDED:2026-11-09']]);
+  });
+
+  it('휴게를 기록하지 않은 근무는 근무 기록으로 휴게 부족을 판단하지 않는다 (근로조건 검토가 맡는다)', async () => {
+    await work('no-record', 'm-full', '2026-11-09T09:00:00', '2026-11-09T14:00:00');
+    await evaluateAttendanceReviews(db, { attendanceId: 'no-record', now: NOW });
+    expect(await reviewsOf('no-record')).toEqual([]);
+  });
+
+  it('기록한 휴게로 인정 시간을 계산해 연장 안내를 판단한다', async () => {
+    // 소정 휴게 60분이면 8시간이지만, 실제 30분만 쉬어 8시간 30분
+    await work('full-day', 'm-full', '2026-11-09T09:00:00', '2026-11-09T18:00:00');
+    await recordBreak('full-day', '2026-11-09T12:00:00', '2026-11-09T12:30:00');
+    await evaluateAttendanceReviews(db, { attendanceId: 'full-day', now: NOW });
+    expect(await reviewsOf('full-day')).toEqual([
+      ['BREAK_SHORTAGE', 'OPEN', 'RECORDED:2026-11-09'],
+      ['OVERTIME', 'OPEN', 'DAILY_OVER_8H:2026-11-09'],
+    ]);
+  });
+
+  it('충분히 쉬도록 고치면 휴게 부족 안내를 해소한다', async () => {
+    await work('short-break', 'm-full', '2026-11-09T09:00:00', '2026-11-09T14:00:00');
+    const recorded = await recordBreak('short-break', '2026-11-09T12:00:00', '2026-11-09T12:20:00');
+    await evaluateAttendanceReviews(db, { attendanceId: 'short-break', now: NOW });
+    await db.attendanceBreak.update({ where: { id: recorded.id }, data: { endAt: kst('2026-11-09T12:30:00') } });
+    await evaluateAttendanceReviews(db, { attendanceId: 'short-break', now: NOW });
+    expect(await reviewsOf('short-break')).toEqual([['BREAK_SHORTAGE', 'RESOLVED', 'RECORDED:2026-11-09']]);
+  });
+});
+
 describe('runDailyReviewJob', () => {
   it('어제(월)가 근무일인데 기록이 없으면 결근 의심, 출근했으면 없음', async () => {
     await work('full-monday', 'm-full', '2026-11-09T09:00:00', '2026-11-09T18:00:00');

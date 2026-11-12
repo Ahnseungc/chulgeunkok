@@ -37,6 +37,16 @@ function overtimeBody(reasonCode: string) {
   return (OVERTIME_BODY[kind] ?? OVERTIME_BODY.DAILY_OVER_8H)(dateOf(reasonCode));
 }
 
+const BREAK_RULE_TEXT = '4시간마다 30분 이상 쉬어야 해요.';
+
+/** 근로조건 검토는 `DAY_<요일>`, 기록한 휴게 검토는 `RECORDED:<날짜>` (docs/specs/labor §4·§5) */
+function breakShortageBody(reasonCode: string) {
+  if (reasonCode.startsWith('RECORDED:')) {
+    return `${dateOf(reasonCode)} 근무에 남긴 휴게가 법정 휴게시간보다 짧아요. ${BREAK_RULE_TEXT}`;
+  }
+  return `${weekdayOf(reasonCode)} 근무에 법정 휴게시간이 부족해요. ${BREAK_RULE_TEXT}`;
+}
+
 export function reviewCopy(
   review: { type: string; reasonCode: string },
   context: CopyContext,
@@ -48,10 +58,7 @@ export function reviewCopy(
         body: `입력한 시급이 ${context.ruleYear}년 최저임금(${won(context.minimumHourlyWage)})보다 낮아요. 시급을 확인해 주세요.`,
       };
     case 'BREAK_SHORTAGE':
-      return {
-        title: '휴게시간이 부족해요',
-        body: `${weekdayOf(review.reasonCode)} 근무에 법정 휴게시간이 부족해요. 4시간마다 30분 이상 쉬어야 해요.`,
-      };
+      return { title: '휴게시간이 부족해요', body: breakShortageBody(review.reasonCode) };
     case 'WEEKLY_HOLIDAY':
       return review.reasonCode === 'HOLIDAY_NOT_SET'
         ? {

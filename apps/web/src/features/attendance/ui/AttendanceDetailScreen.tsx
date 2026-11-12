@@ -75,6 +75,11 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
               </AppLink>
             </PageStaggerEntranceItem>
           ) : null}
+          {data.breaks.length > 0 ? (
+            <PageStaggerEntranceItem>
+              <BreakList detail={data} />
+            </PageStaggerEntranceItem>
+          ) : null}
           <PageStaggerEntranceItem>
             {data.status !== 'VOID' ? <EditForm detail={data} path={path} onSaved={detail.reload} /> : null}
           </PageStaggerEntranceItem>
@@ -176,6 +181,33 @@ function EditForm({ detail, path, onSaved }: EditFormProps) {
           저장
         </ActionButton>
       </div>
+    </section>
+  );
+}
+
+const breakMs = (attendanceBreak: AttendanceDetailDto['breaks'][number]) =>
+  attendanceBreak.endAt ? new Date(attendanceBreak.endAt).getTime() - new Date(attendanceBreak.startAt).getTime() : 0;
+
+/** 직원이 남긴 휴게 (읽기 전용). 있으면 정산은 소정 휴게 대신 이 시간을 뺀다 (docs/specs/attendance §3.6) */
+function BreakList({ detail }: { detail: AttendanceDetailDto }) {
+  const totalMs = detail.breaks.reduce((sum, attendanceBreak) => sum + breakMs(attendanceBreak), 0);
+  return (
+    <section className="detail-section" aria-labelledby="breaks-heading">
+      <Text as="h2" id="breaks-heading" textStyle="t6Bold">
+        휴게 기록
+      </Text>
+      <ul className="review-list">
+        {detail.breaks.map((attendanceBreak) => (
+          <li key={attendanceBreak.id} className="review-list__item">
+            {formatClock(attendanceBreak.startAt)} ~{' '}
+            {attendanceBreak.endAt ? `${formatClock(attendanceBreak.endAt)} · ${formatDuration(breakMs(attendanceBreak))}` : '휴게 중'}
+          </li>
+        ))}
+      </ul>
+      <Text textStyle="t4Regular">합계 {formatDuration(totalMs)}</Text>
+      <Text textStyle="t3Regular" color="fg.neutralMuted">
+        직원이 남긴 휴게가 있으면 소정 휴게 대신 이 시간을 빼요.
+      </Text>
     </section>
   );
 }

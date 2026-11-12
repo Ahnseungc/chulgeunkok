@@ -87,7 +87,8 @@ function RequestForms({ detail, onDone }: { detail: AttendanceDetailDto; onDone:
 
   return (
     <>
-      {detail.status === 'CLOSED' && !detail.breakWaived ? (
+      {/* 직접 남긴 휴게가 있으면 휴게 못 함은 정산에 쓰지 않는다 (§3.6) */}
+      {detail.status === 'CLOSED' && !detail.breakWaived && detail.breaks.length === 0 ? (
         <section className="detail-section" aria-labelledby="break-heading">
           <Text as="h2" id="break-heading" textStyle="t6Bold">
             휴게를 못 썼나요?

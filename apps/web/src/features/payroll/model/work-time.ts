@@ -88,46 +88,74 @@ export interface WorkSegment {
   hourlyWage: number;
 }
 
+/** 직원이 남긴 휴게. 퇴근한 근무에는 열린 휴게가 없지만, 있으면 퇴근 시각까지로 본다 */
+export interface BreakInterval {
+  startAt: Date;
+  endAt: Date | null;
+}
+
 export interface SegmentInput {
-  attendance: { id: string; clockInAt: Date; clockOutAt: Date; breakWaived: boolean };
+  attendance: { id: string; clockInAt: Date; clockOutAt: Date; breakWaived: boolean; breaks: readonly BreakInterval[] };
   terms: { hourlyWage: number; schedules: readonly { weekday: number; breakMinutes: number }[] };
 }
 
+interface Piece {
+  localDate: string;
+  startMs: number;
+  endMs: number;
+  seconds: number;
+}
+
 /**
- * 근태 1건 → 매장 자정 기준 구간들. 휴게는 출근 요일 소정 휴게를 첫 구간부터 뺀다 (docs/specs/payroll §3.2).
- * `breakNotScheduled`: 출근 요일에 소정 스케줄이 없어 휴게를 빼지 못했다 (정산 화면 플래그)
+ * 근태 1건 → 매장 자정 기준 구간들 (docs/specs/payroll §3.2).
+ * 직원이 남긴 휴게가 있으면 그 휴게를 각 구간에서 겹친 만큼 뺀다. 없으면 출근 요일 소정 휴게를 첫 구간부터 뺀다.
+ * `breakNotScheduled`: 소정 휴게를 빼야 하는데 출근 요일에 소정 스케줄이 없다 (정산 화면 플래그)
  */
 export function toSegments(input: SegmentInput): { segments: WorkSegment[]; breakNotScheduled: boolean } {
   const { attendance, terms } = input;
   const pieces = splitAtLocalMidnight(attendance.clockInAt, attendance.clockOutAt);
+  const toSegment = (piece: Piece, breakSeconds: number): WorkSegment => ({
+    attendanceId: attendance.id,
+    localDate: piece.localDate,
+    workedSeconds: piece.seconds,
+    breakSeconds,
+    recognizedSeconds: piece.seconds - breakSeconds,
+    hourlyWage: terms.hourlyWage,
+  });
+  if (attendance.breaks.length > 0) {
+    const segments = pieces.map((piece) => toSegment(piece, recordedBreakSeconds(piece, attendance.breaks, attendance.clockOutAt)));
+    return { segments, breakNotScheduled: false };
+  }
+
   const totalSeconds = pieces.reduce((sum, piece) => sum + piece.seconds, 0);
   const schedule = terms.schedules.find((candidate) => candidate.weekday === localWeekday(attendance.clockInAt));
   const deductible = !attendance.breakWaived && totalSeconds >= MIN_WORK_SECONDS_FOR_BREAK;
-
   let remainingBreak = deductible && schedule ? Math.min(schedule.breakMinutes * 60, totalSeconds) : 0;
   const segments = pieces.map((piece) => {
     const breakSeconds = Math.min(remainingBreak, piece.seconds);
     remainingBreak -= breakSeconds;
-    return {
-      attendanceId: attendance.id,
-      localDate: piece.localDate,
-      workedSeconds: piece.seconds,
-      breakSeconds,
-      recognizedSeconds: piece.seconds - breakSeconds,
-      hourlyWage: terms.hourlyWage,
-    };
+    return toSegment(piece, breakSeconds);
   });
   return { segments, breakNotScheduled: deductible && !schedule };
 }
 
-function splitAtLocalMidnight(start: Date, end: Date): { localDate: string; seconds: number }[] {
-  const pieces: { localDate: string; seconds: number }[] = [];
+/** 구간과 겹친 기록 휴게 초. 휴게끼리는 겹치지 않는다 (열린 휴게 1개) */
+function recordedBreakSeconds(piece: Piece, breaks: readonly BreakInterval[], clockOutAt: Date): number {
+  const overlapMs = breaks.reduce((sum, interval) => {
+    const endMs = (interval.endAt ?? clockOutAt).getTime();
+    return sum + Math.max(0, Math.min(piece.endMs, endMs) - Math.max(piece.startMs, interval.startAt.getTime()));
+  }, 0);
+  return Math.min(piece.seconds, Math.floor(overlapMs / 1000));
+}
+
+function splitAtLocalMidnight(start: Date, end: Date): Piece[] {
+  const pieces: Piece[] = [];
   let cursor = start.getTime();
   while (cursor < end.getTime()) {
     const localDate = toLocalDate(new Date(cursor));
     const nextMidnight = localMidnight(addDays(localDate, 1)).getTime();
     const pieceEnd = Math.min(nextMidnight, end.getTime());
-    pieces.push({ localDate, seconds: Math.floor((pieceEnd - cursor) / 1000) });
+    pieces.push({ localDate, startMs: cursor, endMs: pieceEnd, seconds: Math.floor((pieceEnd - cursor) / 1000) });
     cursor = pieceEnd;
   }
   return pieces;

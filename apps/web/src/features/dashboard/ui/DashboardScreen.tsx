@@ -1,10 +1,10 @@
 'use client';
 
 import { ActionButton, Text } from '@seed-design/react';
-import { useEffect, useState } from 'react';
 
 import { formatClock, formatDuration, formatPeriodRange } from '@/shared/lib/format-time';
 import { usePolling, useApiResource } from '@/shared/lib/useApiResource';
+import { useServerNow } from '@/shared/lib/useServerNow';
 import { PageStaggerEntrance, PageStaggerEntranceItem } from '@/shared/motion/PageStaggerEntrance';
 import { SmoothCountUpNumber } from '@/shared/motion/SmoothCountUpNumber';
 import { useIntroCountUp } from '@/shared/motion/useIntroCountUp';
@@ -19,7 +19,6 @@ import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
 /** docs/specs/dashboard §5 */
 const POLL_INTERVAL_MS = 30_000;
-const CLOCK_TICK_MS = 60_000;
 const SECOND_MS = 1000;
 
 interface DashboardScreenProps {
@@ -156,17 +155,4 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
       </nav>
     </main>
   );
-}
-
-/** 경과 시간은 서버 시각 기준으로 1분마다 갱신한다 (기기 시계가 틀려도 같다) */
-function useServerNow(serverNow: string | null): Date {
-  const [now, setNow] = useState(() => (serverNow ? new Date(serverNow) : new Date()));
-  useEffect(() => {
-    if (!serverNow) return;
-    const offsetMs = new Date(serverNow).getTime() - Date.now();
-    setNow(new Date(serverNow));
-    const timer = setInterval(() => setNow(new Date(Date.now() + offsetMs)), CLOCK_TICK_MS);
-    return () => clearInterval(timer);
-  }, [serverNow]);
-  return now;
 }

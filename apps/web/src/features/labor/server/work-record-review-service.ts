@@ -3,7 +3,13 @@ import { Prisma, type LaborReviewType, type PrismaClient } from '@chulgeunkok/db
 import { localMidnight, toLocalDate, toSegments } from '@/features/payroll/model/work-time';
 
 import { FULL_TIME_WEEKLY_MINUTES, dailyLaborMinutes, weeklyContractMinutes } from '../model/labor-rules';
-import { nightWorkMinutes, overtimeReason, weekdayOfLocalDate, weekStartOf } from '../model/work-record-rules';
+import {
+  isRecordedBreakShort,
+  nightWorkMinutes,
+  overtimeReason,
+  weekdayOfLocalDate,
+  weekStartOf,
+} from '../model/work-record-rules';
 
 import { findRuleSet } from './labor-context';
 import { OPEN_REVIEW_STATUSES } from './review-service';
@@ -16,18 +22,21 @@ const REEVALUATE_RECENT_MS = 2 * DAY_MS;
 const addDays = (localDate: string, days: number) =>
   new Date(Date.parse(`${localDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
+const ATTENDANCE_REVIEW_TYPES: LaborReviewType[] = ['NIGHT_WORK', 'OVERTIME', 'BREAK_SHORTAGE'];
+const ATTENDANCE_INCLUDE = { terms: { include: { schedules: true } }, breaks: true } as const;
+
 /**
- * 근무 기록 하나의 야간·연장 안내를 만들거나 해소한다 (docs/specs/labor §5).
+ * 근무 기록 하나의 야간·연장·휴게 부족 안내를 만들거나 해소한다 (docs/specs/labor §5).
  * 퇴근 확정·근태 수정·요청 승인 뒤에 부른다. 같은 근무·같은 규칙 버전은 한 번만 만든다.
  */
 export async function evaluateAttendanceReviews(db: PrismaClient, input: { attendanceId: string; now: Date }) {
   const attendance = await db.attendance.findUniqueOrThrow({
     where: { id: input.attendanceId },
-    include: { terms: { include: { schedules: true } } },
+    include: ATTENDANCE_INCLUDE,
   });
   const source = { membershipId: attendance.membershipId, sourceId: attendance.id };
   if (attendance.status !== 'CLOSED' || !attendance.clockOutAt) {
-    await resolveReviews(db, { ...source, types: ['NIGHT_WORK', 'OVERTIME'] });
+    await resolveReviews(db, { ...source, types: ATTENDANCE_REVIEW_TYPES });
     return;
   }
   const rule = await findRuleSet(db, toLocalDate(input.now));
@@ -38,10 +47,25 @@ export async function evaluateAttendanceReviews(db: PrismaClient, input: { atten
     ? upsertReview(db, { ...source, type: 'NIGHT_WORK', reasonCode: `NIGHT:${localDate}`, ruleVersion: rule.version })
     : resolveReviews(db, { ...source, types: ['NIGHT_WORK'] }));
 
-  const overtime = await findOvertime(db, { attendance: { ...attendance, clockOutAt: attendance.clockOutAt } });
+  const closed = { ...attendance, clockOutAt: attendance.clockOutAt };
+  const overtime = await findOvertime(db, { attendance: closed });
   await (overtime
     ? upsertReview(db, { ...source, type: 'OVERTIME', reasonCode: `${overtime.reasonCode}:${overtime.localDate}`, ruleVersion: rule.version })
     : resolveReviews(db, { ...source, types: ['OVERTIME'] }));
+
+  await (hasShortRecordedBreak(closed)
+    ? upsertReview(db, { ...source, type: 'BREAK_SHORTAGE', reasonCode: `RECORDED:${localDate}`, ruleVersion: rule.version })
+    : resolveReviews(db, { ...source, types: ['BREAK_SHORTAGE'] }));
+}
+
+/** 직원이 휴게를 남긴 근무만 실제 기록으로 판단한다. 없으면 근로조건 검토(§4)가 맡는다 */
+function hasShortRecordedBreak(attendance: EvaluatedAttendance): boolean {
+  if (attendance.breaks.length === 0) return false;
+  const { segments } = toSegments({ attendance, terms: attendance.terms });
+  return isRecordedBreakShort({
+    workedSeconds: segments.reduce((sum, segment) => sum + segment.workedSeconds, 0),
+    breakSeconds: segments.reduce((sum, segment) => sum + segment.breakSeconds, 0),
+  });
 }
 
 /** 퇴근·수정 응답을 막지 않도록 실패는 기록만 한다. 일배치가 다시 평가한다 (docs/specs/attendance §3.3-9) */
@@ -53,7 +77,7 @@ export async function evaluateAttendanceReviewsSafely(db: PrismaClient, input: {
   }
 }
 
-type EvaluatedAttendance = Prisma.AttendanceGetPayload<{ include: { terms: { include: { schedules: true } } } }> & {
+type EvaluatedAttendance = Prisma.AttendanceGetPayload<{ include: typeof ATTENDANCE_INCLUDE }> & {
   clockOutAt: Date;
 };
 
@@ -68,7 +92,7 @@ async function findOvertime(db: PrismaClient, input: { attendance: EvaluatedAtte
       status: 'CLOSED',
       clockInAt: { gte: new Date(localMidnight(weekStart).getTime() - DAY_MS), lt: localMidnight(weekEnd) },
     },
-    include: { terms: { include: { schedules: true } } },
+    include: ATTENDANCE_INCLUDE,
   });
   const segments = weekAttendances.flatMap((row) =>
     row.clockOutAt ? toSegments({ attendance: { ...row, clockOutAt: row.clockOutAt }, terms: row.terms }).segments : [],

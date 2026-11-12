@@ -24,6 +24,7 @@ import type { MyAttendancesDto } from '../model/my-attendance-types';
 
 import { AttendanceBadges } from './AttendancesScreen';
 import { CORRECTION_TYPE_LABEL } from './correction-labels';
+import WorkingCard from './WorkingCard';
 
 const SECOND_MS = 1000;
 /** 직원 화면은 로그인 화면이 없다. 미등록이면 안내 문구만 (docs/specs/auth §1) */
@@ -106,12 +107,13 @@ export default function MyScreen() {
           <PageStaggerEntrance className="motion-contents">
             {data.working ? (
               <PageStaggerEntranceItem>
-                <section className="dash-card" aria-label="지금 근무 중">
-                  <Text textStyle="t6Bold">{data.store.name}에서 근무 중</Text>
-                  <Text textStyle="t4Regular" color="fg.neutralMuted">
-                    {formatClock(data.working.clockInAt)} 출근 · 퇴근할 때 매장 QR을 다시 찍어 주세요
-                  </Text>
-                </section>
+                <WorkingCard
+                  storeId={data.store.id}
+                  storeName={data.store.name}
+                  working={data.working}
+                  serverNow={data.serverNow}
+                  onChanged={mine.reload}
+                />
               </PageStaggerEntranceItem>
             ) : null}
             <PageStaggerEntranceItem>

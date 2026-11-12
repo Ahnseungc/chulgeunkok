@@ -14,16 +14,18 @@
 2. 버튼을 누르면 `POST /attendance/punch`. 서버 수신 시각으로 기록한다. `Idempotency-Key`로 재시도해도 한 번만 기록된다.
 3. 퇴근을 잊으면 일정 시간 뒤 `MISSING_CLOCK_OUT`으로 바뀌고, 직원이 수정 요청으로 퇴근 시각을 넣는다.
 4. 모든 근태 변경은 `AttendanceRevision`에 남는다.
+5. 근무 중에 `/me` 근무 카드에서 휴게 시작·끝을 직접 남길 수 있다 (§3.6). 남긴 휴게가 있으면 정산은 소정 휴게 대신 그 시간을 뺀다.
 
 ## 2. 범위 / 비목표
 
 | 포함 | 제외 |
 | --- | --- |
-| QR punch, 자동 토글, 멱등 | 실제 휴게 시작·종료 기록 (P1) |
+| QR punch, 자동 토글, 멱등 | 휴게 기록 관리자 편집 (표시만 한다) |
 | 출근 위치 기록·"매장 밖" 배지 | 위치로 출근 차단 |
 | 퇴근 누락 자동 전환 | 퇴근 누락 푸시 알림 (P1) |
 | 수정 요청 (시각, 휴게 못 함, 퇴근 누락) | 교대 근무 변경 요청 (P2) |
 | 관리자 직접 수정·무효 처리, 빠진 근무 직접 추가 (§7.4·§7.5) | |
+| 실제 휴게 시작·종료 기록 (§3.6, P1 → 파일럿 포함) | 휴게 위치 검사·QR 재스캔 |
 
 ## 3. Punch
 
@@ -96,6 +98,36 @@ interface PunchResult {
 - 응답을 못 받으면 같은 키로 3회 자동 재시도 (es-toolkit `delay` 1s, 2s, 4s).
 - 그래도 실패하면 "기록됐는지 확인 중이에요" → `GET /attendance/current`로 상태 확인 후 결과 표시.
 
+### 3.6 휴게 시작·끝 (2026-11-12)
+
+근무 중(`OPEN`)인 직원이 `/me` 근무 카드의 **[휴게 시작]** / **[휴게 끝]** 으로 남긴다. QR을 다시 찍지 않고 위치도 받지 않는다. 시각은 서버 수신 시각.
+
+```ts
+// AttendanceBreak(id, attendanceId, startAt, endAt?, createdAt)
+// 근무당 여러 번. 열린 휴게(endAt IS NULL)는 근무당 1개 — 부분 유니크 "AttendanceBreak_attendanceId_open_key"
+// CHECK endAt IS NULL OR endAt >= startAt
+const BreakBody = z.object({ storeId: z.string().min(1) });
+interface BreakResult { attendanceId: string; break: { id: string; startAt: string; endAt: string | null } }
+```
+
+| 요청 | 처리 (트랜잭션, punch와 같은 Membership `FOR UPDATE`) |
+| --- | --- |
+| `POST /attendance/break/start` | ACTIVE 직원 아님 `403 NOT_STORE_MEMBER`. OPEN 근무 없음 `409 NOT_WORKING`. 이미 열린 휴게가 있으면 **그 휴게를 그대로** 돌려준다 (멱등). 없으면 `startAt = now`로 만든다 |
+| `POST /attendance/break/end` | OPEN 근무 없음 `409 NOT_WORKING`. 열린 휴게 없음 `409 BREAK_NOT_STARTED`. 있으면 `endAt = now` |
+
+**열린 휴게 자동 종료**
+
+| 시점 | `endAt` |
+| --- | --- |
+| 퇴근 punch (§3.3-7) | 퇴근 시각 |
+| 퇴근 누락 자동 전환 (§5.1) | 전환 시각. 나중에 퇴근 시각을 넣으면 정산은 근무 안 부분만 뺀다 |
+| 관리자가 근무 중 기록에 퇴근 시각을 넣음·무효 처리 (§7.4) | 넣은 퇴근 시각(휴게 시작보다 이르면 시작 시각) / 무효는 처리 시각 |
+
+- 화면: 휴게 중이면 카드에 "휴게 중 · 12분"(서버 시각 기준 1분마다 갱신)과 [휴게 끝], 아니면 [휴게 시작]. 성공하면 토스트("휴게를 시작했어요" / "휴게 20분을 남겼어요"), 실패하면 오류 토스트. 어느 쪽이든 카드를 다시 불러온다.
+- 정산: 남긴 휴게가 하나라도 있으면 소정 휴게 자동 차감 대신 남긴 휴게를 구간별로 겹친 만큼 뺀다. `breakWaived`는 무시한다 (`payroll` §3.2).
+- 검토: 남긴 휴게 합계가 법정 휴게보다 짧으면 그 근무에 `BREAK_SHORTAGE` (`labor` §5).
+- 사장님 근태 상세에 휴게 기록(시각·합계)을 읽기 전용으로 보여 준다. 휴게 편집은 이번 범위 밖이다 (잘못 남긴 휴게는 아직 고칠 수 없다).
+
 ## 4. 출근 위치
 
 - `location`이 있고 매장 좌표가 있으면 haversine 거리 계산.
@@ -117,6 +149,7 @@ OPEN 근무 중 `now > 기준시각`인 것을 `MISSING_CLOCK_OUT`으로 바꾼�
 
 - 소정 퇴근 시각 = 출근 날짜(매장 시간대)의 `startMinute + workMinutes`.
 - 전환은 `AttendanceRevision`에 `actorId = 'system'`, `reason = 'AUTO_MISSING_CLOCK_OUT'`. 직원이 그 사이 퇴근을 찍었으면 조건부 update가 0건이라 건너뛴다.
+- 휴게 중이었으면 같은 트랜잭션에서 열린 휴게를 전환 시각으로 닫는다 (§3.6).
 - 실행: `GET|POST /api/internal/jobs/missing-clock-out` (`Authorization: Bearer <CRON_SECRET>`), 10분마다.
 
 ### 5.2 이후 동작
@@ -171,6 +204,7 @@ const CreateCorrectionBody = z.discriminatedUnion('type', [
 ### 7.2 "휴게 못 함"
 
 퇴근 완료 화면·본인 기록에서 `BREAK_WAIVED` 요청을 만든다. 사유 기본값 "바빠서 휴게시간을 못 썼어요". 승인되면 `breakWaived = true` → 휴게 차감 0 (`payroll` §3.2).
+휴게를 직접 남긴 근무(§3.6)는 남긴 휴게만 빼므로 `breakWaived`를 쓰지 않는다. 본인 기록 상세는 이 근무에 "휴게 못 했어요"를 보여 주지 않는다.
 
 ### 7.3 승인·반려 (관리자)
 
@@ -196,6 +230,7 @@ const AdminUpdateAttendanceBody = z.object({
 - 겹침 검사: 같은 직원의 무효가 아닌 다른 근무와 시간이 겹치면 `ATTENDANCE_CONFLICT`. 퇴근 시각이 없는 기록은 근무 중(`OPEN`)만 끝나지 않은 것으로 본다 (퇴근 누락은 끝을 모르므로 막지 않는다).
 - 목록·상세는 정산 기간 단위 (`?periodStart=`, 생략 시 오늘이 속한 기간). 인정 시간은 정산과 같은 계산 (`payroll` §3).
 - 근태가 아예 없는 날(QR을 못 찍은 날)은 §7.5로 새로 만든다.
+- 근무 중 기록에 퇴근 시각을 넣거나 무효로 하면 열린 휴게를 닫는다 (§3.6). 휴게 기록 자체는 고치지 않는다.
 
 ### 7.5 관리자 근태 추가 (Q7 결정, 2026-11-12)
 
@@ -230,11 +265,11 @@ const AdminCreateAttendanceBody = z.object({
 | URL | 사용자 | 요소 |
 | --- | --- | --- |
 | `/p/[qrToken]` | 직원 | §3.1 |
-| `/me` | 직원 | 매장 선택(여러 곳이면), 근무 중 카드, 정산 기간 이동, 이번 기간 근무일·인정 시간·예상 금액(기본급 + 주휴·가산·유급휴일, `payroll` §3.6·§3.7), 근무 목록(배지·"확인 중" 요청) |
+| `/me` | 직원 | 매장 선택(여러 곳이면), 근무 중 카드(휴게 시작·끝, "휴게 중 · n분", §3.6), 정산 기간 이동, 이번 기간 근무일·인정 시간·예상 금액(기본급 + 주휴·가산·유급휴일, `payroll` §3.6·§3.7), 근무 목록(배지·"확인 중" 요청) |
 | `/owner/[storeId]/corrections` | 관리자 | 대기 중 요청(오래된 순): 지금 기록 → 요청한 값, 사유, 승인 / 반려(사유 필수). 시각을 고쳐서 처리하려면 근태 상세에서 직접 수정 |
 | `/me/attendances/[id]` | 직원 | 상세, "휴게 못 했어요"(정상 종료·휴게 차감된 근무), 시각 수정·퇴근 시각 입력 요청, 보낸 요청과 사장님 답변, 대기 중 요청 취소 |
 | `/owner/[storeId]/attendances` | 관리자 | 기간·직원 필터, 상태 배지(근무 중·누락·매장 밖·수정됨·무효), 대기 중 요청 탭, "근무 추가" 시트(직원·날짜·출근·퇴근·휴게 못 함·사유, 퇴근이 출근보다 이르면 다음 날로 본다) → 성공 토스트·목록 갱신 (§7.5) |
-| `/owner/[storeId]/attendances/[id]` | 관리자 | 상세, 직접 수정, 변경 이력 |
+| `/owner/[storeId]/attendances/[id]` | 관리자 | 상세, 휴게 기록(시각·합계, 읽기 전용, §3.6), 직접 수정, 변경 이력 |
 
 ## 9. API
 
@@ -243,6 +278,8 @@ const AdminCreateAttendanceBody = z.object({
 | GET | `/attendance/punch-preview?qrToken=` | 등록 기기 |
 | POST | `/attendance/punch` | 등록 기기 + Membership |
 | GET | `/attendance/current?storeId=` | 본인 |
+| POST | `/attendance/break/start` | 본인. body `{ storeId }`, 근무 중일 때 (§3.6) |
+| POST | `/attendance/break/end` | 본인. body `{ storeId }` (§3.6) |
 | GET | `/attendance/me?storeId=&from=&to=` | 본인 |
 | GET | `/stores/:storeId/attendances?from=&to=&memberId=&status=` | 관리자 |
 | POST | `/stores/:storeId/attendances` | 관리자. 근태 추가 (§7.5) |
@@ -270,6 +307,8 @@ const AdminCreateAttendanceBody = z.object({
 | `CORRECTION_WINDOW_CLOSED` | 409 | 35일이 지난 기록은 사장님께 직접 수정을 요청해 주세요. (관리자 근태 추가는 §7.5 문구) |
 | `ATTENDANCE_NOT_EDITABLE` | 409 | 지금 상태에서는 이 요청을 할 수 없어요. |
 | `ATTENDANCE_CONFLICT` | 409 | 다른 근무 기록과 겹쳐요. |
+| `NOT_WORKING` | 409 | 근무 중일 때만 휴게를 남길 수 있어요. |
+| `BREAK_NOT_STARTED` | 409 | 시작한 휴게가 없어요. |
 
 ## 11. 수용 기준
 
@@ -282,3 +321,6 @@ const AdminCreateAttendanceBody = z.object({
 - [ ] 수정 요청 승인 시 `AttendanceRevision`에 before/after가 남고 검토 항목이 다시 계산된다.
 - [ ] Manager(`PAYROLL_READ` 없음) 근태 응답에 시급·금액 필드가 없다.
 - [ ] 관리자가 빠진 근무를 추가하면 `CLOSED` 근태와 `before = null` 변경 이력이 생기고, 목록·정산에 바로 잡힌다.
+- [ ] 근무 중 [휴게 시작]을 두 번 눌러도 열린 휴게는 1개. 근무 중이 아니면 `NOT_WORKING`, 휴게 중이 아닌데 [휴게 끝]이면 `BREAK_NOT_STARTED`.
+- [ ] 휴게 중에 퇴근을 찍으면 휴게가 퇴근 시각으로 닫히고, 18:00–23:00 근무에 20:00–20:20 휴게면 인정 4시간 40분.
+- [ ] 휴게 중에 퇴근 누락으로 바뀌면 휴게도 전환 시각으로 닫힌다.

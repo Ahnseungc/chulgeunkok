@@ -7,7 +7,10 @@ import type { AttendanceRowDto, CorrectionType } from './attendance-admin-types'
 export interface MyAttendancesDto {
   store: { id: string; name: string };
   period: PeriodWithNav;
-  working: { attendanceId: string; clockInAt: string } | null;
+  /** 경과 시간 계산 기준 (기기 시계가 틀려도 같게) */
+  serverNow: string;
+  /** breakStartedAt: 휴게 중이면 시작 시각 (docs/specs/attendance §3.6) */
+  working: { attendanceId: string; clockInAt: string; breakStartedAt: string | null } | null;
   summary: { recognizedSeconds: number; basePayEstimate: number; allowances: AllowanceEstimate; workDays: number };
   rows: (AttendanceRowDto & { pendingCorrection: CorrectionType | null })[];
 }

@@ -68,6 +68,22 @@ describe('getMyAttendances', () => {
     ]).toEqual([['a2', 'a1'], 'a2', 30960, 1, 0]);
   });
 
+  it('휴게 중이면 근무 중 카드에 휴게 시작 시각과 서버 시각을 준다 (§3.6)', async () => {
+    await db.attendanceBreak.create({ data: { attendanceId: 'a2', startAt: kst('2026-11-10T18:48:00') } });
+    const result = await mine();
+    expect([result.working?.breakStartedAt, result.serverNow]).toEqual([
+      kst('2026-11-10T18:48:00').toISOString(),
+      NOW.toISOString(),
+    ]);
+  });
+
+  it('휴게 중이 아니면 breakStartedAt 은 null', async () => {
+    await db.attendanceBreak.create({
+      data: { attendanceId: 'a2', startAt: kst('2026-11-10T18:30:00'), endAt: kst('2026-11-10T18:40:00') },
+    });
+    expect((await mine()).working?.breakStartedAt).toBeNull();
+  });
+
   it('대기 중인 수정 요청을 근무 옆에 표시한다', async () => {
     await createCorrectionRequest(db, {
       attendanceId: 'a1',

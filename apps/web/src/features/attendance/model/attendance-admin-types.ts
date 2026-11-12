@@ -1,6 +1,6 @@
 import type { PeriodWithNav } from '@/features/payroll/model/work-time';
 
-import type { AttendanceStatus } from './punch-types';
+import type { AttendanceBreakDto, AttendanceStatus } from './punch-types';
 
 /** 관리자 근태 목록 한 줄. docs/specs/attendance §8 */
 export interface AttendanceRowDto {
@@ -63,6 +63,8 @@ export interface CorrectionDto {
 }
 
 export interface AttendanceDetailDto extends AttendanceRowDto {
+  /** 직원이 남긴 휴게, 시작 순. 있으면 정산은 소정 휴게 대신 이것을 뺀다 (docs/specs/attendance §3.6) */
+  breaks: AttendanceBreakDto[];
   revisions: AttendanceRevisionDto[];
   corrections: CorrectionDto[];
 }

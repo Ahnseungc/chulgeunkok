@@ -13,6 +13,7 @@ import type {
   AttendanceSnapshot,
 } from '../model/attendance-admin-types';
 
+import { closeOpenBreak, toBreakDto } from './break-service';
 import { toCorrectionDto } from './correction-dto';
 import { isOutsideCorrectionWindow } from './correction-window';
 import { findEffectiveTerms } from './punch-context';
@@ -97,6 +98,7 @@ export async function getAttendanceDetail(
   ]);
   return {
     ...toRowDto(row),
+    breaks: row.attendance.breaks.map(toBreakDto),
     corrections: corrections.map(toCorrectionDto),
     revisions: revisions.map((revision) => ({
       id: revision.id,
@@ -206,6 +208,10 @@ export async function applyAttendanceChange(
 ) {
   const next = await buildNextState(tx, { current: input.current, change: input.change, now: input.now });
   await tx.attendance.update({ where: { id: input.current.id }, data: next });
+  // 근무 중 기록이 끝나면 열린 휴게도 닫는다 (§3.6). 무효 처리는 처리 시각으로
+  if (input.current.status === 'OPEN' && next.status !== 'OPEN') {
+    await closeOpenBreak(tx, { attendanceId: input.current.id, at: next.clockOutAt ?? input.now });
+  }
   await tx.attendanceRevision.create({
     data: {
       attendanceId: input.current.id,

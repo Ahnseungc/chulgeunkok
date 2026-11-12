@@ -5,6 +5,8 @@
 
 import { localMidnight, localWeekday, toLocalDate } from '@/features/payroll/model/work-time';
 
+import { requiredBreakMinutes } from './labor-rules';
+
 const SECOND_MS = 1000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -35,6 +37,15 @@ export function missingClockOutDeadline(
   const scheduledEnd = localMidnight(toLocalDate(clockInAt)).getTime() + (schedule.startMinute + schedule.workMinutes) * MINUTE_MS;
   if (clockInAt.getTime() >= scheduledEnd) return unscheduled;
   return new Date(scheduledEnd + MISSING_AFTER_SCHEDULED_END_MS);
+}
+
+/**
+ * 직원이 남긴 휴게 합계가 법정 휴게보다 짧은가 (docs/specs/labor §5 `BREAK_SHORTAGE`).
+ * 근로조건 검토와 같은 기준: 휴게를 뺀 근로시간으로 필요한 휴게를 정한다
+ */
+export function isRecordedBreakShort(input: { workedSeconds: number; breakSeconds: number }): boolean {
+  const laborMinutes = Math.floor((input.workedSeconds - input.breakSeconds) / 60);
+  return Math.floor(input.breakSeconds / 60) < requiredBreakMinutes(laborMinutes);
 }
 
 /** 근무 구간이 22:00–06:00과 겹치는 분 */

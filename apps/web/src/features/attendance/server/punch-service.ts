@@ -17,6 +17,7 @@ import type {
   PunchResultDto,
 } from '../model/punch-types';
 
+import { closeOpenBreak } from './break-service';
 import {
   findActiveMembership,
   findEffectiveTerms,
@@ -165,6 +166,8 @@ async function clockOut(
 ): Promise<AttendanceDto> {
   const elapsedSeconds = (input.now.getTime() - input.attendance.clockInAt.getTime()) / 1000;
   if (elapsedSeconds < MIN_CLOCK_OUT_SECONDS) throw new ApiError('PUNCH_TOO_SOON');
+  // 휴게 중에 퇴근하면 퇴근 시각으로 휴게를 닫는다 (§3.6)
+  await closeOpenBreak(tx, { attendanceId: input.attendance.id, at: input.now });
   const attendance = await tx.attendance.update({
     where: { id: input.attendance.id },
     data: { clockOutAt: input.now, status: 'CLOSED' },
