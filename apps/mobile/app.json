@@ -45,7 +45,8 @@
           "imageWidth": 200,
           "backgroundColor": "#FFFFFF"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "scheme": "chulgeunkok",
     "extra": {

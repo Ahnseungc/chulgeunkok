@@ -146,6 +146,7 @@ WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·
 | --- | --- | --- | --- |
 | 웹 → 앱 | `OPEN_SCANNER` | 없음 | `/me`의 "매장 QR 찍기" 버튼 |
 | 웹 → 앱 | `DEVICE_REGISTERED` | `{ handoffCode }` | 초대 수락·사장님 인증 직후. 네이티브가 §6.2-3 실행 |
+| 웹 → 앱 | `SAVE_FILE` | `{ fileName, mime: application/pdf·image/png, base64 }` | WebView 는 blob:·data: 다운로드를 못 한다. 앱이 캐시에 쓰고 공유 시트를 연다 (QR 카드 PDF·PNG, 매장 QR 이미지). base64 8MB 이하, 파일 이름에 경로 구분자 금지 |
 
 - 스캔 결과는 메시지로 보내지 않는다. 네이티브가 `toAppPath`로 검증한 경로(`/p/…`, `/invite/…`, 같은 출처 또는 `chulgeunkok://`)로 WebView를 바로 연다. 그 밖의 QR은 "출근콕 QR이 아니에요" 안내.
 - 웹은 `window.ReactNativeWebView` 존재로 앱 안인지 판단한다. 없으면 일반 웹 동작.

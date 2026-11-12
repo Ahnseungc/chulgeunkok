@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseAppToWeb, parseWebToApp, toAppPath, toPushPath } from './index';
+import { parseAppToWeb, parseWebToApp, SAVE_FILE_MAX_BASE64_LENGTH, toAppPath, toPushPath } from './index';
 
 const ORIGIN = 'https://chulgeunkok.app';
 const TOKEN = 'a'.repeat(43);
@@ -89,5 +89,30 @@ describe('toPushPath', () => {
     undefined,
   ])('%j 는 거부', (raw) => {
     expect(toPushPath(raw)).toBeNull();
+  });
+});
+
+describe('파일 저장 SAVE_FILE', () => {
+  const message = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({ type: 'SAVE_FILE', fileName: '출근콕-QR카드-골목카페-스탠드.pdf', mime: 'application/pdf', base64: 'JVBERi0=', ...overrides });
+
+  it('파일 이름·형식·base64 가 맞으면 받는다', () => {
+    expect(parseWebToApp(message())).toEqual({
+      type: 'SAVE_FILE',
+      fileName: '출근콕-QR카드-골목카페-스탠드.pdf',
+      mime: 'application/pdf',
+      base64: 'JVBERi0=',
+    });
+    expect(parseWebToApp(message({ mime: 'image/png', fileName: 'card.png' }))?.type).toBe('SAVE_FILE');
+  });
+
+  it.each(['../evil.pdf', 'a/b.pdf', 'a\\b.pdf', '..', '', 'a\nb.pdf'])('경로가 섞인 파일 이름 %j 은 버린다', (fileName) => {
+    expect(parseWebToApp(message({ fileName }))).toBeNull();
+  });
+
+  it('허용하지 않은 형식·base64 아닌 값·상한을 넘는 본문은 버린다', () => {
+    expect(parseWebToApp(message({ mime: 'text/html' }))).toBeNull();
+    expect(parseWebToApp(message({ base64: 'not base64!' }))).toBeNull();
+    expect(parseWebToApp(message({ base64: 'A'.repeat(SAVE_FILE_MAX_BASE64_LENGTH + 4) }))).toBeNull();
   });
 });

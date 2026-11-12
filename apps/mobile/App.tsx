@@ -9,6 +9,7 @@ import { parseWebToApp, toAppPath, type AppToWebMessage } from '@chulgeunkok/app
 import { HOME_PATH, WEB_ORIGIN } from './src/config';
 import { buildEntryUrl, getDeviceToken, saveDeviceFromHandoff } from './src/device-session';
 import { getNativeLocation } from './src/native-location';
+import { saveSharedFile } from './src/save-file';
 import { askPushPermissionOnce, initialPushPath, onPushOpen, onPushTokenRefresh, syncPushToken } from './src/push';
 import ScannerModal from './src/ScannerModal';
 
@@ -76,6 +77,7 @@ export default function App() {
       await setUpPush();
     }
     if (message?.type === 'REQUEST_LOCATION') postToWeb(await getNativeLocation(message.requestId));
+    if (message?.type === 'SAVE_FILE') await saveSharedFile(message);
   }, [postToWeb, setUpPush]);
 
   if (!uri) {

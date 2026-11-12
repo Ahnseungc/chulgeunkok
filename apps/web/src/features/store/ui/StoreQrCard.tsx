@@ -3,10 +3,14 @@
 import { ActionButton, Text } from '@seed-design/react';
 import { useState } from 'react';
 
+import { saveFile } from '@/shared/lib/save-file';
 import { SuccessEntrance, SuccessEntranceItem, SuccessEntranceMark } from '@/shared/motion/SuccessEntrance';
 import { AppLink } from '@/shared/ui/AppLink';
+import InlineAlert from '@/shared/ui/InlineAlert';
 import KokMark from '@/shared/ui/KokMark';
 import QrImage from '@/shared/ui/QrImage';
+
+const SAVE_IMAGE_FAILED_MESSAGE = '이미지를 저장하지 못했어요. 다시 시도해 주세요.';
 
 interface StoreQrCardProps {
   storeId: string;
@@ -17,6 +21,18 @@ interface StoreQrCardProps {
 /** 매장 생성·QR 재발급 직후의 출근 QR. 인쇄·저장하거나 QR 카드 화면으로 간다 (docs/specs/store §5.3·§5.4) */
 export default function StoreQrCard({ storeId, storeName, url }: StoreQrCardProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  /** 앱 WebView 는 data: 다운로드를 못 해서 saveFile 이 앱 공유 시트로 넘긴다 */
+  const handleSaveImage = async (source: string) => {
+    setSaveError(null);
+    try {
+      const blob = await (await fetch(source)).blob();
+      await saveFile(blob, `${storeName}-출근QR.png`, 'image/png');
+    } catch {
+      setSaveError(SAVE_IMAGE_FAILED_MESSAGE);
+    }
+  };
 
   return (
     <section className="punch-center" aria-live="polite">
@@ -48,10 +64,8 @@ export default function StoreQrCard({ storeId, storeName, url }: StoreQrCardProp
             인쇄하기
           </ActionButton>
           {dataUrl ? (
-            <ActionButton asChild variant="neutralWeak" size="medium">
-              <a href={dataUrl} download={`${storeName}-출근QR.png`}>
-                이미지 저장
-              </a>
+            <ActionButton variant="neutralWeak" size="medium" onClick={() => void handleSaveImage(dataUrl)}>
+              이미지 저장
             </ActionButton>
           ) : null}
           {/* 스탠드·스티커 카드는 QR 카드 화면에서 만든다 (docs/specs/store §5.4, qr-card §5.1) */}
@@ -60,6 +74,7 @@ export default function StoreQrCard({ storeId, storeName, url }: StoreQrCardProp
           </ActionButton>
         </SuccessEntranceItem>
       </SuccessEntrance>
+      <InlineAlert message={saveError} textStyle="t4Regular" />
     </section>
   );
 }
