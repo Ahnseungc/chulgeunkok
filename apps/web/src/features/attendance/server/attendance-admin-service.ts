@@ -1,4 +1,4 @@
-import type { Attendance, AttendanceStatus, Prisma, PrismaClient } from '@chulgeunkok/db';
+import { Prisma, type Attendance, type AttendanceStatus, type PrismaClient } from '@chulgeunkok/db';
 
 import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
 import { getStorePayPeriod, payPeriodConfigOf, toLocalDate } from '@/features/payroll/model/work-time';
@@ -14,6 +14,7 @@ import type {
 } from '../model/attendance-admin-types';
 
 import { toCorrectionDto } from './correction-dto';
+import { isOutsideCorrectionWindow } from './correction-window';
 import { findEffectiveTerms } from './punch-context';
 
 /** 근무 한 건의 최대 길이 (docs/specs/attendance §7.1) */
@@ -26,6 +27,19 @@ export interface AdminAttendanceChange {
   status?: 'VOID';
   reason: string;
 }
+
+/** POST /stores/:storeId/attendances 입력 (docs/specs/attendance §7.5) */
+export interface AdminAttendanceCreate {
+  memberId: string;
+  clockInAt: string;
+  clockOutAt: string;
+  breakWaived?: boolean;
+  reason: string;
+}
+
+/** 관리자 근태 추가용 문구. 기본 문구는 직원 화면 기준이라 바꿔 쓴다 (docs/specs/attendance §7.5) */
+const CREATE_WINDOW_CLOSED_MESSAGE = '35일이 지난 날짜에는 근무를 추가할 수 없어요.';
+const CREATE_TERMS_NOT_SET_MESSAGE = '그날 적용되는 근로조건이 없어요. 근로조건을 먼저 등록해 주세요.';
 
 /** GET /stores/:storeId/attendances — 정산 기간 단위. docs/specs/attendance §8 */
 export async function listStoreAttendances(
@@ -117,6 +131,66 @@ export async function updateAttendanceByAdmin(
 }
 
 /**
+ * POST /stores/:storeId/attendances — QR을 못 찍은 근무를 관리자가 추가한다 (docs/specs/attendance §7.5)
+ * 상태 CLOSED, 변경 이력은 before = null. 저장 뒤 검토 항목을 다시 돌린다
+ */
+export async function createAttendanceByAdmin(
+  db: PrismaClient,
+  input: { storeId: string; actorUserId: string; body: AdminAttendanceCreate; now: Date },
+): Promise<AttendanceDetailDto> {
+  await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'ATTENDANCE_ADMIN' }, db);
+  const member = await db.membership.findUnique({ where: { id: input.body.memberId } });
+  if (!member || member.storeId !== input.storeId) throw new ApiError('NOT_FOUND');
+
+  const clockInAt = new Date(input.body.clockInAt);
+  const clockOutAt = new Date(input.body.clockOutAt);
+  assertValidRange({ clockInAt, clockOutAt, now: input.now });
+  if (isOutsideCorrectionWindow(clockInAt, input.now)) {
+    throw new ApiError('CORRECTION_WINDOW_CLOSED', { message: CREATE_WINDOW_CLOSED_MESSAGE });
+  }
+
+  const created = await db.$transaction((tx) =>
+    insertAdminAttendance(tx, { storeId: input.storeId, membershipId: member.id, actorUserId: input.actorUserId, body: input.body }),
+  );
+  await evaluateAttendanceReviewsSafely(db, { attendanceId: created.id, now: input.now });
+  return getAttendanceDetail(db, { attendanceId: created.id, actorUserId: input.actorUserId, now: input.now });
+}
+
+/** 겹침·근로조건 확인 뒤 CLOSED 근태와 before = null 변경 이력을 한 트랜잭션에서 만든다 */
+async function insertAdminAttendance(
+  tx: Prisma.TransactionClient,
+  input: { storeId: string; membershipId: string; actorUserId: string; body: AdminAttendanceCreate },
+) {
+  const clockInAt = new Date(input.body.clockInAt);
+  const clockOutAt = new Date(input.body.clockOutAt);
+  await assertNoOverlap(tx, { membershipId: input.membershipId, clockInAt, clockOutAt });
+  const terms = await findEffectiveTerms(tx, { membershipId: input.membershipId, at: clockInAt });
+  if (!terms) throw new ApiError('TERMS_NOT_SET', { message: CREATE_TERMS_NOT_SET_MESSAGE });
+
+  const attendance = await tx.attendance.create({
+    data: {
+      storeId: input.storeId,
+      membershipId: input.membershipId,
+      termsId: terms.id,
+      clockInAt,
+      clockOutAt,
+      breakWaived: input.body.breakWaived ?? false,
+      status: 'CLOSED',
+    },
+  });
+  await tx.attendanceRevision.create({
+    data: {
+      attendanceId: attendance.id,
+      actorId: input.actorUserId,
+      reason: input.body.reason,
+      before: Prisma.JsonNull,
+      after: snapshot(attendance),
+    },
+  });
+  return attendance;
+}
+
+/**
  * 근태 변경 적용 + 변경 이력. 관리자 직접 수정과 수정 요청 승인이 같은 규칙을 쓴다.
  * 호출부 트랜잭션 안에서 부른다.
  */
@@ -157,7 +231,7 @@ async function buildNextState(
     throw new ApiError('VALIDATION_FAILED', { message: '퇴근 시각을 입력해 주세요.' });
   }
   if (clockOutAt) assertValidRange({ clockInAt, clockOutAt, now: input.now });
-  await assertNoOverlap(tx, { current, clockInAt, clockOutAt });
+  await assertNoOverlap(tx, { membershipId: current.membershipId, excludeId: current.id, clockInAt, clockOutAt });
 
   const terms = await findEffectiveTerms(tx, { membershipId: current.membershipId, at: clockInAt });
   if (!terms) throw new ApiError('TERMS_NOT_SET');
@@ -189,17 +263,17 @@ function assertValidRange(input: { clockInAt: Date; clockOutAt: Date; now: Date 
 }
 
 /**
- * 같은 직원의 다른 근무(무효 제외)와 시간이 겹치면 ATTENDANCE_CONFLICT.
+ * 같은 직원의 다른 근무(무효 제외, 고치는 근무 자신 제외)와 시간이 겹치면 ATTENDANCE_CONFLICT.
  * 퇴근 시각이 없는 기록 중 실제 근무 중(OPEN)만 "끝나지 않음"으로 본다. 퇴근 누락은 끝 시각을 모르므로 막지 않는다
  */
 async function assertNoOverlap(
   tx: Prisma.TransactionClient,
-  input: { current: Attendance; clockInAt: Date; clockOutAt: Date | null },
+  input: { membershipId: string; excludeId?: string; clockInAt: Date; clockOutAt: Date | null },
 ) {
   const overlapping = await tx.attendance.findFirst({
     where: {
-      id: { not: input.current.id },
-      membershipId: input.current.membershipId,
+      ...(input.excludeId ? { id: { not: input.excludeId } } : {}),
+      membershipId: input.membershipId,
       status: { not: 'VOID' },
       ...(input.clockOutAt ? { clockInAt: { lt: input.clockOutAt } } : {}),
       OR: [{ clockOutAt: null, status: 'OPEN' }, { clockOutAt: { gt: input.clockInAt } }],

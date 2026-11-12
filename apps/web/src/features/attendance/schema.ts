@@ -85,3 +85,12 @@ export const AdminUpdateAttendanceBody = z.object({
   status: z.literal('VOID').optional(),
   reason: Reason,
 });
+
+/** docs/specs/attendance §7.5 — 관리자가 빠진 근무를 직접 추가한다 */
+export const AdminCreateAttendanceBody = z.object({
+  memberId: z.string().min(1),
+  clockInAt: IsoDateTime,
+  clockOutAt: IsoDateTime,
+  breakWaived: z.boolean().default(false),
+  reason: Reason,
+});
