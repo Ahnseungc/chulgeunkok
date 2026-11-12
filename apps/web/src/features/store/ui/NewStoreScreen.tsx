@@ -155,7 +155,7 @@ export default function NewStoreScreen() {
           <fieldset className="headcount">
             <legend>
               <Text as="span" textStyle="t4Medium">
-                함께 일하는 사람 수 (사장님 포함, 지난 1개월 평균)
+                함께 일하는 사람 수 (사장님 빼고, 지난 1개월 평균)
               </Text>
             </legend>
             <div className="headcount__options">
