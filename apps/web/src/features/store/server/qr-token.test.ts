@@ -28,6 +28,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   await close();
 });
 
@@ -93,6 +94,29 @@ describe('getStoreQrUrl (docs/specs/qr-card §3.2)', () => {
     await createLegacyStore('v1.broken.ciphertext');
     expect((await qrUrl('legacy')).url).toBeNull();
     expect(console.error).toHaveBeenCalledWith('[qr] 암호문 복호화 실패', 'legacy');
+  });
+
+  it('다른 매장의 암호문을 옮겨 오면 url null', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { store } = await createOwnedStore();
+    const other = await createOwnedStore();
+    const otherToken = await db.storeQrToken.findFirstOrThrow({ where: { storeId: other.store.id, revokedAt: null } });
+    await db.storeQrToken.updateMany({
+      where: { storeId: store.id, revokedAt: null },
+      data: { tokenCiphertext: otherToken.tokenCiphertext },
+    });
+
+    expect((await qrUrl(store.id)).url).toBeNull();
+    expect(console.error).toHaveBeenCalledWith('[qr] 암호문과 토큰이 맞지 않음', store.id);
+  });
+
+  it('production에서 키가 없으면 url null이 아니라 INTERNAL', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { store } = await createOwnedStore();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('QR_TOKEN_ENC_KEY', '');
+
+    await expect(qrUrl(store.id)).rejects.toMatchObject({ code: 'INTERNAL' });
   });
 
   it('Manager는 FORBIDDEN', async () => {

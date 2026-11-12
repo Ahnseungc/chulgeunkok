@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@chulgeunkok/db';
+import type { Prisma, PrismaClient, StoreQrToken } from '@chulgeunkok/db';
 
 import { requireMembership } from '@/server/auth/require-membership';
 import { generateToken } from '@/server/crypto/generate-token';
@@ -20,7 +20,7 @@ export async function issueQrToken(tx: Prisma.TransactionClient, storeId: string
 
 /**
  * GET /stores/:storeId/qr — Owner만 (docs/specs/qr-card §3.2).
- * 암호문이 없는 이전 토큰이나 풀리지 않는 암호문은 url null (재발급 안내).
+ * 암호문이 없는 이전 토큰, 풀리지 않거나 이 행의 tokenHash와 맞지 않는 암호문은 url null (재발급 안내).
  */
 export async function getStoreQrUrl(
   db: PrismaClient,
@@ -29,8 +29,19 @@ export async function getStoreQrUrl(
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'STORE_ADMIN' }, db);
   const token = await db.storeQrToken.findFirst({ where: { storeId: input.storeId, revokedAt: null } });
   const issuedAt = token?.createdAt.toISOString() ?? null;
-  const rawToken = token?.tokenCiphertext ? decryptOrNull(token.tokenCiphertext, input.storeId) : null;
+  const rawToken = token ? rawTokenOf(token, input.storeId) : null;
   return { url: rawToken ? `${input.origin}/p/${rawToken}` : null, issuedAt };
+}
+
+/** 암호문을 다른 행에서 옮겨 와도 쓰지 않도록, 푼 원문이 이 행의 tokenHash와 같을 때만 돌려준다 (§3.1) */
+function rawTokenOf(token: Pick<StoreQrToken, 'tokenHash' | 'tokenCiphertext'>, storeId: string): string | null {
+  if (!token.tokenCiphertext) return null;
+  const rawToken = decryptOrNull(token.tokenCiphertext, storeId);
+  if (rawToken === null) return null;
+  if (hashToken(rawToken) === token.tokenHash) return rawToken;
+  // 복구 가능: 재발급하면 맞는 암호문이 생긴다. 원문은 남기지 않는다
+  console.error('[qr] 암호문과 토큰이 맞지 않음', storeId);
+  return null;
 }
 
 function decryptOrNull(ciphertext: string, storeId: string): string | null {

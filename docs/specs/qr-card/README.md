@@ -40,6 +40,8 @@
 `GET /stores/:storeId/qr` → `{ url: string | null, issuedAt }` — **Owner만** (`STORE_ADMIN`).
 
 - 활성 토큰의 `tokenCiphertext`를 풀어 `https://<도메인>/p/<원문>` 을 준다.
+- 푼 원문의 해시가 그 행의 `tokenHash`와 다르면(다른 행에서 옮겨 온 암호문) 쓰지 않고 `url: null`.
+- production에서 키가 없으면 `url: null`이 아니라 `INTERNAL` (재발급으로 고칠 수 없는 설정 오류).
 - 이 기능 이전에 만든 토큰은 암호문이 없어 `url: null`. 화면은 "QR을 새로 만들어야 카드를 만들 수 있어요" + 재발급 버튼을 보인다 (출시 전이라 기존 매장은 한 번 재발급).
 - 응답은 `Cache-Control: no-store`.
 
