@@ -10,7 +10,7 @@ import { qrCardToPdf } from './export-qr-card';
 import QrCardPreview from './QrCardPreview';
 import QrCardScreen from './QrCardScreen';
 import { renderQrCard } from './render-qr-card';
-import { AUTOSAVE_DELAY_MS } from './useQrCard';
+import { AUTOSAVE_DELAY_MS, designInputError } from './useQrCard';
 
 // 렌더마다 새 router 를 주면 useApiResource 가 매번 다시 조회한다. 같은 객체를 돌려준다
 const router = vi.hoisted(() => ({ push: () => {}, replace: () => {} }));
@@ -130,6 +130,15 @@ describe('QrCardScreen', () => {
     ]);
   });
 
+  it('매장 이름을 비우면 PUT 하지 않고 글자 수 안내', async () => {
+    const calls = await openScreen();
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText('매장 이름'), { target: { value: '  ' } });
+    await act(async () => vi.advanceTimersByTime(AUTOSAVE_DELAY_MS));
+    expect(putCalls(calls)).toHaveLength(0);
+    expect(screen.getByText('매장 이름은 1~20자로 적어 주세요')).toBeTruthy();
+  });
+
   it('url이 null이면 재발급 안내', async () => {
     await openScreen({ url: null });
     expect(screen.getByText('QR을 새로 만들어야 카드를 만들 수 있어요')).toBeTruthy();
@@ -154,6 +163,15 @@ describe('QrCardScreen', () => {
       qrUrl: QR_URL,
       pixelWidth: 945,
     });
+  });
+});
+
+describe('designInputError (§4.1)', () => {
+  it('title 1~20자·message 40자 이하만 통과', () => {
+    expect(designInputError({ title: '가'.repeat(20), message: '나'.repeat(40) })).toBeNull();
+    expect(designInputError({ title: ' ', message: '' })).toBe('매장 이름은 1~20자로 적어 주세요');
+    expect(designInputError({ title: '가'.repeat(21), message: '' })).toBe('매장 이름은 1~20자로 적어 주세요');
+    expect(designInputError({ title: '가', message: '나'.repeat(41) })).toBe('안내 문구는 40자까지 적을 수 있어요');
   });
 });
 

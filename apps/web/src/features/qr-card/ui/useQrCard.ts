@@ -5,14 +5,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/shared/lib/api-client';
 import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
 
-import type { QrCardDesignDto } from '../model/qr-card-types';
+import { QR_CARD_MESSAGE_MAX, QR_CARD_TITLE_MAX, type QrCardDesignDto } from '../model/qr-card-types';
 
 import { downloadQrCard, isLogoType, loadImage, QrLogoResizeError, resizeLogo, type QrCardFileKind } from './qr-card-files';
 
 /** 마지막 입력 뒤 이만큼 멈추면 저장한다 (docs/specs/qr-card §5.4) */
 export const AUTOSAVE_DELAY_MS = 800;
 const WORDMARK_SRC = '/brand/wordmark.png';
-const TITLE_REQUIRED_MESSAGE = '매장 이름을 넣어 주세요';
+const TITLE_LENGTH_MESSAGE = `매장 이름은 1~${QR_CARD_TITLE_MAX}자로 적어 주세요`;
+const MESSAGE_LENGTH_MESSAGE = `안내 문구는 ${QR_CARD_MESSAGE_MAX}자까지 적을 수 있어요`;
 const LOGO_TYPE_MESSAGE = 'PNG나 JPG 이미지만 올릴 수 있어요.';
 const LOGO_LOAD_MESSAGE = '로고를 불러오지 못했어요. 다시 올려 주세요.';
 const FILE_FAILED_MESSAGE = '파일을 만들지 못했어요. 다시 시도해 주세요.';
@@ -23,6 +24,14 @@ export type QrCardDesignPatch = Partial<Pick<QrCardDesignDto, 'layout' | 'color'
 interface StoreQrDto {
   url: string | null;
   issuedAt: string | null;
+}
+
+/** 서버 검증(schema.ts, §4.1: title 1~20자·message 0~40자)과 같은 기준. 어긋나면 PUT 하지 않고 이 문구를 보인다 */
+export function designInputError({ title, message }: Pick<QrCardDesignDto, 'title' | 'message'>): string | null {
+  const titleLength = title.trim().length;
+  if (titleLength < 1 || titleLength > QR_CARD_TITLE_MAX) return TITLE_LENGTH_MESSAGE;
+  if (message.trim().length > QR_CARD_MESSAGE_MAX) return MESSAGE_LENGTH_MESSAGE;
+  return null;
 }
 
 const bodyOf = ({ layout, color, title, message }: QrCardDesignDto) => ({ layout, color, title, message });
@@ -50,7 +59,8 @@ function useAutosavedDesign(path: string, loaded: QrCardDesignDto | null) {
         setSaveState('error');
         setSaveError(message);
       };
-      if (next.title.trim() === '') return failed(TITLE_REQUIRED_MESSAGE);
+      const inputError = designInputError(next);
+      if (inputError) return failed(inputError);
       setSaveState('saving');
       setSaveError(null);
       try {
