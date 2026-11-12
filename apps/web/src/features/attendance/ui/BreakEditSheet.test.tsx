@@ -13,13 +13,13 @@ import AttendanceDetailScreen from './AttendanceDetailScreen';
 const router = vi.hoisted(() => ({ push: () => {}, replace: () => {}, back: () => {} }));
 vi.mock('next/navigation', () => ({ useRouter: () => router, usePathname: () => '/owner/s1/attendances/a1' }));
 
-// 11/2 18:00–23:00 (KST), 휴게 20:00–20:20
+// 11/2 18:00–23:00 (KST), 휴게 20:00:40–20:20:10 (초까지 남은 직원 기록)
 const DETAIL: AttendanceDetailDto = {
   id: 'a1', memberId: 'm1', name: '이알바', localDate: '2026-11-02',
   clockInAt: '2026-11-02T09:00:00.000Z', clockOutAt: '2026-11-02T14:00:00.000Z', status: 'CLOSED',
   outsideArea: null, breakWaived: false, revised: false,
   workedSeconds: 5 * 3600, breakSeconds: 20 * 60, recognizedSeconds: 5 * 3600 - 20 * 60, breakNotScheduled: false,
-  breaks: [{ id: 'b1', startAt: '2026-11-02T11:00:00.000Z', endAt: '2026-11-02T11:20:00.000Z' }],
+  breaks: [{ id: 'b1', startAt: '2026-11-02T11:00:40.000Z', endAt: '2026-11-02T11:20:10.000Z' }],
   revisions: [], corrections: [],
 };
 
@@ -81,8 +81,17 @@ describe('BreakEditSheet (attendance §7.6)', () => {
     const sheet = await openSheet();
     expect((within(sheet).getByLabelText('휴게 1 시작') as HTMLInputElement).value).toBe('20:00');
     expect((within(sheet).getByLabelText('휴게 1 끝') as HTMLInputElement).value).toBe('20:20');
-    expect(within(sheet).getByText('1분이 안 되는 휴게는 정산에 넣지 않아요.')).toBeTruthy();
+    expect(within(sheet).getByText('1분이 안 되는 휴게는 정산에 넣지 않고, 저장하면 지워져요.')).toBeTruthy();
     expect(saveButton(sheet).disabled).toBe(true);
+  });
+
+  it('아무것도 고치지 않았으면 이유를 써도 저장이 꺼져 있다', async () => {
+    stubApi(DETAIL);
+    const sheet = await openSheet();
+    type(sheet, '고치는 이유 (기록에 남아요)', '확인만');
+    expect(saveButton(sheet).disabled).toBe(true);
+    type(sheet, '휴게 1 끝', '20:30');
+    expect(saveButton(sheet).disabled).toBe(false);
   });
 
   it('고치고 더해 저장하면 PUT 을 보내고 토스트를 띄운 뒤 다시 불러온다', async () => {
@@ -102,7 +111,8 @@ describe('BreakEditSheet (attendance §7.6)', () => {
       url: '/api/v1/attendances/a1/breaks',
       body: {
         breaks: [
-          { startAt: '2026-11-02T11:00:00.000Z', endAt: '2026-11-02T11:30:00.000Z' },
+          // 손대지 않은 시작은 초까지 그대로
+          { startAt: '2026-11-02T11:00:40.000Z', endAt: '2026-11-02T11:30:00.000Z' },
           { startAt: '2026-11-02T13:00:00.000Z', endAt: '2026-11-02T13:10:00.000Z' },
         ],
         reason: '휴게 끝을 늦게 눌렀어요',
@@ -138,6 +148,7 @@ describe('BreakEditSheet (attendance §7.6)', () => {
   it('서버가 거절하면 시트 안에 이유를 보여 준다', async () => {
     stubApi(DETAIL, { ok: false, body: { error: { code: 'CORRECTION_WINDOW_CLOSED', message: '35일이 지난 근무는 휴게를 고칠 수 없어요.' } } });
     const sheet = await openSheet();
+    type(sheet, '휴게 1 끝', '20:30');
     type(sheet, '고치는 이유 (기록에 남아요)', '고침');
     fireEvent.click(saveButton(sheet));
     expect(await within(sheet).findByText('35일이 지난 근무는 휴게를 고칠 수 없어요.')).toBeTruthy();
