@@ -6,6 +6,14 @@ import { fitLogo, planQrCardLayout, type QrCardBox, type QrCardLayoutPlan } from
 /** 글자 수 × 글자 크기. 한글 한 글자 폭 ≈ 1em 이라 실제와 비슷하다 */
 const measure = (text: string, fontSizeMm: number) => [...text].length * fontSizeMm;
 
+/** 실제보다 넓게 재서 40자 문구가 3줄이 되는 최악 경우 */
+const WIDE_GLYPH = 1.6;
+const wideMeasure = (text: string, fontSizeMm: number) => measure(text, fontSizeMm) * WIDE_GLYPH;
+/** 실제 출퇴근 URL(origin + /p/ + 43자)은 QR 버전 5 = 37×37 모듈 */
+const QR_V5_MODULES = 37;
+const MIN_QUIET_MODULES = 3;
+const QR_MIN_MM = { STAND: 60, STICKER: 50 } as const;
+
 const TITLE_20 = '가'.repeat(20);
 const MESSAGE_40 = '나'.repeat(40);
 const LOGO = { width: 512, height: 512 };
@@ -46,6 +54,22 @@ describe('planQrCardLayout', () => {
       boxes.forEach((box) => expect(inside(box, p.size)).toBe(true));
       boxes.forEach((a, i) => boxes.slice(i + 1).forEach((b) => expect(overlaps(a, b)).toBe(false)));
       expect(inside({ ...p.qr, x: p.qr.x - p.qrFrame.x, y: p.qr.y - p.qrFrame.y }, p.qrFrame)).toBe(true);
+    });
+
+    it.each([null, LOGO])('3줄 문구에서도 상자가 카드 안에 있고 겹치지 않는다 (logo=%o)', (logo) => {
+      const p = plan(layout, { title: TITLE_20, message: MESSAGE_40, logo, measure: wideMeasure });
+      if (layout === 'STAND') expect(p.message?.lines).toHaveLength(3);
+      const boxes = boxesOf(p);
+      boxes.forEach((box) => expect(inside(box, p.size)).toBe(true));
+      boxes.forEach((a, i) => boxes.slice(i + 1).forEach((b) => expect(overlaps(a, b)).toBe(false)));
+      expect(p.qr.width).toBeGreaterThanOrEqual(QR_MIN_MM[layout]);
+    });
+
+    it('QR 최소 크기에서 quiet zone 은 버전 5 기준 3모듈 이상', () => {
+      const p = plan(layout, { title: TITLE_20, message: MESSAGE_40, logo: LOGO, measure: wideMeasure });
+      const quiet = p.qr.x - p.qrFrame.x;
+      expect(quiet).toBeGreaterThanOrEqual((QR_MIN_MM[layout] / QR_V5_MODULES) * MIN_QUIET_MODULES);
+      expect(p.qrFrame.x + p.qrFrame.width - (p.qr.x + p.qr.width)).toBeCloseTo(quiet);
     });
 
     it('20자 제목은 카드 폭 안에 들어간다', () => {
