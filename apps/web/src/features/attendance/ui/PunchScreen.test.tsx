@@ -32,6 +32,17 @@ describe('PunchScreen', () => {
     expect(screen.getByRole('button').hasAttribute('disabled')).toBe(true);
   });
 
+  it('퇴근하면 "휴게 못 했어요"를 보여 주고, 휴게를 직접 남긴 근무면 숨긴다 (attendance §3.6)', () => {
+    const attendance = { id: 'a1', storeId: 's1', clockInAt: '2026-11-02T09:00:00Z', clockOutAt: '2026-11-02T14:00:00Z', status: 'CLOSED' as const };
+    punchState = { phase: 'done', storeName: '골목카페', action: 'CLOCK_OUT', attendance, breakRecorded: false };
+    const { unmount } = render(<PunchScreen qrToken="t1" />);
+    expect(screen.getByRole('link', { name: '휴게 못 했어요' })).toBeTruthy();
+    unmount();
+    punchState = { phase: 'done', storeName: '골목카페', action: 'CLOCK_OUT', attendance, breakRecorded: true };
+    render(<PunchScreen qrToken="t1" />);
+    expect(screen.queryByRole('link', { name: '휴게 못 했어요' })).toBeNull();
+  });
+
   it('출근을 마치면 완료 문구와 확인 버튼을 그린다', () => {
     punchState = { phase: 'done', storeName: '골목카페', action: 'CLOCK_IN', attendance: null };
     render(<PunchScreen qrToken="t1" />);

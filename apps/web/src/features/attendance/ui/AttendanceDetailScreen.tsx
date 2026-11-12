@@ -136,12 +136,15 @@ function EditForm({ detail, path, onSaved }: EditFormProps) {
       </Text>
       <LabeledTextField label="출근" type="datetime-local" value={clockIn} onValueChange={setClockIn} />
       <LabeledTextField label="퇴근" type="datetime-local" value={clockOut} onValueChange={setClockOut} />
-      <label className="checkbox-row">
-        <input type="checkbox" checked={breakWaived} onChange={(event) => setBreakWaived(event.target.checked)} />
-        <Text as="span" textStyle="t4Regular">
-          휴게를 못 썼어요 (휴게시간을 빼지 않아요)
-        </Text>
-      </label>
+      {/* 휴게를 직접 남긴 근무는 남긴 휴게만 빼므로 휴게 못 함을 쓰지 않는다 (§3.6) */}
+      {detail.breaks.length === 0 ? (
+        <label className="checkbox-row">
+          <input type="checkbox" checked={breakWaived} onChange={(event) => setBreakWaived(event.target.checked)} />
+          <Text as="span" textStyle="t4Regular">
+            휴게를 못 썼어요 (휴게시간을 빼지 않아요)
+          </Text>
+        </label>
+      ) : null}
       <LabeledTextField
         label="고치는 이유 (기록에 남아요)"
         value={reason}
@@ -185,22 +188,32 @@ function EditForm({ detail, path, onSaved }: EditFormProps) {
   );
 }
 
-const breakMs = (attendanceBreak: AttendanceDetailDto['breaks'][number]) =>
-  attendanceBreak.endAt ? new Date(attendanceBreak.endAt).getTime() - new Date(attendanceBreak.startAt).getTime() : 0;
+type BreakRow = AttendanceDetailDto['breaks'][number];
+
+/** 근무 안 부분만 보여 준다. 정산도 근무 밖 휴게는 빼지 않는다 (docs/specs/attendance §3.6) */
+function clipBreak(attendanceBreak: BreakRow, detail: AttendanceDetailDto): { startMs: number; endMs: number | null } {
+  const clockInMs = new Date(detail.clockInAt).getTime();
+  const clockOutMs = detail.clockOutAt ? new Date(detail.clockOutAt).getTime() : Infinity;
+  const startMs = Math.min(Math.max(new Date(attendanceBreak.startAt).getTime(), clockInMs), clockOutMs);
+  if (!attendanceBreak.endAt) return { startMs, endMs: null };
+  return { startMs, endMs: Math.max(startMs, Math.min(new Date(attendanceBreak.endAt).getTime(), clockOutMs)) };
+}
+
+const clockOf = (ms: number) => formatClock(new Date(ms).toISOString());
 
 /** 직원이 남긴 휴게 (읽기 전용). 있으면 정산은 소정 휴게 대신 이 시간을 뺀다 (docs/specs/attendance §3.6) */
 function BreakList({ detail }: { detail: AttendanceDetailDto }) {
-  const totalMs = detail.breaks.reduce((sum, attendanceBreak) => sum + breakMs(attendanceBreak), 0);
+  const rows = detail.breaks.map((attendanceBreak) => ({ id: attendanceBreak.id, ...clipBreak(attendanceBreak, detail) }));
+  const totalMs = rows.reduce((sum, row) => sum + (row.endMs === null ? 0 : row.endMs - row.startMs), 0);
   return (
     <section className="detail-section" aria-labelledby="breaks-heading">
       <Text as="h2" id="breaks-heading" textStyle="t6Bold">
         휴게 기록
       </Text>
       <ul className="review-list">
-        {detail.breaks.map((attendanceBreak) => (
-          <li key={attendanceBreak.id} className="review-list__item">
-            {formatClock(attendanceBreak.startAt)} ~{' '}
-            {attendanceBreak.endAt ? `${formatClock(attendanceBreak.endAt)} · ${formatDuration(breakMs(attendanceBreak))}` : '휴게 중'}
+        {rows.map((row) => (
+          <li key={row.id} className="review-list__item">
+            {clockOf(row.startMs)} ~ {row.endMs === null ? '휴게 중' : `${clockOf(row.endMs)} · ${formatDuration(row.endMs - row.startMs)}`}
           </li>
         ))}
       </ul>

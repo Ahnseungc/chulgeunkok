@@ -4,6 +4,7 @@ import { missingClockOutDeadline } from '@/features/labor/model/work-record-rule
 import { localWeekday } from '@/features/payroll/model/work-time';
 
 import { closeOpenBreak } from './break-service';
+import { lockMembership } from './punch-context';
 
 /** 자동 처리 actor. 0002 마이그레이션이 시드한다 */
 export const SYSTEM_USER_ID = 'system';
@@ -28,6 +29,8 @@ export async function runMissingClockOutJob(db: PrismaClient, now: Date): Promis
     if (now < missingClockOutDeadline(attendance.clockInAt, schedule)) continue;
 
     const changed = await db.$transaction(async (tx) => {
+      // 같은 직원의 퇴근·휴게 요청과 직렬화한다 (열린 휴게가 남지 않게)
+      await lockMembership(tx, attendance.membershipId);
       const updated = await tx.attendance.updateMany({
         where: { id: attendance.id, status: 'OPEN' },
         data: { status: 'MISSING_CLOCK_OUT' },

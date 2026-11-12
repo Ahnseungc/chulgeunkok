@@ -396,7 +396,6 @@ model CorrectionRequest {
   @@index([status, createdAt])
 }
 
-// 근태 변경 감사 로그. 승인·관리자 직접 수정 모두 기록
 /// 직원이 직접 남긴 실제 휴게 (docs/specs/attendance §3.6). 근무당 여러 번, 열린 휴게는 1개(raw SQL 부분 유니크)
 model AttendanceBreak {
   id           String    @id @default(cuid())
@@ -410,6 +409,7 @@ model AttendanceBreak {
   @@index([attendanceId, startAt])
 }
 
+// 근태 변경 감사 로그. 승인·관리자 직접 수정 모두 기록
 model AttendanceRevision {
   id                  String   @id @default(cuid())
   attendanceId        String

@@ -49,6 +49,8 @@ afterEach(async () => {
 
 const staff = (now: Date) => ({ userId: 'staff', storeId: 'store', now });
 const breaksOf = () => db.attendanceBreak.findMany({ where: { attendanceId: 'monday' }, orderBy: { startAt: 'asc' } });
+const adminEdit = (change: { clockInAt?: string; clockOutAt?: string; reason: string }) =>
+  updateAttendanceByAdmin(db, { attendanceId: 'monday', actorUserId: 'owner', now: kst('2026-11-03T09:00:00'), change });
 const errorCodeOf = (promise: Promise<unknown>) => promise.then(() => null, (error: { code?: string }) => error.code);
 
 describe('startBreak (attendance §3.6)', () => {
@@ -100,14 +102,15 @@ describe('endBreak (attendance §3.6)', () => {
 });
 
 describe('열린 휴게 자동 종료', () => {
-  it('휴게 중에 퇴근을 찍으면 퇴근 시각으로 휴게를 닫는다', async () => {
+  it('휴게 중에 퇴근을 찍으면 퇴근 시각으로 휴게를 닫고, 휴게를 남긴 근무라고 알려 준다', async () => {
     const clockOutAt = kst('2026-11-02T23:00:00');
     await startBreak(db, staff(BREAK_START_AT));
-    await punch(db, {
+    const result = await punch(db, {
       userId: 'staff', qrToken: QR_TOKEN, expectedAction: 'CLOCK_OUT', location: null,
       idempotencyKey: '00000000-0000-4000-8000-000000000002', now: clockOutAt,
     });
     expect((await breaksOf()).map((row) => row.endAt)).toEqual([clockOutAt]);
+    expect(result.breakRecorded).toBe(true);
   });
 
   it('퇴근 누락으로 바뀌면 전환 시각으로 휴게를 닫는다', async () => {
@@ -117,12 +120,39 @@ describe('열린 휴게 자동 종료', () => {
     expect((await breaksOf()).map((row) => row.endAt)).toEqual([transitionAt]);
   });
 
-  it('관리자가 근무 중 기록에 퇴근을 넣으면 그 시각으로 닫고, 휴게 시작보다 이르면 시작 시각으로 닫는다', async () => {
+  it('관리자가 근무 중 기록에 퇴근을 넣으면 그 시각으로 닫는다', async () => {
+    const clockOutAt = kst('2026-11-02T22:00:00');
     await startBreak(db, staff(BREAK_START_AT));
-    await updateAttendanceByAdmin(db, {
-      attendanceId: 'monday', actorUserId: 'owner', now: kst('2026-11-02T23:30:00'),
-      change: { clockOutAt: kst('2026-11-02T19:30:00').toISOString(), reason: '일찍 퇴근' },
+    await adminEdit({ clockOutAt: clockOutAt.toISOString(), reason: '퇴근 대신 입력' });
+    expect((await breaksOf()).map((row) => [row.startAt, row.endAt])).toEqual([[BREAK_START_AT, clockOutAt]]);
+  });
+});
+
+describe('근무 시각을 고치면 휴게를 근무 안으로 자른다 (attendance §3.6)', () => {
+  it('퇴근 누락(전환 시각에 닫힌 휴게)에 퇴근 시각을 넣으면 휴게 끝을 퇴근 시각으로 당긴다', async () => {
+    await startBreak(db, staff(BREAK_START_AT));
+    await runMissingClockOutJob(db, kst('2026-11-03T03:00:00'));
+    await adminEdit({ clockOutAt: kst('2026-11-02T21:00:00').toISOString(), reason: '퇴근 시각 입력' });
+    expect((await breaksOf()).map((row) => [row.startAt, row.endAt])).toEqual([[BREAK_START_AT, kst('2026-11-02T21:00:00')]]);
+  });
+
+  it('퇴근을 휴게보다 앞으로 당기면 휴게를 퇴근 시각에서 길이 0으로 접는다', async () => {
+    await startBreak(db, staff(BREAK_START_AT));
+    await endBreak(db, staff(BREAK_END_AT));
+    await punch(db, {
+      userId: 'staff', qrToken: QR_TOKEN, expectedAction: 'CLOCK_OUT', location: null,
+      idempotencyKey: '00000000-0000-4000-8000-000000000003', now: kst('2026-11-02T23:00:00'),
     });
-    expect((await breaksOf()).map((row) => row.endAt)).toEqual([BREAK_START_AT]);
+    const clockOutAt = kst('2026-11-02T19:30:00');
+    await adminEdit({ clockOutAt: clockOutAt.toISOString(), reason: '일찍 퇴근' });
+    expect((await breaksOf()).map((row) => [row.startAt, row.endAt])).toEqual([[clockOutAt, clockOutAt]]);
+  });
+
+  it('출근을 휴게 안으로 늦추면 휴게 시작을 출근 시각으로 당긴다', async () => {
+    await startBreak(db, staff(BREAK_START_AT));
+    await endBreak(db, staff(BREAK_END_AT));
+    const clockInAt = kst('2026-11-02T20:10:00');
+    await adminEdit({ clockInAt: clockInAt.toISOString(), clockOutAt: kst('2026-11-02T23:00:00').toISOString(), reason: '늦게 옴' });
+    expect((await breaksOf()).map((row) => [row.startAt, row.endAt])).toEqual([[clockInAt, BREAK_END_AT]]);
   });
 });

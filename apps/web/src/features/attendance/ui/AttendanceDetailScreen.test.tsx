@@ -43,4 +43,19 @@ describe('AttendanceDetailScreen 휴게 기록 (attendance §3.6)', () => {
     expect(within(section).getByText('합계 25분')).toBeTruthy();
     expect(within(section).queryByRole('button')).toBeNull();
   });
+
+  it('휴게를 남긴 근무는 휴게 못 함 체크를 보여 주지 않는다', async () => {
+    render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
+    await screen.findByRole('region', { name: '휴게 기록' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('퇴근 뒤로 넘어간 휴게는 근무 안 부분만 길이로 센다', async () => {
+    const overrun = { ...DETAIL, breaks: [{ id: 'b1', startAt: '2026-11-02T13:30:00.000Z', endAt: '2026-11-02T18:00:00.000Z' }] };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => overrun })));
+    render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
+    const section = await screen.findByRole('region', { name: '휴게 기록' });
+    expect(within(section).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['22:30 ~ 23:00 · 30분']);
+    expect(within(section).getByText('합계 30분')).toBeTruthy();
+  });
 });

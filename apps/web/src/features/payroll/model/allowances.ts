@@ -18,7 +18,7 @@ import {
   weekStartOf,
 } from '@/features/labor/model/work-record-rules';
 
-import { localMidnight, type PayPeriod, type WorkSegment } from './work-time';
+import { localMidnight, type BreakInterval, type PayPeriod, type WorkSegment } from './work-time';
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
@@ -46,6 +46,8 @@ export interface AllowanceWork {
   /** 기간으로 자르지 않은 구간 */
   segments: readonly WorkSegment[];
   terms: AllowanceTerms;
+  /** 직원이 남긴 휴게 (attendance §3.6). 있으면 야간에서 겹친 만큼 뺀다 */
+  breaks: readonly BreakInterval[];
 }
 
 export interface AllowanceInput {
@@ -122,7 +124,22 @@ function termsOn(terms: readonly AllowanceTerms[], localDate: string): Allowance
   );
 }
 
-/** 근무를 날짜별로 모은다. 야간은 그 구간의 22:00–06:00 겹침을 인정 시간 안으로 자른다 */
+/**
+ * 구간 [start, end)의 야간 초. 남긴 휴게가 있으면 휴게와 겹친 야간을 뺀다.
+ * ponytail: 남긴 휴게가 없으면 휴게를 언제 썼는지 모르므로 야간을 인정 시간으로만 자른다
+ */
+function segmentNightSeconds(work: AllowanceWork, segment: WorkSegment, range: { start: Date; end: Date }): number {
+  const night = nightWorkSeconds(range.start, range.end);
+  if (work.breaks.length === 0) return Math.min(night, segment.recognizedSeconds);
+  const breakNight = work.breaks.reduce((sum, interval) => {
+    const start = Math.max(interval.startAt.getTime(), range.start.getTime());
+    const end = Math.min((interval.endAt ?? work.clockOutAt).getTime(), range.end.getTime());
+    return end > start ? sum + nightWorkSeconds(new Date(start), new Date(end)) : sum;
+  }, 0);
+  return Math.max(0, night - breakNight);
+}
+
+/** 근무를 날짜별로 모은다. 야간은 그 구간의 22:00–06:00 겹침에서 휴게를 뺀다 */
 export function groupByDay(
   works: readonly AllowanceWork[],
   isPaidHoliday: (localDate: string) => boolean,
@@ -134,8 +151,7 @@ export function groupByDay(
       const dayStart = localMidnight(segment.localDate).getTime();
       const start = new Date(Math.max(work.clockInAt.getTime(), dayStart));
       const end = new Date(Math.min(work.clockOutAt.getTime(), dayStart + DAY_MS));
-      // ponytail: 휴게를 언제 썼는지 모르므로 야간 겹침을 인정 시간으로만 자른다. 실제 휴게 기록(P1) 때 겹침으로 바꾼다
-      const night = Math.min(nightWorkSeconds(start, end), segment.recognizedSeconds);
+      const night = segmentNightSeconds(work, segment, { start, end });
       const previous = days.get(segment.localDate);
       days.set(segment.localDate, {
         recognizedSeconds: (previous?.recognizedSeconds ?? 0) + segment.recognizedSeconds,

@@ -28,6 +28,11 @@ export async function findActiveMembership(
   return membership;
 }
 
+/** 같은 직원의 punch·휴게·근태 수정·퇴근 누락 전환을 직렬화한다. 트랜잭션 안에서 부른다 */
+export async function lockMembership(tx: DbClient, membershipId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "id" = ${membershipId} FOR UPDATE`;
+}
+
 export function findOpenAttendance(db: DbClient, membershipId: string) {
   return db.attendance.findFirst({ where: { membershipId, status: 'OPEN' } });
 }

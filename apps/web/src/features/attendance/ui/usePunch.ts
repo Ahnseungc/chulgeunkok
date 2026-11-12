@@ -29,7 +29,7 @@ export type PunchState =
   | { phase: 'ready'; preview: PunchPreviewDto }
   | { phase: 'submitting'; preview: PunchPreviewDto }
   | { phase: 'verifying'; preview: PunchPreviewDto }
-  | { phase: 'done'; storeName: string; action: PunchAction; attendance: AttendanceDto | null };
+  | { phase: 'done'; storeName: string; action: PunchAction; attendance: AttendanceDto | null; breakRecorded?: boolean };
 
 type PunchLocation = { latitude: number; longitude: number; accuracyM: number };
 

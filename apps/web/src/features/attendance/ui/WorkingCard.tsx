@@ -40,11 +40,15 @@ export default function WorkingCard({ storeId, storeName, working, serverNow, on
       toast.success(onBreak ? `휴게 ${breakLength(result)}을 남겼어요` : '휴게를 시작했어요');
     } catch (error) {
       toast.error(errorMessageOf(error));
+    }
+    // 실패해도 다른 기기에서 바뀐 상태일 수 있어 다시 불러온다
+    try {
+      await onChanged();
+    } catch (error) {
+      toast.error(errorMessageOf(error));
     } finally {
       setPending(false);
     }
-    // 실패해도 다른 기기에서 바뀐 상태일 수 있어 다시 불러온다
-    await onChanged();
   };
 
   return (

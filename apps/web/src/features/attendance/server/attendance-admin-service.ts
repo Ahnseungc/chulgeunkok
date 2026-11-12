@@ -13,10 +13,10 @@ import type {
   AttendanceSnapshot,
 } from '../model/attendance-admin-types';
 
-import { closeOpenBreak, toBreakDto } from './break-service';
+import { clampBreaksToAttendance, closeOpenBreak, toBreakDto } from './break-service';
 import { toCorrectionDto } from './correction-dto';
 import { isOutsideCorrectionWindow } from './correction-window';
-import { findEffectiveTerms } from './punch-context';
+import { findEffectiveTerms, lockMembership } from './punch-context';
 
 /** 근무 한 건의 최대 길이 (docs/specs/attendance §7.1) */
 const MAX_ATTENDANCE_MS = 24 * 60 * 60 * 1000;
@@ -206,12 +206,11 @@ export async function applyAttendanceChange(
     correctionRequestId?: string;
   },
 ) {
+  // punch·휴게·퇴근 누락 전환과 직렬화한다
+  await lockMembership(tx, input.current.membershipId);
   const next = await buildNextState(tx, { current: input.current, change: input.change, now: input.now });
   await tx.attendance.update({ where: { id: input.current.id }, data: next });
-  // 근무 중 기록이 끝나면 열린 휴게도 닫는다 (§3.6). 무효 처리는 처리 시각으로
-  if (input.current.status === 'OPEN' && next.status !== 'OPEN') {
-    await closeOpenBreak(tx, { attendanceId: input.current.id, at: next.clockOutAt ?? input.now });
-  }
+  await syncBreaks(tx, { current: input.current, next, now: input.now });
   await tx.attendanceRevision.create({
     data: {
       attendanceId: input.current.id,
@@ -222,6 +221,19 @@ export async function applyAttendanceChange(
       correctionRequestId: input.correctionRequestId,
     },
   });
+}
+
+/** 퇴근이 있는 근무면 휴게를 근무 안으로 자르고, 근무 중 기록을 무효로 하면 열린 휴게를 닫는다 (§3.6) */
+async function syncBreaks(
+  tx: Prisma.TransactionClient,
+  input: { current: Attendance; next: Awaited<ReturnType<typeof buildNextState>>; now: Date },
+) {
+  const { current, next } = input;
+  if ('clockOutAt' in next && next.clockOutAt) {
+    await clampBreaksToAttendance(tx, { attendanceId: current.id, clockInAt: next.clockInAt, clockOutAt: next.clockOutAt });
+    return;
+  }
+  if (current.status === 'OPEN' && next.status !== 'OPEN') await closeOpenBreak(tx, { attendanceId: current.id, at: input.now });
 }
 
 async function buildNextState(
