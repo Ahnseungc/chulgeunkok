@@ -4,6 +4,7 @@ import { ActionButton, Text } from '@seed-design/react';
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 
+import PhoneVerificationPrompt from '@/features/auth/ui/PhoneVerificationPrompt';
 import type { LaborReviewDto } from '@/features/labor/model/labor-types';
 import { UNDER_FIVE_BADGE_TEXT } from '@/features/labor/model/review-copy';
 import ReviewSheet from '@/features/labor/ui/ReviewSheet';
@@ -24,6 +25,9 @@ import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
+/** 시급이 보여 급여 권한 매니저는 인증 뒤에 본다 (auth §4.2). 검토 안내도 같이 열린다 */
+const TERMS_VERIFICATION_MESSAGE = '근로조건을 보려면 휴대폰 인증이 필요해요.';
+
 interface MemberDetailScreenProps {
   storeId: string;
   memberId: string;
@@ -34,7 +38,7 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
   const memberPath = `/api/v1/stores/${storeId}/members/${memberId}`;
   const member = useApiResource<MemberDetailDto>(memberPath);
   const reviews = useApiResource<{ reviews: LaborReviewDto[] }>(
-    member.data?.canReadTerms ? `${memberPath}/labor-reviews` : null,
+    member.data?.termsAccess === 'ALLOWED' ? `${memberPath}/labor-reviews` : null,
   );
   const [reregisterOpen, setReregisterOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -76,7 +80,9 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
                   <Text as="h2" id="terms-heading" textStyle="t6Bold">
                     근로조건
                   </Text>
-                  {!detail.canReadTerms ? (
+                  {detail.termsAccess === 'PHONE_VERIFICATION_REQUIRED' ? (
+                    <PhoneVerificationPrompt message={TERMS_VERIFICATION_MESSAGE} />
+                  ) : detail.termsAccess === 'FORBIDDEN' ? (
                     <Text textStyle="t4Regular" color="fg.neutralMuted">
                       근로조건은 사장님이나 권한 있는 매니저만 볼 수 있어요.
                     </Text>

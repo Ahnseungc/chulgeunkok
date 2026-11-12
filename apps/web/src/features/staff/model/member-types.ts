@@ -20,12 +20,15 @@ export interface MemberDetailDto extends MemberSummaryDto {
   permissions: ('PAYROLL_READ' | 'TERMS_EDIT')[];
   /** 지금 적용 중이거나 앞으로 적용될 최신 버전. 권한이 없으면 null */
   currentTerms: TermsDto | null;
-  /** 조회한 사람이 근로조건을 볼·고칠 수 있는지 (화면 버튼 노출용) */
-  canReadTerms: boolean;
+  /** 조회한 사람이 근로조건을 볼 수 있는지. 휴대폰 인증 전이면 화면이 인증 안내를 띄운다 (auth §4.2) */
+  termsAccess: TermsAccess;
+  /** 근로조건 등록·수정 버튼 노출 */
   canEditTerms: boolean;
   /** 변경 이력을 볼 수 있는지 (사장님만, §4.3) */
   canViewHistory: boolean;
 }
+
+export type TermsAccess = 'ALLOWED' | 'PHONE_VERIFICATION_REQUIRED' | 'FORBIDDEN';
 
 export type MemberPermission = 'PAYROLL_READ' | 'TERMS_EDIT';
 

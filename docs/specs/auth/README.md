@@ -111,7 +111,7 @@ production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에**
 | 정산 미리보기·CSV, 임금명세서 목록·상세 (`PAYROLL`) | `403 PHONE_VERIFICATION_REQUIRED` "급여를 보려면 휴대폰 인증이 필요해요." |
 | 대시보드 예상 인건비 | 대시보드는 그대로 열고 금액만 `null`, `currentPeriod.phoneVerificationRequired = true` |
 | 본인 임금명세서 (보낸 것) | 직원과 같게 볼 수 있다. DRAFT는 인증 뒤에만 |
-| 근로조건 조회·검토 안내 (`TERMS_READ`·`LABOR_REVIEW`, 시급 포함) | `TERMS_EDIT`이 없으면 위와 같은 403. 직원 상세는 근로조건 구역을 숨기고, 대시보드는 검토 수를 숨긴다. `TERMS_EDIT` Manager는 그대로 |
+| 근로조건 조회·검토 안내 (`TERMS_READ`·`LABOR_REVIEW`, 시급 포함) | `TERMS_EDIT`이 없으면 위와 같은 403. 직원 상세는 근로조건 자리에 "근로조건을 보려면 휴대폰 인증이 필요해요." + "휴대폰 인증하기"를 띄우고 검토 안내는 불러오지 않는다 (`termsAccess = PHONE_VERIFICATION_REQUIRED`). 대시보드는 검토 수를 숨긴다. `TERMS_EDIT` Manager는 그대로 |
 | 사장님 | 묻지 않는다 (OTP로만 기기를 등록한다) |
 
 - 판정은 `access.needsVerifiedPhone` → 공통 가드 `requireMembership` 한 곳에서 한다 (인덱스 §2.5). `PAYROLL`은 항상, `TERMS_READ`·`LABOR_REVIEW`는 `TERMS_EDIT`이 없는 Manager일 때 인증을 본다. 막지 않고 숨기는 곳은 `canAccessVerified` (같은 판정). 본인 근로조건은 인증 없이 본다.

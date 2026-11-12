@@ -6,7 +6,7 @@ import { canAccessStore } from '@/server/auth/access';
 import { canAccessVerified, requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
-import type { MemberDetailDto, MemberSummaryDto } from '../model/member-types';
+import type { MemberDetailDto, MemberSummaryDto, TermsAccess } from '../model/member-types';
 import type { UpdateMemberInput } from '../schema';
 
 import { recordMembershipChange } from './membership-events';
@@ -61,8 +61,7 @@ export async function getMember(
   });
   if (!member) throw new ApiError('NOT_FOUND');
 
-  // 시급이 보이므로 PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 뒤에만 (auth §4.2). 본인 근로조건은 인증 없이도 본다
-  const canReadTerms = member.id === actor.id || (await canAccessVerified(db, actor, 'TERMS_READ'));
+  const termsAccess = await termsAccessOf(db, actor, member.id);
   const latestTerms = member.employmentTerms[0];
   return {
     ...toSummary(member),
@@ -70,11 +69,21 @@ export async function getMember(
     isWorking: member.attendances.length > 0,
     hasTerms: latestTerms?.effectiveTo === null,
     openReviewCount: member.laborReviews.length,
-    currentTerms: canReadTerms && latestTerms ? toTermsDto(latestTerms) : null,
-    canReadTerms,
+    currentTerms: termsAccess === 'ALLOWED' && latestTerms ? toTermsDto(latestTerms) : null,
+    termsAccess,
     canEditTerms: canAccessStore(actor, 'TERMS_WRITE') && member.status === 'ACTIVE',
     canViewHistory: canAccessStore(actor, 'MEMBER_ADMIN'),
   };
+}
+
+/**
+ * 시급이 보이므로 PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 뒤에만 (auth §4.2). 본인 근로조건은 인증 없이도 본다.
+ * 검토 안내(LABOR_REVIEW)도 같은 규칙이라 화면은 이 값 하나로 두 구역을 가른다.
+ */
+async function termsAccessOf(db: PrismaClient, actor: Membership, memberId: string): Promise<TermsAccess> {
+  if (memberId === actor.id) return 'ALLOWED';
+  if (!canAccessStore(actor, 'TERMS_READ')) return 'FORBIDDEN';
+  return (await canAccessVerified(db, actor, 'TERMS_READ')) ? 'ALLOWED' : 'PHONE_VERIFICATION_REQUIRED';
 }
 
 /** PATCH /stores/:storeId/members/:memberId — 역할·권한 변경, 비활성화 (docs/specs/staff §4). 바뀐 값은 이력에 남긴다 (§4.3) */

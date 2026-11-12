@@ -78,17 +78,22 @@ describe('getMember', () => {
 
   it('권한 없는 Manager에게는 시급을 보여 주지 않는다', async () => {
     const member = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
-    expect([member.currentTerms, member.canReadTerms, member.canEditTerms]).toEqual([null, false, false]);
+    expect([member.currentTerms, member.termsAccess, member.canEditTerms]).toEqual([null, 'FORBIDDEN', false]);
   });
 });
 
 describe('getMember — 시급 노출 (auth §4.2)', () => {
-  it('PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 전엔 근로조건을 못 보고, 인증하면 본다', async () => {
+  it('PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 전엔 근로조건 대신 인증 안내를 받고, 인증하면 본다', async () => {
     await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
     const before = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
     await db.user.update({ where: { id: 'manager' }, data: { phone: '+821000000009' } });
     const after = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });
-    expect([before.canReadTerms, before.currentTerms, after.canReadTerms, after.currentTerms?.hourlyWage]).toEqual([false, null, true, 10320]);
+    expect([before.termsAccess, before.currentTerms, after.termsAccess, after.currentTerms?.hourlyWage]).toEqual([
+      'PHONE_VERIFICATION_REQUIRED',
+      null,
+      'ALLOWED',
+      10320,
+    ]);
   });
 
   it('인증 전이라도 본인 근로조건은 본다 (API 본인 경로와 같게)', async () => {
@@ -105,7 +110,7 @@ describe('getMember — 시급 노출 (auth §4.2)', () => {
       },
     });
     const own = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-manager' });
-    expect([own.canReadTerms, own.currentTerms?.hourlyWage]).toEqual([true, 11000]);
+    expect([own.termsAccess, own.currentTerms?.hourlyWage]).toEqual(['ALLOWED', 11000]);
   });
 
   it('TERMS_EDIT Manager는 인증 없이도 본다', async () => {
