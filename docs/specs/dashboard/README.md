@@ -45,7 +45,7 @@
 | 4 | 검토 필요 | `LaborReview.status IN (OPEN, NEEDS_INFORMATION)`, 표시 방식이 바텀시트인 것 (`labor` §6.2) | Owner, `PAYROLL_READ`, `TERMS_EDIT` |
 | 5 | 대기 중 초대 | 만료 전, 미수락 | Owner, Manager |
 | 6 | 명세서 확인 | 매장의 `Payslip.status = DRAFT` (초안·정정본). 가장 오래된 DRAFT 기간 `/owner/[storeId]/payslips?periodStart=` 로 이동 (`payslip` §5.1). 응답 `todo.payslipDraftPeriodStart` | Owner |
-| 7 | 사업장 규모 확인 | 직전 달 출근 기록 평균과 신고한 규모가 어긋남 (`store` §6.4). "지난달 출근 기록으로는 5인 이상(미만)일 수 있어요". 매장 설정으로 이동. 응답 `todo.headcountMismatch` | Owner |
+| 7 | 사업장 규모 확인 | 직전 달 출근 기록 평균과 신고한 규모가 어긋남 (`store` §6.4). "지난달 출근 기록으로는 5인 이상(미만)일 수 있어요. 자동으로 바뀌지 않아요". 매장 설정으로 이동. 응답 `todo.headcountMismatch` | Owner |
 
 - 진입 시 아직 안 본 검토 항목이 있으면 바텀시트 1회 (`labor` §6.2).
 - 퇴근 누락·수정 요청 카드는 근태 화면이 생기기 전까지 건수만 보여 준다 (링크 없음).
