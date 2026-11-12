@@ -1,5 +1,6 @@
 import { Prisma, type LaborReviewType, type PrismaClient } from '@chulgeunkok/db';
 
+import { hasRecordedBreaks } from '@/features/payroll/model/recorded-breaks';
 import { localMidnight, toLocalDate, toSegments } from '@/features/payroll/model/work-time';
 
 import { FULL_TIME_WEEKLY_MINUTES, dailyLaborMinutes, weeklyContractMinutes } from '../model/labor-rules';
@@ -60,7 +61,7 @@ export async function evaluateAttendanceReviews(db: PrismaClient, input: { atten
 
 /** 직원이 휴게를 남긴 근무만 실제 기록으로 판단한다. 없으면 근로조건 검토(§4)가 맡는다 */
 function hasShortRecordedBreak(attendance: EvaluatedAttendance): boolean {
-  if (attendance.breaks.length === 0) return false;
+  if (!hasRecordedBreaks(attendance.breaks)) return false;
   const { segments } = toSegments({ attendance, terms: attendance.terms });
   return isRecordedBreakShort({
     workedSeconds: segments.reduce((sum, segment) => sum + segment.workedSeconds, 0),

@@ -3,6 +3,7 @@
 import { ActionButton, Text } from '@seed-design/react';
 import { useEffect, useState } from 'react';
 
+import { countedBreaks, hasRecordedBreaks } from '@/features/payroll/model/recorded-breaks';
 import { apiFetch } from '@/shared/lib/api-client';
 import {
   formatClock,
@@ -75,7 +76,7 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
               </AppLink>
             </PageStaggerEntranceItem>
           ) : null}
-          {data.breaks.length > 0 ? (
+          {hasRecordedBreaks(data.breaks) ? (
             <PageStaggerEntranceItem>
               <BreakList detail={data} />
             </PageStaggerEntranceItem>
@@ -137,7 +138,7 @@ function EditForm({ detail, path, onSaved }: EditFormProps) {
       <LabeledTextField label="출근" type="datetime-local" value={clockIn} onValueChange={setClockIn} />
       <LabeledTextField label="퇴근" type="datetime-local" value={clockOut} onValueChange={setClockOut} />
       {/* 휴게를 직접 남긴 근무는 남긴 휴게만 빼므로 휴게 못 함을 쓰지 않는다 (§3.6) */}
-      {detail.breaks.length === 0 ? (
+      {!hasRecordedBreaks(detail.breaks) ? (
         <label className="checkbox-row">
           <input type="checkbox" checked={breakWaived} onChange={(event) => setBreakWaived(event.target.checked)} />
           <Text as="span" textStyle="t4Regular">
@@ -203,7 +204,7 @@ const clockOf = (ms: number) => formatClock(new Date(ms).toISOString());
 
 /** 직원이 남긴 휴게 (읽기 전용). 있으면 정산은 소정 휴게 대신 이 시간을 뺀다 (docs/specs/attendance §3.6) */
 function BreakList({ detail }: { detail: AttendanceDetailDto }) {
-  const rows = detail.breaks.map((attendanceBreak) => ({ id: attendanceBreak.id, ...clipBreak(attendanceBreak, detail) }));
+  const rows = countedBreaks(detail.breaks).map((attendanceBreak) => ({ id: attendanceBreak.id, ...clipBreak(attendanceBreak, detail) }));
   const totalMs = rows.reduce((sum, row) => sum + (row.endMs === null ? 0 : row.endMs - row.startMs), 0);
   return (
     <section className="detail-section" aria-labelledby="breaks-heading">

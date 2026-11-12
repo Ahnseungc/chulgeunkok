@@ -8,6 +8,7 @@ import {
 } from '@/server/http/idempotency';
 
 import { evaluateAttendanceReviewsSafely } from '@/features/labor/server/work-record-review-service';
+import { hasRecordedBreaks } from '@/features/payroll/model/recorded-breaks';
 
 import { isOutsideStoreArea } from '../model/store-area';
 import type {
@@ -106,7 +107,8 @@ export async function punch(
           });
 
       // 휴게를 남긴 근무면 완료 화면에서 "휴게 못 했어요"를 숨긴다 (§3.6)
-      const breakRecorded = action === 'CLOCK_OUT' && (await tx.attendanceBreak.count({ where: { attendanceId: attendance.id } })) > 0;
+      const breakRecorded =
+        action === 'CLOCK_OUT' && hasRecordedBreaks(await tx.attendanceBreak.findMany({ where: { attendanceId: attendance.id } }));
       const result: PunchResultDto = { action, attendance, breakRecorded };
       await saveIdempotentResponse(tx, { ...scope, response: result });
       return result;

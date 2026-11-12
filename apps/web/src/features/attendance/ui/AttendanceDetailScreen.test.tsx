@@ -58,4 +58,12 @@ describe('AttendanceDetailScreen 휴게 기록 (attendance §3.6)', () => {
     expect(within(section).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['22:30 ~ 23:00 · 30분']);
     expect(within(section).getByText('합계 30분')).toBeTruthy();
   });
+
+  it('1분 미만 휴게만 있으면 기록으로 치지 않아 휴게 못 함 체크를 보여 준다 (payroll §3.2)', async () => {
+    const mistap = { ...DETAIL, breaks: [{ id: 'b1', startAt: '2026-11-02T11:00:00.000Z', endAt: '2026-11-02T11:00:30.000Z' }] };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => mistap })));
+    render(<AttendanceDetailScreen storeId="s1" attendanceId="a1" />);
+    expect(await screen.findByRole('checkbox')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '휴게 기록' })).toBeNull();
+  });
 });

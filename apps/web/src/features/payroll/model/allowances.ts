@@ -18,6 +18,7 @@ import {
   weekStartOf,
 } from '@/features/labor/model/work-record-rules';
 
+import { countedBreaks } from './recorded-breaks';
 import { localMidnight, type BreakInterval, type PayPeriod, type WorkSegment } from './work-time';
 
 const SECONDS_PER_MINUTE = 60;
@@ -130,8 +131,9 @@ function termsOn(terms: readonly AllowanceTerms[], localDate: string): Allowance
  */
 function segmentNightSeconds(work: AllowanceWork, segment: WorkSegment, range: { start: Date; end: Date }): number {
   const night = nightWorkSeconds(range.start, range.end);
-  if (work.breaks.length === 0) return Math.min(night, segment.recognizedSeconds);
-  const breakNight = work.breaks.reduce((sum, interval) => {
+  const recorded = countedBreaks(work.breaks);
+  if (recorded.length === 0) return Math.min(night, segment.recognizedSeconds);
+  const breakNight = recorded.reduce((sum, interval) => {
     const start = Math.max(interval.startAt.getTime(), range.start.getTime());
     const end = Math.min((interval.endAt ?? work.clockOutAt).getTime(), range.end.getTime());
     return end > start ? sum + nightWorkSeconds(new Date(start), new Date(end)) : sum;
