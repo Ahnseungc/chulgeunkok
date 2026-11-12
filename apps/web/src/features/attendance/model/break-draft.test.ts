@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   END_BEFORE_START_MESSAGE,
   EMPTY_TIME_MESSAGE,
+  isSameBreaks,
   OUT_OF_RANGE_MESSAGE,
   OVERLAP_MESSAGE,
   resolveBreakDrafts,
@@ -24,9 +25,33 @@ describe('toBreakDrafts', () => {
       { id: 'b3', startAt: iso('2026-11-02T22:50:00'), endAt: iso('2026-11-02T23:30:00') },
     ];
     expect(toBreakDrafts(breaks, DAY_SHIFT)).toEqual([
-      { key: 'b1', start: '20:00', end: '20:20' },
-      { key: 'b3', start: '22:50', end: '23:00' },
+      { key: 'b1', start: '20:00', end: '20:20', originalStartAt: iso('2026-11-02T20:00:00'), originalEndAt: iso('2026-11-02T20:20:00') },
+      { key: 'b3', start: '22:50', end: '23:00', originalStartAt: iso('2026-11-02T22:50:00'), originalEndAt: DAY_SHIFT.clockOutAt },
     ]);
+  });
+});
+
+describe('손대지 않은 휴게 (정산 값이 바뀌지 않게)', () => {
+  const breaks = [
+    { id: 'b1', startAt: iso('2026-11-02T20:00:40'), endAt: iso('2026-11-02T20:20:10') },
+    { id: 'b2', startAt: iso('2026-11-02T21:00:15'), endAt: iso('2026-11-02T21:10:45') },
+  ];
+  const original = breaks.map(({ startAt, endAt }) => ({ startAt, endAt }));
+
+  it('그대로 두면 원래 시각을 초까지 그대로 보내고, 열 때 값과 같다', () => {
+    const resolved = resolveBreakDrafts(toBreakDrafts(breaks, DAY_SHIFT), DAY_SHIFT).breaks;
+    expect(resolved).toEqual(original);
+    expect(isSameBreaks(resolved, original)).toBe(true);
+  });
+
+  it('한 줄의 끝만 고치면 그 칸만 분으로 바뀌고 나머지는 초까지 그대로다', () => {
+    const [first, second] = toBreakDrafts(breaks, DAY_SHIFT);
+    const resolved = resolveBreakDrafts([{ ...first!, end: '20:30' }, second!], DAY_SHIFT).breaks;
+    expect(resolved).toEqual([
+      { startAt: iso('2026-11-02T20:00:40'), endAt: iso('2026-11-02T20:30:00') },
+      original[1],
+    ]);
+    expect(isSameBreaks(resolved, original)).toBe(false);
   });
 });
 
@@ -50,6 +75,13 @@ describe('resolveBreakDrafts', () => {
   it('출근과 같은 분이면 출근 시각(초 포함)으로 맞춘다', () => {
     const shift = { clockInAt: iso('2026-11-02T18:00:27'), clockOutAt: DAY_SHIFT.clockOutAt };
     expect(resolveBreakDrafts([draft('18:00', '18:10')], shift).breaks?.[0]?.startAt).toBe(iso('2026-11-02T18:00:27'));
+  });
+
+  it('24시간 근무에서 끝이 출근과 같은 분이면 퇴근 시각으로 본다', () => {
+    const shift = { clockInAt: iso('2026-11-02T09:00:00'), clockOutAt: iso('2026-11-03T09:00:00') };
+    expect(resolveBreakDrafts([draft('08:30', '09:00')], shift).breaks).toEqual([
+      { startAt: iso('2026-11-03T08:30:00'), endAt: iso('2026-11-03T09:00:00') },
+    ]);
   });
 
   it('빈 목록은 그대로 보낸다 (기록한 휴게 없음)', () => {

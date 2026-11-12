@@ -5,6 +5,11 @@ import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
 import type { AttendanceDetailDto } from '../model/attendance-admin-types';
+import {
+  BREAK_END_BEFORE_START_MESSAGE as END_BEFORE_START_MESSAGE,
+  BREAK_OUT_OF_RANGE_MESSAGE as OUT_OF_RANGE_MESSAGE,
+  BREAK_OVERLAP_MESSAGE as OVERLAP_MESSAGE,
+} from '../model/break-rules';
 
 import { getAttendanceDetail, snapshot } from './attendance-admin-service';
 import { isOutsideCorrectionWindow } from './correction-window';
@@ -24,9 +29,6 @@ interface BreakInterval {
 const OPEN_MESSAGE = '근무 중인 기록의 휴게는 직원이 남겨요. 퇴근한 뒤에 고쳐 주세요.';
 const MISSING_CLOCK_OUT_MESSAGE = '퇴근 시각을 먼저 넣어 주세요.';
 const WINDOW_CLOSED_MESSAGE = '35일이 지난 근무는 휴게를 고칠 수 없어요.';
-const OUT_OF_RANGE_MESSAGE = '휴게는 출근과 퇴근 사이로 넣어 주세요.';
-const END_BEFORE_START_MESSAGE = '휴게 끝이 시작보다 늦어야 해요.';
-const OVERLAP_MESSAGE = '휴게 시간이 서로 겹쳐요.';
 
 /**
  * PUT /attendances/:id/breaks — 끝난 근무(CLOSED)의 휴게를 관리자가 통째로 바꾼다 (docs/specs/attendance §7.6).

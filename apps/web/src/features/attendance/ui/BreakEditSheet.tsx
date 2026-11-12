@@ -12,12 +12,11 @@ import Sheet from '@/shared/ui/Sheet';
 import { useToast } from '@/shared/ui/useToast';
 
 import type { AttendanceDetailDto } from '../model/attendance-admin-types';
-import { type BreakDraft, resolveBreakDrafts, type ShiftRange, toBreakDrafts } from '../model/break-draft';
+import { type BreakDraft, isSameBreaks, resolveBreakDrafts, type ShiftRange, toBreakDrafts } from '../model/break-draft';
+import { MAX_BREAKS_PER_ATTENDANCE } from '../schema';
 
 /** 서버 스키마(features/attendance/schema.ts Reason)와 같은 길이 */
 const REASON_MAX_LENGTH = 200;
-/** 서버 스키마 MAX_BREAKS_PER_ATTENDANCE 와 같은 수 */
-const MAX_BREAKS = 20;
 
 interface BreakEditSheetProps {
   open: boolean;
@@ -41,10 +40,13 @@ function BreakEditForm({ detail, onClose, onSaved }: Omit<BreakEditSheetProps, '
   const toast = useToast();
   const nextKey = useRef(0);
   const [drafts, setDrafts] = useState(() => toBreakDrafts(detail.breaks, detail));
+  // 시트를 열 때 값. 손대지 않았으면 저장할 것이 없다
+  const [initialBreaks] = useState(() => resolveBreakDrafts(drafts, detail).breaks);
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const result = resolveBreakDrafts(drafts, detail);
+  const unchanged = isSameBreaks(result.breaks, initialBreaks);
   const crossesMidnight = toStoreLocalDate(new Date(detail.clockOutAt)) !== detail.localDate;
 
   const handleChange = (key: string, field: 'start' | 'end', value: string) =>
@@ -62,9 +64,10 @@ function BreakEditForm({ detail, onClose, onSaved }: Omit<BreakEditSheetProps, '
     try {
       const body = JSON.stringify({ breaks: result.breaks, reason: reason.trim() });
       await apiFetch(`/api/v1/attendances/${detail.id}/breaks`, { method: 'PUT', body });
+      // 새 값을 받은 뒤 닫는다. 다시 불러오기 실패는 상세 화면 알림(useApiResource)에, 예외면 아래 catch 로 시트 안에 보인다
+      await onSaved();
       toast.success('휴게를 고쳤어요');
       onClose();
-      await onSaved();
     } catch (error) {
       setErrorMessage(errorMessageOf(error));
     } finally {
@@ -82,11 +85,11 @@ function BreakEditForm({ detail, onClose, onSaved }: Omit<BreakEditSheetProps, '
       {drafts.map((draft, index) => (
         <BreakDraftRow key={draft.key} draft={draft} order={index + 1} onChange={handleChange} onRemove={handleRemove} />
       ))}
-      <ActionButton variant="neutralWeak" size="medium" disabled={drafts.length >= MAX_BREAKS} onClick={handleAdd}>
+      <ActionButton variant="neutralWeak" size="medium" disabled={drafts.length >= MAX_BREAKS_PER_ATTENDANCE} onClick={handleAdd}>
         휴게 추가
       </ActionButton>
       <Text as="p" textStyle="t3Regular" color="fg.neutralMuted">
-        1분이 안 되는 휴게는 정산에 넣지 않아요.
+        1분이 안 되는 휴게는 정산에 넣지 않고, 저장하면 지워져요.
         {crossesMidnight ? ' 출근보다 이른 시각은 다음 날로 봐요.' : ''}
       </Text>
       <LabeledTextField
@@ -106,7 +109,7 @@ function BreakEditForm({ detail, onClose, onSaved }: Omit<BreakEditSheetProps, '
           size="large"
           flexGrow
           loading={pending}
-          disabled={!result.breaks || reason.trim().length === 0}
+          disabled={!result.breaks || unchanged || reason.trim().length === 0}
           onClick={() => void handleSubmit()}
         >
           저장
