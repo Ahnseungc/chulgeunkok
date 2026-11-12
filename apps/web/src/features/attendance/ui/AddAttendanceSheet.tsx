@@ -15,6 +15,7 @@ import { useToast } from '@/shared/ui/useToast';
 /** 서버 스키마(features/attendance/schema.ts Reason)와 같은 길이 */
 const REASON_MAX_LENGTH = 200;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SAME_TIME_MESSAGE = '출근과 퇴근 시각이 같아요. 다르게 넣어 주세요.';
 
 interface AddAttendanceSheetProps {
   open: boolean;
@@ -27,8 +28,8 @@ interface AddAttendanceSheetProps {
 }
 
 /**
- * 날짜·출근·퇴근(HH:mm, 매장 시간대) → ISO. 퇴근이 출근보다 이르거나 같으면 다음 날 퇴근으로 본다
- * (자정 넘는 근무. docs/specs/attendance §8)
+ * 날짜·출근·퇴근(HH:mm, 매장 시간대) → ISO. 퇴근이 출근보다 이르면 다음 날 퇴근으로 본다
+ * (자정 넘는 근무. docs/specs/attendance §8). 같은 시각은 24시간 근무가 되므로 폼에서 막는다
  */
 export function toAttendanceRange(date: string, clockIn: string, clockOut: string) {
   const clockInAt = fromLocalDateTimeInput(`${date}T${clockIn}`);
@@ -58,7 +59,8 @@ function AddAttendanceForm({ storeId, members, initialMemberId, onClose, onCreat
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const canSubmit = Boolean(memberId && date && clockIn && clockOut) && reason.trim().length > 0;
+  const sameTime = Boolean(clockIn) && clockIn === clockOut;
+  const canSubmit = Boolean(memberId && date && clockIn && clockOut) && !sameTime && reason.trim().length > 0;
 
   const handleSubmit = async () => {
     setPending(true);
@@ -112,7 +114,7 @@ function AddAttendanceForm({ storeId, members, initialMemberId, onClose, onCreat
         maxLength={REASON_MAX_LENGTH}
         placeholder="예: QR을 못 찍었어요"
       />
-      <InlineAlert message={errorMessage} textStyle="t4Regular" />
+      <InlineAlert message={errorMessage ?? (sameTime ? SAME_TIME_MESSAGE : null)} textStyle="t4Regular" />
       <div className="sheet__actions">
         <ActionButton variant="neutralWeak" size="large" flexGrow onClick={onClose}>
           취소
