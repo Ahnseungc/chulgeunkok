@@ -10,13 +10,13 @@ interface HeadcountEstimateNoteProps {
 export default function HeadcountEstimateNote({ estimate }: HeadcountEstimateNoteProps) {
   return (
     <div role="note">
-      <Text textStyle="t4Regular">출근 기록으로 보면 지난달 하루 평균 {estimate.average}명이 일했어요.</Text>
+      <Text as="p" textStyle="t4Regular">출근 기록으로 보면 지난달 하루 평균 {estimate.average}명이 일했어요.</Text>
       {estimate.mismatch ? (
-        <Text textStyle="t4Regular" color="fg.critical">
+        <Text as="p" textStyle="t4Regular" color="fg.critical">
           신고한 규모와 달라요. 규모를 다시 확인해 주세요.
         </Text>
       ) : null}
-      <Text textStyle="t3Regular" color="fg.neutralMuted">
+      <Text as="p" textStyle="t3Regular" color="fg.neutralMuted">
         참고값이며 법적 판단이 아니에요. 자동으로 바뀌지 않아요.
       </Text>
     </div>
