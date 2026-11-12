@@ -7,10 +7,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-/** 마지막 base64url 글자를 다른 글자로 바꾼다 */
+/** 암호문 구간 첫 글자를 다른 글자로 바꾼다 (마지막 글자는 base64 패딩 비트라 바꿔도 같은 바이트일 수 있다) */
 const tamper = (ciphertext: string) => {
-  const last = ciphertext.at(-1) === 'A' ? 'B' : 'A';
-  return `${ciphertext.slice(0, -1)}${last}`;
+  const [version, iv, body = ''] = ciphertext.split('.');
+  const first = body[0] === 'A' ? 'B' : 'A';
+  return [version, iv, `${first}${body.slice(1)}`].join('.');
 };
 
 describe('qr-token-cipher (docs/specs/qr-card §3.1)', () => {
