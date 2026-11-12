@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { QR_CARD_DEFAULT_MESSAGE, type QrCardDesignDto } from '../model/qr-card-types';
 
-import { qrCardToPdf } from './export-qr-card';
+import { qrCardFileName, qrCardToPdf } from './export-qr-card';
 import QrCardPreview from './QrCardPreview';
 import QrCardScreen from './QrCardScreen';
 import { renderQrCard } from './render-qr-card';
@@ -32,6 +32,7 @@ const savedDesign: QrCardDesignDto = {
   title: '골목카페',
   message: QR_CARD_DEFAULT_MESSAGE,
   hasLogo: false,
+  storeName: '골목카페 망원점',
   saved: true,
 };
 
@@ -93,6 +94,7 @@ describe('QrCardScreen', () => {
     vi.restoreAllMocks();
     vi.mocked(renderQrCard).mockClear();
     vi.mocked(qrCardToPdf).mockClear();
+    vi.mocked(qrCardFileName).mockClear();
   });
 
   it('저장한 디자인이 컨트롤에 채워진다', async () => {
@@ -137,6 +139,22 @@ describe('QrCardScreen', () => {
     await act(async () => vi.advanceTimersByTime(AUTOSAVE_DELAY_MS));
     expect(putCalls(calls)).toHaveLength(0);
     expect(screen.getByText('매장 이름은 1~20자로 적어 주세요')).toBeTruthy();
+  });
+
+  it('파일 이름은 카드 제목이 아니라 매장 이름으로 만든다 (§5)', async () => {
+    await openScreen();
+    fireEvent.change(screen.getByLabelText('매장 이름'), { target: { value: '카드 제목' } });
+    fireEvent.click(screen.getByRole('button', { name: '이미지 받기' }));
+    await waitFor(() => expect(qrCardFileName).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(qrCardFileName).mock.calls[0]?.[0]).toEqual({ storeName: '골목카페 망원점', layout: 'STAND', ext: 'png' });
+  });
+
+  it('매장 이름이 비면 받기 버튼을 끈다', async () => {
+    await openScreen();
+    expect(screen.getByRole('button', { name: 'PDF 받기' })).toHaveProperty('disabled', false);
+    fireEvent.change(screen.getByLabelText('매장 이름'), { target: { value: ' ' } });
+    expect(screen.getByRole('button', { name: 'PDF 받기' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '이미지 받기' })).toHaveProperty('disabled', true);
   });
 
   it('url이 null이면 재발급 안내', async () => {

@@ -20,12 +20,13 @@ interface QrDesignActor {
   actorUserId: string;
 }
 
-const toDto = (row: StoreQrDesign): QrCardDesignDto => ({
+const toDto = (row: StoreQrDesign, storeName: string): QrCardDesignDto => ({
   layout: row.layout,
   color: row.color as QrCardColorKey,
   title: row.title,
   message: row.message,
   hasLogo: row.logo !== null,
+  storeName,
   saved: true,
 });
 
@@ -55,14 +56,16 @@ export function defaultQrCardTitle(name: string): string {
 /** 저장한 적 없으면 기본값 (§4.1). 매장 이름(20자로 자름)은 처음 저장할 때만 title로 고정된다 */
 export async function getQrDesign(db: PrismaClient, input: QrDesignActor): Promise<QrCardDesignDto> {
   await requireOwner(db, input);
+  const name = await storeName(db, input.storeId);
   const row = await db.storeQrDesign.findUnique({ where: { storeId: input.storeId } });
-  if (row) return toDto(row);
+  if (row) return toDto(row, name);
   return {
     layout: 'STAND',
     color: 'kok',
-    title: defaultQrCardTitle(await storeName(db, input.storeId)),
+    title: defaultQrCardTitle(name),
     message: QR_CARD_DEFAULT_MESSAGE,
     hasLogo: false,
+    storeName: name,
     saved: false,
   };
 }
@@ -77,7 +80,7 @@ export async function saveQrDesign(
     create: { storeId: input.storeId, ...input.body, updatedById: input.actorUserId },
     update: { ...input.body, updatedById: input.actorUserId },
   });
-  return toDto(row);
+  return toDto(row, await storeName(db, input.storeId));
 }
 
 /** 디자인 행이 없으면 기본값으로 만들고 로고만 넣는다 */
@@ -88,17 +91,18 @@ export async function saveQrLogo(
   await requireOwner(db, input);
   const { bytes, mime } = parseLogoDataUrl(input.dataUrl);
   const logo = { logo: new Uint8Array(bytes), logoMime: mime, updatedById: input.actorUserId };
+  const name = await storeName(db, input.storeId);
   const row = await db.storeQrDesign.upsert({
     where: { storeId: input.storeId },
     create: {
       storeId: input.storeId,
-      title: defaultQrCardTitle(await storeName(db, input.storeId)),
+      title: defaultQrCardTitle(name),
       message: QR_CARD_DEFAULT_MESSAGE,
       ...logo,
     },
     update: logo,
   });
-  return toDto(row);
+  return toDto(row, name);
 }
 
 export async function deleteQrLogo(db: PrismaClient, input: QrDesignActor): Promise<QrCardDesignDto> {

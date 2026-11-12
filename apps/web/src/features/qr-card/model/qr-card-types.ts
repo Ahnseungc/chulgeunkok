@@ -18,6 +18,8 @@ export interface QrCardDesignDto {
   title: string;
   message: string;
   hasLogo: boolean;
+  /** 지금 매장 이름. 받는 파일 이름에 쓴다 (§5). title 과 달리 매장 이름을 따라간다 */
+  storeName: string;
   /** 저장된 행이 있으면 true. 없으면 기본값 */
   saved: boolean;
 }

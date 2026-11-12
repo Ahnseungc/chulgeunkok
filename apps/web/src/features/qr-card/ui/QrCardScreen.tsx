@@ -58,7 +58,7 @@ export default function QrCardScreen({ storeId }: { storeId: string }) {
             size="large"
             flexGrow
             loading={ctaLoading || card.downloading === 'pdf'}
-            disabled={!qrUrl || card.downloading !== null}
+            disabled={!card.canDownload || card.downloading !== null}
             onClick={() => void card.download('pdf')}
           >
             PDF 받기
@@ -68,7 +68,7 @@ export default function QrCardScreen({ storeId }: { storeId: string }) {
             size="large"
             flexGrow
             loading={ctaLoading || card.downloading === 'png'}
-            disabled={!qrUrl || card.downloading !== null}
+            disabled={!card.canDownload || card.downloading !== null}
             onClick={() => void card.download('png')}
           >
             이미지 받기
