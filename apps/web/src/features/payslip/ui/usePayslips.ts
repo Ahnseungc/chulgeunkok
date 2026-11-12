@@ -20,6 +20,8 @@ export function bulkSendTargetOf(items: readonly PayslipListItemDto[]) {
   };
 }
 
+export type SendAllResult = { ok: true; sent: number } | { ok: false; message: string };
+
 /** 일괄 보내기 실패 문구. 막힌 명세서가 있으면 누구 것인지 앞에 붙인다 (§4.2 details.payslipId) */
 function sendErrorText(error: unknown, items: readonly PayslipListItemDto[]): string {
   const blockedId = error instanceof ApiRequestError ? error.details?.payslipId : undefined;
@@ -35,26 +37,23 @@ export function usePayslips(storeId: string, initialPeriodStart?: string) {
   // 상세에서 고치거나 보낸 뒤 돌아오면 목록을 다시 불러온다
   useOnRevive(() => void reload());
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
-  const sendAll = async (payslipIds: string[]): Promise<boolean> => {
+  /** 결과 표시(토스트)는 화면이 맡는다 */
+  const sendAll = async (payslipIds: string[]): Promise<SendAllResult> => {
     setPending(true);
-    setMessage(null);
     try {
       const result = await apiFetch<{ sent: number }>(`/api/v1/stores/${storeId}/payslips/send`, {
         method: 'POST',
         body: JSON.stringify({ payslipIds }),
       });
-      setMessage({ text: `${result.sent}명에게 보냈어요`, error: false });
       await reload();
-      return true;
+      return { ok: true, sent: result.sent };
     } catch (error) {
-      setMessage({ text: sendErrorText(error, data?.items ?? []), error: true });
-      return false;
+      return { ok: false, message: sendErrorText(error, data?.items ?? []) };
     } finally {
       setPending(false);
     }
   };
 
-  return { data, errorMessage, setPeriodStart, pending, message, sendAll };
+  return { data, errorMessage, setPeriodStart, pending, sendAll };
 }

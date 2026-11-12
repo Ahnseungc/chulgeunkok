@@ -1,13 +1,15 @@
 'use client';
 
 import { Text, TextField } from '@seed-design/react';
-import { useId, type InputHTMLAttributes } from 'react';
+import { useId, type InputHTMLAttributes, type Ref } from 'react';
 
 interface LabeledTextFieldProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'onChange' | 'value' | 'size'> {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
+  /** 검증 실패 시 이 칸으로 포커스를 옮길 때 */
+  ref?: Ref<HTMLInputElement>;
 }
 
 /** 라벨과 연결된 Seed TextField. 스크린리더가 placeholder 대신 라벨을 읽는다 */
