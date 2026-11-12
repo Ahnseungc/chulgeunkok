@@ -23,6 +23,7 @@
 | [payroll/README.md](./payroll/README.md) | TIME-02, PAY-01, ADMIN-02 | 근무시간 계산, 예상 기본급, CSV |
 | [dashboard/README.md](./dashboard/README.md) | ADMIN-01 | 관리자 대시보드 |
 | [payslip/README.md](./payslip/README.md) | P1 임금명세서 | 명세서 초안·수정·보내기·정정, 직원별 공제, FCM 푸시 |
+| [qr-card/README.md](./qr-card/README.md) | store §5 | QR 카드 셀프 제작(레이아웃·색·문구·로고, PDF·PNG), QR 원문 암호화 저장 |
 
 ---
 
