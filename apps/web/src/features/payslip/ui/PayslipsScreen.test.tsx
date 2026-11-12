@@ -4,6 +4,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import ToastProvider from '@/shared/ui/Toast';
+
 import type { PayslipListDto, PayslipListItemDto } from '../model/payslip-types';
 
 import PayslipsScreen from './PayslipsScreen';
@@ -50,11 +52,21 @@ const respondWith = (body: unknown) =>
     vi.fn(async () => ({ ok: true, json: async () => body })),
   );
 
+const renderScreen = (initialPeriodStart?: string) =>
+  render(
+    <ToastProvider>
+      <PayslipsScreen storeId="s1" initialPeriodStart={initialPeriodStart} />
+    </ToastProvider>,
+  );
+
 describe('PayslipsScreen', () => {
   beforeEach(() => {
     stubResizeObserver();
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
     };
   });
 
@@ -65,7 +77,7 @@ describe('PayslipsScreen', () => {
 
   it('확인 필요 칩과 실지급액을 보여 준다', async () => {
     respondWith(list([item({})]));
-    render(<PayslipsScreen storeId="s1" />);
+    renderScreen();
     const row = (await screen.findByText('이알바')).closest('a');
     expect(row?.getAttribute('href')).toBe('/owner/s1/payslips/p1');
     expect(within(row as HTMLElement).getByText('확인 필요')).toBeTruthy();
@@ -80,7 +92,7 @@ describe('PayslipsScreen', () => {
         item({ payslipId: 'p3', memberId: 'm3', name: '최보냄', status: 'SENT', netPay: 900_000 }),
       ]),
     );
-    render(<PayslipsScreen storeId="s1" />);
+    renderScreen();
     await screen.findByText('박신입');
     fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
     const sheet = screen.getByRole('dialog');
@@ -88,9 +100,31 @@ describe('PayslipsScreen', () => {
     expect(within(sheet).getByRole('button', { name: '보내기' }).hasAttribute('disabled')).toBe(false);
   });
 
+  it('지급일 없는 대상이 있으면 시트 대신 토스트', async () => {
+    respondWith(list([item({}), item({ payslipId: 'p2', memberId: 'm2', name: '박신입', payDate: null })]));
+    renderScreen();
+    await screen.findByText('박신입');
+    fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
+    expect((await screen.findByRole('status')).textContent).toBe('지급일이 없는 명세서가 있어요. 명세서에서 지급일을 넣어 주세요.');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('모두 보내면 시트를 닫고 인원 토스트', async () => {
+    const body = list([item({}), item({ payslipId: 'p2', memberId: 'm2', name: '박신입' })]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => ({ ok: true, json: async () => (url.endsWith('/payslips/send') ? { sent: 2 } : body) })),
+    );
+    renderScreen();
+    await screen.findByText('박신입');
+    fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '보내기' }));
+    expect((await screen.findByRole('status')).textContent).toBe('2명에게 보냈어요');
+  });
+
   it('미해결 근태가 있으면 배지와 보내기 시트 경고', async () => {
     respondWith(list([item({ unresolvedCount: 2 }), item({ payslipId: 'p2', memberId: 'm2', name: '박신입' })]));
-    render(<PayslipsScreen storeId="s1" />);
+    renderScreen();
     const row = (await screen.findByText('이알바')).closest('a');
     expect(within(row as HTMLElement).getByText('미해결 근태 2')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '확인 필요 모두 보내기' }));
@@ -99,7 +133,7 @@ describe('PayslipsScreen', () => {
 
   it('URL의 periodStart로 첫 기간을 연다', async () => {
     respondWith(list([item({})]));
-    render(<PayslipsScreen storeId="s1" initialPeriodStart="2026-09-01" />);
+    renderScreen('2026-09-01');
     await screen.findByText('이알바');
     const [url] = vi.mocked(fetch).mock.calls[0] ?? [];
     expect(String(url)).toContain('/api/v1/stores/s1/payslips?periodStart=2026-09-01');

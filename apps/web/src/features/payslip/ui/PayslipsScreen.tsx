@@ -1,6 +1,6 @@
 'use client';
 
-import { ActionButton, Text } from '@seed-design/react';
+import { ActionButton, Snackbar, Text } from '@seed-design/react';
 import { useState } from 'react';
 
 import { formatWon as won } from '@/features/payroll/model/payroll-types';
@@ -10,10 +10,11 @@ import InlineAlert from '@/shared/ui/InlineAlert';
 import PeriodNav from '@/shared/ui/PeriodNav';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 import Sheet from '@/shared/ui/Sheet';
+import { useToast } from '@/shared/ui/useToast';
 
 import type { PayslipListItemDto } from '../model/payslip-types';
 
-import { payslipChipOf, UNRESOLVED_WARNING, unresolvedLabelOf } from './payslip-labels';
+import { payslipChipOf, SEND_BLOCK_MESSAGE, UNRESOLVED_WARNING, unresolvedLabelOf } from './payslip-labels';
 import { bulkSendTargetOf, usePayslips } from './usePayslips';
 
 interface PayslipsScreenProps {
@@ -28,10 +29,22 @@ export default function PayslipsScreen({ storeId, initialPeriodStart }: Payslips
   const { data } = payslips;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const target = bulkSendTargetOf(data?.items ?? []);
+  const toast = useToast();
 
+  /** 지급일 없는 대상이 있으면 시트를 열지 않는다. 어느 명세서인지는 목록에서 고른다 */
+  const handleSendAllTap = () => {
+    if (target.missingPayDate > 0) {
+      toast.error(SEND_BLOCK_MESSAGE.bulkPayDateMissing);
+      return;
+    }
+    setConfirmOpen(true);
+  };
+  // 결과는 시트를 닫은 뒤 토스트로 (열린 <dialog> 위에는 토스트가 가려진다)
   const handleSendAll = async () => {
-    await payslips.sendAll(target.payslipIds);
+    const result = await payslips.sendAll(target.payslipIds);
     setConfirmOpen(false);
+    if (result.ok) toast.success(`${result.sent}명에게 보냈어요`);
+    else toast.error(result.message);
   };
 
   return (
@@ -61,32 +74,26 @@ export default function PayslipsScreen({ storeId, initialPeriodStart }: Payslips
           )}
         </>
       ) : null}
-      <InlineAlert
-        message={payslips.message?.text}
-        textStyle="t4Regular"
-        color={payslips.message?.error ? 'fg.critical' : 'fg.positive'}
-        role={payslips.message?.error ? 'alert' : 'status'}
-      />
-      <div className="punch-bottom">
-        <ActionButton
-          variant="neutralSolid"
-          size="large"
-          flexGrow
-          loading={!data}
-          disabled={target.payslipIds.length === 0}
-          onClick={() => setConfirmOpen(true)}
-        >
-          확인 필요 모두 보내기
-        </ActionButton>
-      </div>
+      <Snackbar.AvoidOverlap>
+        <div className="punch-bottom">
+          <ActionButton
+            variant="neutralSolid"
+            size="large"
+            flexGrow
+            loading={!data}
+            disabled={target.payslipIds.length === 0}
+            onClick={handleSendAllTap}
+          >
+            확인 필요 모두 보내기
+          </ActionButton>
+        </div>
+      </Snackbar.AvoidOverlap>
       <Sheet open={confirmOpen} onClose={() => setConfirmOpen(false)} title="확인 필요 명세서를 보낼까요?">
         <Text as="p" textStyle="t5Bold">
           {target.payslipIds.length}명 · 실지급 합계 {won(target.netPayTotal)}
         </Text>
-        <Text as="p" textStyle="t4Regular" color={target.missingPayDate > 0 ? 'fg.critical' : 'fg.neutralMuted'}>
-          {target.missingPayDate > 0
-            ? `지급일이 없는 명세서가 ${target.missingPayDate}건 있어요. 매장 설정에서 급여 지급일을 정하거나 명세서마다 넣어 주세요.`
-            : '보내면 직원 앱에 알림이 가요. 보낸 명세서는 고칠 수 없어요.'}
+        <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
+          보내면 직원 앱에 알림이 가요. 보낸 명세서는 고칠 수 없어요.
         </Text>
         {target.unresolved > 0 ? (
           <Text as="p" textStyle="t4Regular" color="fg.warning" role="note">
@@ -102,7 +109,6 @@ export default function PayslipsScreen({ storeId, initialPeriodStart }: Payslips
             size="large"
             flexGrow
             loading={payslips.pending}
-            disabled={target.missingPayDate > 0}
             onClick={() => void handleSendAll()}
           >
             보내기

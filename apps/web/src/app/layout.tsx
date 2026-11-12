@@ -7,6 +7,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
 import DevMenuButton from '@/shared/ui/DevMenuButton';
+import ToastProvider from '@/shared/ui/Toast';
 
 export const metadata: Metadata = {
   title: '출근콕',
@@ -30,8 +31,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="color-scheme" content="light" />
       </head>
       <body>
-        {children}
-        {process.env.NODE_ENV !== 'production' && <DevMenuButton />}
+        <ToastProvider>
+          {children}
+          {process.env.NODE_ENV !== 'production' && <DevMenuButton />}
+        </ToastProvider>
       </body>
     </html>
   );

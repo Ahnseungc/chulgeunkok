@@ -1,7 +1,7 @@
 'use client';
 
-import { ActionButton, Text } from '@seed-design/react';
-import { useEffect, useState } from 'react';
+import { ActionButton, Snackbar, Text } from '@seed-design/react';
+import { type Ref, useEffect, useRef, useState } from 'react';
 
 import { DEDUCTION_TYPE_LABEL, type DeductionTypeValue } from '@/features/labor/model/labor-types';
 import { formatWon as won } from '@/features/payroll/model/payroll-types';
@@ -13,17 +13,24 @@ import LabeledTextField from '@/shared/ui/LabeledTextField';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 import Sheet from '@/shared/ui/Sheet';
 import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
+import { useToast } from '@/shared/ui/useToast';
 
 import type { PayslipDetailDto } from '../model/payslip-types';
 
 import LineEditSheet, { type LineEditTarget } from './LineEditSheet';
 import { payslipChipOf, UNRESOLVED_WARNING } from './payslip-labels';
 import PayslipTable from './PayslipTable';
-import { changedLineIdsOf, usePayslipDetail } from './usePayslipDetail';
+import { changedLineIdsOf, sendBlockOf, usePayslipDetail } from './usePayslipDetail';
 
 const SECOND_MS = 1000;
 const NOTE_MAX_LENGTH = 200;
 const DEDUCTION_TYPES = ['NONE', 'WITHHOLDING_3_3', 'SOCIAL_INSURANCE'] as const satisfies readonly DeductionTypeValue[];
+
+/** 검사에 막힌 칸으로 포커스를 옮기고 화면 가운데로 올린다 (하단 CTA·헤더에 가리지 않게) */
+const focusField = (input: HTMLInputElement | null) => {
+  input?.focus({ preventScroll: true });
+  input?.scrollIntoView({ block: 'center' });
+};
 
 interface PayslipDetailScreenProps {
   storeId: string;
@@ -34,6 +41,9 @@ interface PayslipDetailScreenProps {
 export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetailScreenProps) {
   const detail = usePayslipDetail(payslipId);
   const { payslip } = detail;
+  const toast = useToast();
+  const payDateRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState<LineEditTarget | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -41,17 +51,35 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
 
   const isDraft = payslip?.status === 'DRAFT';
   const isCorrection = (payslip?.version ?? 1) > 1;
-  const canSend = isDraft && (!isCorrection || note.trim().length > 0);
   const title = payslip ? `${payslip.employeeName}님 임금명세서` : '임금명세서';
 
   const closeEditor = () => {
     setEditing(null);
     detail.clearError();
   };
-  const afterWrite = (saved: boolean) => saved && closeEditor();
+  const afterWrite = (successMessage: string) => (saved: boolean) => {
+    if (!saved) return;
+    closeEditor();
+    toast.success(successMessage);
+  };
+  /** 막힐 이유가 있으면 시트를 열지 않고 토스트 + 해당 칸 포커스 */
+  const handleSendTap = () => {
+    if (!payslip) return;
+    const block = sendBlockOf(payslip, note);
+    if (!block) {
+      detail.clearError();
+      setConfirmOpen(true);
+      return;
+    }
+    toast.error(block.message);
+    if (block.field) focusField((block.field === 'payDate' ? payDateRef : noteRef).current);
+  };
+  // 보내기 실패는 열린 시트 안 InlineAlert 로 보여 준다 (토스트는 <dialog> top layer 뒤에 가려진다)
   const handleSend = async () => {
     const sent = await detail.send(isCorrection ? note.trim() : null);
-    if (sent) setConfirmOpen(false);
+    if (!sent) return;
+    setConfirmOpen(false);
+    toast.success('보냈어요');
   };
 
   return (
@@ -94,7 +122,7 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
           </PageStaggerEntranceItem>
           {isDraft ? (
             <PageStaggerEntranceItem className="screen-stack">
-              <DraftFields payslip={payslip} pending={detail.pending} onPayDate={detail.savePayDate} onDeductionType={detail.saveDeductionType} />
+              <DraftFields payslip={payslip} payDateRef={payDateRef} pending={detail.pending} onPayDate={detail.savePayDate} onDeductionType={detail.saveDeductionType} />
             </PageStaggerEntranceItem>
           ) : null}
           <PageStaggerEntranceItem className="screen-stack">
@@ -112,6 +140,7 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
           {isDraft && isCorrection ? (
             <PageStaggerEntranceItem>
               <LabeledTextField
+                ref={noteRef}
                 label="정정 사유 (직원에게 보여요)"
                 value={note}
                 onValueChange={setNote}
@@ -125,11 +154,13 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
 
       <InlineAlert message={editing || confirmOpen ? null : detail.errorMessage} textStyle="t4Regular" />
       {payslip && !isDraft ? null : (
-        <div className="punch-bottom">
-          <ActionButton variant="neutralSolid" size="large" flexGrow loading={!payslip} disabled={!canSend} onClick={() => setConfirmOpen(true)}>
-            보내기
-          </ActionButton>
-        </div>
+        <Snackbar.AvoidOverlap>
+          <div className="punch-bottom">
+            <ActionButton variant="neutralSolid" size="large" flexGrow loading={!payslip} onClick={handleSendTap}>
+              보내기
+            </ActionButton>
+          </div>
+        </Snackbar.AvoidOverlap>
       )}
 
       <LineEditSheet
@@ -137,13 +168,14 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
         pending={detail.pending}
         errorMessage={detail.errorMessage}
         onClose={closeEditor}
-        onSave={(line, amount, reason) => void detail.saveLine(line.id, amount, reason).then(afterWrite)}
-        onAdd={(values) => void detail.addLine(values).then(afterWrite)}
-        onDelete={(line) => void detail.deleteLine(line.id).then(afterWrite)}
+        onSave={(line, amount, reason) => void detail.saveLine(line.id, amount, reason).then(afterWrite('저장했어요'))}
+        onAdd={(values) => void detail.addLine(values).then(afterWrite('추가했어요'))}
+        onDelete={(line) => void detail.deleteLine(line.id).then(afterWrite('지웠어요'))}
       />
       <Sheet open={confirmOpen} onClose={() => setConfirmOpen(false)} title={`${payslip?.employeeName ?? ''}님에게 보낼까요?`}>
         <Text as="p" textStyle="t5Bold">
-          실지급 {won(payslip?.netPay ?? 0)} · 지급일 {payslip?.payDate ? formatLocalDate(payslip.payDate) : '없음'}
+          실지급 {won(payslip?.netPay ?? 0)}
+          {payslip?.payDate ? ` · 지급일 ${formatLocalDate(payslip.payDate)}` : null}
         </Text>
         <Text as="p" textStyle="t4Regular" color="fg.neutralMuted">
           보내면 직원 앱에 알림이 가요. 보낸 명세서는 고칠 수 없어요.
@@ -208,16 +240,18 @@ export function WorkSummary({ payslip }: { payslip: PayslipDetailDto }) {
 
 interface DraftFieldsProps {
   payslip: PayslipDetailDto;
+  payDateRef: Ref<HTMLInputElement>;
   pending: boolean;
   onPayDate: (payDate: string) => Promise<boolean>;
   onDeductionType: (deductionType: DeductionTypeValue) => Promise<boolean>;
 }
 
 /** 지급일·공제 방식은 바꾸면 바로 저장한다 (매장 설정 정산 시작일과 같은 방식) */
-function DraftFields({ payslip, pending, onPayDate, onDeductionType }: DraftFieldsProps) {
+function DraftFields({ payslip, payDateRef, pending, onPayDate, onDeductionType }: DraftFieldsProps) {
   return (
     <>
       <LabeledTextField
+        ref={payDateRef}
         label="지급일"
         type="date"
         value={payslip.payDate ?? ''}

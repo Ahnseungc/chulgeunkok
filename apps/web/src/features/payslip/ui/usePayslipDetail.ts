@@ -8,6 +8,8 @@ import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
 
 import type { PayslipDetailDto, PayslipLineDto } from '../model/payslip-types';
 
+import { SEND_BLOCK_MESSAGE } from './payslip-labels';
+
 export interface NewLineValues {
   kind: PayslipLineDto['kind'];
   label: string;
@@ -22,6 +24,22 @@ export function changedLineIdsOf(payslip: PayslipDetailDto): Set<string> {
   if (!payslip.previousSent) return new Set();
   const previous = new Map(payslip.previousSent.lines.map((line) => [lineKey(line), line.amount]));
   return new Set(payslip.lines.filter((line) => previous.get(lineKey(line)) !== line.amount).map((line) => line.id));
+}
+
+/** 보내기를 막은 이유와 고칠 칸. 칸이 없으면 표를 고쳐야 한다 (공제 초과) */
+export interface SendBlock {
+  message: string;
+  field: 'payDate' | 'correctionNote' | null;
+}
+
+/** 확인 시트를 열기 전 검사. 서버 보내기 검증(§4.2)과 같은 순서·문구 */
+export function sendBlockOf(payslip: PayslipDetailDto, correctionNote: string): SendBlock | null {
+  if (!payslip.payDate) return { message: SEND_BLOCK_MESSAGE.payDateRequired, field: 'payDate' };
+  if (payslip.netPay < 0) return { message: SEND_BLOCK_MESSAGE.netNegative, field: null };
+  if (payslip.version > 1 && correctionNote.trim().length === 0) {
+    return { message: SEND_BLOCK_MESSAGE.correctionNoteRequired, field: 'correctionNote' };
+  }
+  return null;
 }
 
 /** 사장님 명세서 상세 조회·수정·보내기 — docs/specs/payslip §4.2·§5.2·§7. 수정 응답이 최신 상세라 바로 반영한다 */
