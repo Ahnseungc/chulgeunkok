@@ -73,6 +73,7 @@ export async function getMember(
     termsAccess,
     canEditTerms: canAccessStore(actor, 'TERMS_WRITE') && member.status === 'ACTIVE',
     canViewHistory: canAccessStore(actor, 'MEMBER_ADMIN'),
+    canEditRole: canAccessStore(actor, 'MEMBER_ADMIN') && member.role !== 'OWNER' && member.status === 'ACTIVE',
   };
 }
 

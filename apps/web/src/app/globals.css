@@ -499,6 +499,23 @@ body {
   gap: 8px;
 }
 
+/* 이름 아래 한 줄 설명이 붙는 체크박스 (직원 상세 역할·권한) */
+.checkbox-row--top {
+  align-items: flex-start;
+}
+
+.checkbox-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.permission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* 요일 | 출근 – 퇴근 / 아래 줄에 휴게. 375px 폭에서 넘치지 않게 두 줄로 */
 .schedule-row {
   display: grid;
