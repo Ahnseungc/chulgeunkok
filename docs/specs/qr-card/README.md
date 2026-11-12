@@ -123,6 +123,8 @@ QR 둘레 흰 여백(quiet zone)은 QR을 가장 크게 그려도 3모듈(버전
    - PDF: 실제 크기(A6 또는 80×80mm) 한 장. 인쇄 시 "실제 크기"로 찍도록 안내 한 줄.
    - PNG: 300dpi 기준 해상도 (A6 ≈ 1240×1748px, 스티커 ≈ 945×945px).
    - 파일은 클라이언트에서 만든다 (QR은 기존 `qrcode` 라이브러리, PDF는 빌더 재량 — 가벼운 클라이언트 라이브러리).
+   - 파일 이름: `출근콕-QR카드-<매장명>-스탠드.pdf` / `-스티커.png`. `<매장명>`은 카드 제목(`title`)이 아니라 지금 매장 이름이다 (`GET /qr-design` 응답의 `storeName`).
+   - 매장 이름(`title`)이 비어 있으면 두 버튼을 끈다.
    - 브라우저는 `<a download>` 로 받는다. 앱 WebView 는 blob:·data: 다운로드가 안 되므로 base64 를 `SAVE_FILE`(auth §6.3)로 넘기고 앱이 공유 시트(파일·사진 저장·인쇄)를 연다.
 6. 암호문이 없으면(§3.2) 미리보기 자리에 재발급 안내.
 7. 재발급 버튼 근처에 store §5.2 경고 문구를 유지한다.
@@ -132,7 +134,7 @@ QR 둘레 흰 여백(quiet zone)은 QR을 가장 크게 그려도 3모듈(버전
 | Method | 경로 | 권한 |
 | --- | --- | --- |
 | GET | `/stores/:storeId/qr` | Owner |
-| GET | `/stores/:storeId/qr-design` | Owner (없으면 기본값) |
+| GET | `/stores/:storeId/qr-design` → `{ layout, color, title, message, hasLogo, storeName, saved }` | Owner (없으면 기본값) |
 | PUT | `/stores/:storeId/qr-design` body `{ layout, color, title, message }` | Owner |
 | PUT | `/stores/:storeId/qr-design/logo` body `{ dataUrl }` | Owner |
 | DELETE | `/stores/:storeId/qr-design/logo` | Owner |

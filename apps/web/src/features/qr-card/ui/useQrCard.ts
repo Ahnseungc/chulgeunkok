@@ -162,8 +162,11 @@ export function useQrCard(storeId: string) {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const qrUrl = rotatedUrl ?? qrResource.data?.url ?? null;
 
+  const canDownload = Boolean(qrUrl && autosave.design && autosave.design.title.trim() !== '');
+
+  /** 제목이 비면 카드에 이름이 빠지므로 받지 않는다 (§4.1 title 1자 이상) */
   const download = async (kind: QrCardFileKind) => {
-    if (!autosave.design || !qrUrl) return;
+    if (!autosave.design || !qrUrl || !canDownload) return;
     setDownloading(kind);
     setDownloadError(null);
     try {
@@ -188,6 +191,7 @@ export function useQrCard(storeId: string) {
     removeLogo: logo.remove,
     wordmark,
     download,
+    canDownload,
     downloading,
     downloadError,
   };

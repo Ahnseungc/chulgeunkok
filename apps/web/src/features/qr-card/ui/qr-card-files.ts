@@ -121,9 +121,9 @@ async function buildQrCardFile(design: QrCardDesignDto, images: QrCardImages, ki
   return new Blob([pdf.slice()], { type: 'application/pdf' });
 }
 
-/** 화면의 지금 값으로 파일을 만들어 받는다. 자동 저장을 기다리지 않는다 (§8) */
+/** 화면의 지금 값으로 파일을 만들어 받는다. 자동 저장을 기다리지 않는다 (§8). 파일 이름은 카드 제목이 아니라 매장 이름 (§5) */
 export async function downloadQrCard(design: QrCardDesignDto, images: QrCardImages, kind: QrCardFileKind): Promise<void> {
   const blob = await buildQrCardFile(design, images, kind);
-  const fileName = qrCardFileName({ storeName: design.title, layout: design.layout, ext: kind });
+  const fileName = qrCardFileName({ storeName: design.storeName, layout: design.layout, ext: kind });
   await saveFile(blob, fileName, kind === 'pdf' ? 'application/pdf' : 'image/png');
 }

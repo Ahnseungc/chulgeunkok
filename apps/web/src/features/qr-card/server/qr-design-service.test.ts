@@ -64,13 +64,14 @@ describe('qr-design-service', () => {
       title: '골목카페',
       message: QR_CARD_DEFAULT_MESSAGE,
       hasLogo: false,
+      storeName: '골목카페',
       saved: false,
     });
   });
 
   it('저장하면 다시 읽어도 같다', async () => {
     const saved = await saveQrDesign(db, { ...owner(), body: BODY });
-    expect(saved).toEqual({ ...BODY, hasLogo: false, saved: true });
+    expect(saved).toEqual({ ...BODY, hasLogo: false, storeName: '골목카페', saved: true });
     expect(await getQrDesign(db, owner())).toEqual(saved);
     const row = await db.storeQrDesign.findUniqueOrThrow({ where: { storeId } });
     expect(row.updatedById).toBe('owner');
@@ -79,7 +80,7 @@ describe('qr-design-service', () => {
   it('매장 이름을 바꿔도 저장된 title은 그대로', async () => {
     await saveQrDesign(db, { ...owner(), body: BODY });
     await db.store.update({ where: { id: storeId }, data: { name: '새이름' } });
-    expect((await getQrDesign(db, owner())).title).toBe('내 카페');
+    expect(await getQrDesign(db, owner())).toMatchObject({ title: '내 카페', storeName: '새이름' });
   });
 
   it('로고 올리고 지우기', async () => {
