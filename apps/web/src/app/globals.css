@@ -363,7 +363,9 @@ body {
   margin: 0;
   padding: 0;
   border: 0;
-  overflow: hidden;
+  /* hidden 은 스크립트·포커스 스크롤은 막지 못한다. iOS WebKit 은 showModal 첫 포커스(아직 화면 밖 패널의 버튼)를 보이려고
+     dialog 를 위로 스크롤했다가 되돌려 시트가 한 번 튄다. clip 은 스크롤 자체가 없다 */
+  overflow: clip;
   background: transparent;
   color: inherit;
 }
