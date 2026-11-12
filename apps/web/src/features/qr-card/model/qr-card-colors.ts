@@ -29,3 +29,7 @@ export const QR_CARD_COLORS: Record<QrCardColorKey, QrCardColor> = {
   blue: { label: '파랑', background: WHITE, accent: '#135fcd', onAccent: WHITE, text: BLACK },
   green: { label: '초록', background: WHITE, accent: '#00745f', onAccent: WHITE, text: BLACK },
 };
+
+/** QR은 카드 색과 상관없이 흰 상자 위 검정 (§4.2). 워드마크 받침도 같은 흰색 */
+export const QR_CODE_DARK = '#000000';
+export const QR_CARD_WHITE_BOX = WHITE;
