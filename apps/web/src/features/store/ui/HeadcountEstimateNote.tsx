@@ -17,7 +17,7 @@ export default function HeadcountEstimateNote({ estimate }: HeadcountEstimateNot
         </Text>
       ) : null}
       <Text textStyle="t3Regular" color="fg.neutralMuted">
-        참고값이며 법적 판단이 아니에요.
+        참고값이며 법적 판단이 아니에요. 자동으로 바뀌지 않아요.
       </Text>
     </div>
   );

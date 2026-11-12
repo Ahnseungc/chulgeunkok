@@ -35,7 +35,7 @@ describe('TodoCards', () => {
     render(<TodoCards storeId="s1" todo={todo({ headcountMismatch: 'MAYBE_FIVE_OR_MORE' })} />);
     const link = screen.getByText('사업장 규모 확인').closest('a');
     expect(link?.getAttribute('href')).toBe('/owner/s1/settings');
-    expect(screen.getByText('지난달 출근 기록으로는 5인 이상일 수 있어요')).toBeTruthy();
+    expect(screen.getByText('지난달 출근 기록으로는 5인 이상일 수 있어요. 자동으로 바뀌지 않아요')).toBeTruthy();
   });
 
   it('불일치가 없으면 카드가 없다', () => {

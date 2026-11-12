@@ -4,8 +4,8 @@ import type { DashboardDto } from '../model/dashboard-types';
 import { AppLink } from '@/shared/ui/AppLink';
 
 const HEADCOUNT_MISMATCH_DESCRIPTION = {
-  MAYBE_FIVE_OR_MORE: '지난달 출근 기록으로는 5인 이상일 수 있어요',
-  MAYBE_UNDER_5: '지난달 출근 기록으로는 5인 미만일 수 있어요',
+  MAYBE_FIVE_OR_MORE: '지난달 출근 기록으로는 5인 이상일 수 있어요. 자동으로 바뀌지 않아요',
+  MAYBE_UNDER_5: '지난달 출근 기록으로는 5인 미만일 수 있어요. 자동으로 바뀌지 않아요',
 } as const;
 
 const HEADCOUNT_CARD_TITLE = '사업장 규모 확인';

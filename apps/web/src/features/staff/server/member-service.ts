@@ -61,8 +61,8 @@ export async function getMember(
   });
   if (!member) throw new ApiError('NOT_FOUND');
 
-  // 시급이 보이므로 PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 뒤에만 (auth §4.2)
-  const canReadTerms = await canAccessVerified(db, actor, 'TERMS_READ');
+  // 시급이 보이므로 PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 뒤에만 (auth §4.2). 본인 근로조건은 인증 없이도 본다
+  const canReadTerms = member.id === actor.id || (await canAccessVerified(db, actor, 'TERMS_READ'));
   const latestTerms = member.employmentTerms[0];
   return {
     ...toSummary(member),

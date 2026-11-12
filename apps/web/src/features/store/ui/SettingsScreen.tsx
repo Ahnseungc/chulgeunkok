@@ -164,7 +164,7 @@ function HeadcountSection({ settings, pending, onSave }: SectionProps<[string, s
         사업장 규모 · 지금 {HEADCOUNT_LABEL[settings.headcount.current]}
       </Text>
       <Text textStyle="t4Regular" color="fg.neutralMuted">
-        지난 1개월 동안 일한 사람 수(아르바이트·사장님 가족 포함)를 일한 날 수로 나눈 값이에요. 등록한 직원 수와 달라요.
+        지난 1개월 동안 일한 사람 수를 일한 날 수로 나눈 값이에요. 직원으로 등록한 가족도 세고, 사장님은 세지 않아요. 등록한 직원 수와 달라요.
       </Text>
       {settings.headcountEstimate ? <HeadcountEstimateNote estimate={settings.headcountEstimate} /> : null}
       <div className="headcount__options" role="group" aria-label="사업장 규모">

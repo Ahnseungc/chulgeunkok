@@ -91,6 +91,23 @@ describe('getMember — 시급 노출 (auth §4.2)', () => {
     expect([before.canReadTerms, before.currentTerms, after.canReadTerms, after.currentTerms?.hourlyWage]).toEqual([false, null, true, 10320]);
   });
 
+  it('인증 전이라도 본인 근로조건은 본다 (API 본인 경로와 같게)', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
+    await db.employmentTerms.create({
+      data: {
+        id: 'terms-manager',
+        membershipId: 'm-manager',
+        version: 1,
+        effectiveFrom: new Date('2026-11-01T00:00:00+09:00'),
+        hourlyWage: 11000,
+        contractStartDate: new Date('2026-11-01'),
+        createdById: 'owner',
+      },
+    });
+    const own = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-manager' });
+    expect([own.canReadTerms, own.currentTerms?.hourlyWage]).toEqual([true, 11000]);
+  });
+
   it('TERMS_EDIT Manager는 인증 없이도 본다', async () => {
     await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['TERMS_EDIT'] } });
     const member = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-b' });

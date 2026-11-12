@@ -1,6 +1,6 @@
 import { createHash, randomInt } from 'node:crypto';
 
-import type { Prisma, PrismaClient } from '@chulgeunkok/db';
+import { Prisma, type PrismaClient } from '@chulgeunkok/db';
 
 import type { SmsSender } from '@/server/integrations/sms';
 import { ApiError } from '@/server/http/api-error';
@@ -125,8 +125,19 @@ async function attachPhone(
   if (!managing.some((membership) => membership.permissions.includes('PAYROLL_READ'))) throw new ApiError('FORBIDDEN');
   const taken = await tx.user.findUnique({ where: { phone: input.phone }, select: { id: true } });
   if (taken) throw new ApiError('PHONE_IN_USE');
-  await tx.user.update({ where: { id: user.id }, data: { phone: input.phone } });
+  await writePhoneIfEmpty(tx, { userId: user.id, phone: input.phone });
   return result;
+}
+
+/** 읽은 뒤 쓰기 사이에 다른 요청이 번호를 넣거나 같은 번호를 가져갈 수 있다. 조건부 쓰기와 유니크 위반으로 닫는다 */
+async function writePhoneIfEmpty(tx: Prisma.TransactionClient, input: { userId: string; phone: string }) {
+  try {
+    const { count } = await tx.user.updateMany({ where: { id: input.userId, phone: null }, data: { phone: input.phone } });
+    if (count === 0) throw new ApiError('PHONE_ALREADY_SET');
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ApiError('PHONE_IN_USE');
+    throw error;
+  }
 }
 
 async function recordFailedAttempt(

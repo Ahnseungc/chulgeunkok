@@ -188,6 +188,24 @@ describe('verifyOtp — 지금 세션에 번호 붙이기 (auth §4.2)', () => {
     expect(await phoneOf('manager')).toBeNull();
   });
 
+  it('읽은 뒤 다른 요청이 먼저 번호를 넣었으면 덮어쓰지 않고 PHONE_ALREADY_SET', async () => {
+    const code = await codeOf();
+    const transaction = db.$transaction.bind(db) as unknown as (fn: (tx: typeof db) => Promise<unknown>) => Promise<unknown>;
+    // 읽기(번호 없음 확인) 뒤 쓰기 전에 다른 요청이 번호를 넣은 상황
+    const spy = vi.spyOn(db, '$transaction').mockImplementationOnce(((fn: (tx: typeof db) => Promise<unknown>) =>
+      transaction(async (tx) => {
+        const findMany = tx.membership.findMany.bind(tx.membership);
+        tx.membership.findMany = (async (args: never) => {
+          const rows = await findMany(args);
+          await tx.user.update({ where: { id: 'manager' }, data: { phone: '+821000000007' } });
+          return rows;
+        }) as never;
+        return fn(tx);
+      })) as never);
+    await expect(attach(code)).rejects.toMatchObject({ code: 'PHONE_ALREADY_SET' });
+    spy.mockRestore();
+  });
+
   it('틀린 코드면 번호를 붙이지 않는다', async () => {
     const code = await codeOf();
     await expect(attach(wrongCodeFor(code))).rejects.toMatchObject({ code: 'OTP_INVALID' });
