@@ -152,13 +152,13 @@ async function acceptReregister(
   if (member.status === 'INACTIVE') {
     await tx.membership.update({
       where: { id: member.id },
-      data: { status: 'ACTIVE', leftAt: null },
+      data: { status: 'ACTIVE', leftAt: null, permissions: [] },
     });
     await recordMembershipChange(tx, {
       membershipId: member.id,
       actorId: input.inviterId,
       before: member,
-      after: { ...member, status: 'ACTIVE' },
+      after: { ...member, status: 'ACTIVE', permissions: [] },
       now: input.now,
     });
   }
@@ -184,15 +184,16 @@ async function acceptJoin(
   });
   if (existing?.status === 'ACTIVE') throw new ApiError('ALREADY_MEMBER');
   if (existing) {
+    // 복귀는 권한 없이 시작한다. 예전 권한을 되살리지 않는다 (docs/specs/staff §4.2)
     await tx.membership.update({
       where: { id: existing.id },
-      data: { status: 'ACTIVE', role: input.role, leftAt: null },
+      data: { status: 'ACTIVE', role: input.role, leftAt: null, permissions: [] },
     });
     await recordMembershipChange(tx, {
       membershipId: existing.id,
       actorId: input.inviterId,
       before: existing,
-      after: { ...existing, status: 'ACTIVE', role: input.role },
+      after: { ...existing, status: 'ACTIVE', role: input.role, permissions: [] },
       now: input.now,
     });
   } else {
