@@ -1,4 +1,4 @@
-import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { Alert, PermissionsAndroid, Platform, TurboModuleRegistry } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 import { toPushPath } from '@chulgeunkok/app-bridge';
@@ -9,6 +9,8 @@ import { getDeviceToken } from './device-session';
 const ASKED_KEY = 'chulgeunkok.pushAsked';
 /** POST_NOTIFICATIONS 런타임 권한이 생긴 Android API (13) */
 const ANDROID_NOTIFICATION_PERMISSION_API = 33;
+/** @react-native-firebase/app 네이티브 모듈 이름 (internal/constants APP_NATIVE_MODULE) */
+const FIREBASE_APP_NATIVE_MODULE = 'NativeRNFBTurboApp';
 
 type MessagingModule = typeof import('@react-native-firebase/messaging');
 type MessagingInstance = ReturnType<MessagingModule['getMessaging']>;
@@ -24,9 +26,14 @@ let cachedPush: Push | null | undefined;
 /**
  * Firebase 네이티브 모듈이 없으면(Expo Go, 설정 파일 없는 빌드) null — 푸시만 꺼지고 앱은 그대로 동작한다.
  * 모듈 로드·초기화는 함수 안에서 지연해 실패해도 앱 시작을 막지 않는다.
+ * 개발 모드 Metro 는 모듈 초기화 오류를 try/catch 밖에서 치명 오류로 띄우므로, require 전에 네이티브 모듈부터 확인한다.
  */
 function loadPush(): Push | null {
   if (cachedPush !== undefined) return cachedPush;
+  if (!TurboModuleRegistry.get(FIREBASE_APP_NATIVE_MODULE)) {
+    cachedPush = null;
+    return cachedPush;
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const module = require('@react-native-firebase/messaging') as MessagingModule;
