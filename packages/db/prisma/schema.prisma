@@ -153,6 +153,7 @@ model User {
   employmentTermsCreated EmploymentTerms[]
   payslipsSent           Payslip[]
   pushTokens             PushToken[]
+  membershipEventsActed  MembershipEvent[]
 }
 
 model Store {
@@ -206,9 +207,33 @@ model Membership {
   reregisterInvitations StoreInvitation[]
   payslips              Payslip[]
   shiftReminders        ShiftReminder[]
+  events                MembershipEvent[]
 
   @@unique([storeId, userId])
   @@index([userId])
+}
+
+// 역할·권한·직원 상태 변경 이력 (docs/specs/README.md §2.6, staff §4.3). 불변, 추가만
+enum MembershipEventType {
+  ROLE_CHANGED
+  PERMISSIONS_CHANGED
+  DEACTIVATED
+  REACTIVATED
+}
+
+model MembershipEvent {
+  id           String              @id @default(cuid())
+  membershipId String
+  actorId      String
+  type         MembershipEventType
+  before       Json
+  after        Json
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+
+  membership Membership @relation(fields: [membershipId], references: [id])
+  actor      User       @relation(fields: [actorId], references: [id])
+
+  @@index([membershipId, createdAt])
 }
 
 model StoreQrToken {

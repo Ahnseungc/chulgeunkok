@@ -104,7 +104,7 @@ interface ApiError {
 | 근태 | `AttendanceRevision` |
 | 사업장 규모 | `StoreHeadcountDeclaration` 이력 |
 | 검토 확인 | `LaborReview.acknowledgedBy/At` |
-| 역할·권한·직원 상태 | **미기록 — 미결정 Q1** |
+| 역할·권한·직원 상태 | `MembershipEvent` (`ROLE_CHANGED`·`PERMISSIONS_CHANGED`·`DEACTIVATED`·`REACTIVATED`, before·after, actor). 변경과 같은 트랜잭션 — staff §4.3 |
 
 ---
 
@@ -133,7 +133,7 @@ interface ApiError {
 
 | # | 질문 | 영향 |
 | --- | --- | --- |
-| Q1 | 역할·권한·직원 상태 변경 감사 로그를 MVP에 넣을지 | 스키마 `MembershipEvent` 추가 여부 |
+| Q1 | 역할·권한·직원 상태 변경 감사 로그를 MVP에 넣을지 — **결정됨 (2026-11-12): 넣는다.** `MembershipEvent`, 직원 상세(사장님)에 "변경 이력" | staff §4.3 (`0010_membership_event`) |
 | Q2 | SMS 공급자 계약 (어댑터는 구현됨, 지금은 `dev`) | auth §4.1 |
 | Q3 | 퇴근 누락 자동 전환 기준 (소정 종료 + 4h 가정) | attendance §5 |
 | Q4 | "매장 밖" 판정 반경 (200m 가정) | attendance §4 |
@@ -161,3 +161,4 @@ interface ApiError {
 | `DeviceHandoffCode` (신규) | `userId`, `codeHash`, `expiresAt`, `usedAt` — 앱 ↔ WebView 세션 연결 60초 코드 | auth §6.2 (`0005_device_handoff`) |
 | `Payslip`·`PayslipLine`·`PushToken` (신규), `Store.payDay`, `EmploymentTerms.deductionType` | 임금명세서와 FCM 토큰. DRAFT 부분 유니크·`payDay` 1~31 CHECK. 사원번호 컬럼 없음(순번 계산 후 스냅숏) | payslip §4.1 (`0006_payslip`) |
 | `LaborRuleSet` | 2026 시드 `version = '2026.1'`, `minimumHourlyWage = 10320`, 시간 기준값은 `rules` JSON | labor §4.1 |
+| `MembershipEvent` (신규) | `membershipId`, `actorId`, `type`(enum), `before`·`after` Json, 인덱스 `(membershipId, createdAt)` | staff §4.3 (`0010_membership_event`) |

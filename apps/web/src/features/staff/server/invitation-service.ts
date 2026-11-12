@@ -13,6 +13,8 @@ import type {
 } from '../model/invitation-types';
 import type { CreateInvitationInput } from '../schema';
 
+import { recordMembershipChange } from './membership-events';
+
 /** 초대 유효 기간. 얼굴 보고 찍는 QR은 짧게, 메신저 링크는 길게. docs/specs/staff §3.1 */
 export const INVITATION_TTL_MS = {
   QR: 10 * 60 * 1000,
@@ -111,9 +113,11 @@ export async function acceptInvitation(
     });
     if (claimed.count === 0) throw new ApiError('INVITATION_USED');
 
+    // 복귀 이력의 actor는 초대를 만든 사람이다 (복귀를 허락한 사람, docs/specs/staff §4.3)
+    const inviterId = invitation.createdById;
     const accepted = invitation.member
-      ? await acceptReregister(tx, { member: invitation.member, ...input })
-      : await acceptJoin(tx, { storeId: invitation.storeId, role: invitation.role, ...input });
+      ? await acceptReregister(tx, { member: invitation.member, inviterId, ...input })
+      : await acceptJoin(tx, { storeId: invitation.storeId, role: invitation.role, inviterId, ...input });
 
     await tx.storeInvitation.update({
       where: { id: invitation.id },
@@ -137,7 +141,7 @@ interface AcceptedMember {
 /** 기존 직원의 기기를 이 기기 하나로 바꾸고, 퇴사 상태면 복귀시킨다 */
 async function acceptReregister(
   tx: Prisma.TransactionClient,
-  input: { member: Membership; userAgent: string | null; now: Date },
+  input: { member: Membership; inviterId: string; userAgent: string | null; now: Date },
 ): Promise<AcceptedMember> {
   const { member } = input;
   await revokeUserDevices(tx, { userId: member.userId, now: input.now });
@@ -150,6 +154,13 @@ async function acceptReregister(
       where: { id: member.id },
       data: { status: 'ACTIVE', leftAt: null },
     });
+    await recordMembershipChange(tx, {
+      membershipId: member.id,
+      actorId: input.inviterId,
+      before: member,
+      after: { ...member, status: 'ACTIVE' },
+      now: input.now,
+    });
   }
   return { userId: member.userId, role: member.role, deviceToken };
 }
@@ -160,9 +171,11 @@ async function acceptJoin(
   input: {
     storeId: string;
     role: Membership['role'];
+    inviterId: string;
     sessionUserId: string | null;
     name: string | undefined;
     userAgent: string | null;
+    now: Date;
   },
 ): Promise<AcceptedMember> {
   const { userId, deviceToken } = await resolveJoiningUser(tx, input);
@@ -174,6 +187,13 @@ async function acceptJoin(
     await tx.membership.update({
       where: { id: existing.id },
       data: { status: 'ACTIVE', role: input.role, leftAt: null },
+    });
+    await recordMembershipChange(tx, {
+      membershipId: existing.id,
+      actorId: input.inviterId,
+      before: existing,
+      after: { ...existing, status: 'ACTIVE', role: input.role },
+      now: input.now,
     });
   } else {
     await tx.membership.create({ data: { storeId: input.storeId, userId, role: input.role } });
