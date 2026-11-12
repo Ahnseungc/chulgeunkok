@@ -86,25 +86,29 @@ interface LayoutSpec {
   hasWordmark: boolean;
 }
 
-/** QR 최소 스탠드 60mm·스티커 50mm (§4.4). 뱃지 글자는 3.2mm 이상 굵게 */
+/**
+ * QR 최소 스탠드 60mm·스티커 50mm (§4.4). 뱃지 글자는 3.2mm 이상 굵게.
+ * quiet zone 은 실제 URL(버전 5, 37모듈)을 최소 크기로 그릴 때 3모듈 이상: 60/37×3 ≈ 4.9mm, 50/37×3 ≈ 4.05mm.
+ * 어두운 카드(kokFill·black)에서는 이 흰 테두리가 QR 둘레의 유일한 여백이다.
+ */
 const LAYOUT_SPECS: Record<QrCardLayoutKey, LayoutSpec> = {
   STAND: {
     marginMm: 6,
-    gapMm: 3,
+    gapMm: 2.5,
     logoArea: { width: 40, height: 12 },
     title: { maxFontMm: 7, minFontMm: 5, maxLines: 2 },
     badgeFontMm: 3.6,
-    qr: { minMm: 60, maxMm: 72, quietMm: 4 },
+    qr: { minMm: 60, maxMm: 72, quietMm: 5.5 },
     message: { fontMm: 3.6, maxLines: 3 },
     hasWordmark: true,
   },
   STICKER: {
     marginMm: 2.5,
-    gapMm: 1.2,
-    logoArea: { width: 24, height: 5 },
-    title: { maxFontMm: 4.5, minFontMm: 3.5, maxLines: 1 },
+    gapMm: 0.8,
+    logoArea: { width: 24, height: 4 },
+    title: { maxFontMm: 4, minFontMm: 3.5, maxLines: 1 },
     badgeFontMm: 3.2,
-    qr: { minMm: 50, maxMm: 54, quietMm: 2.5 },
+    qr: { minMm: 50, maxMm: 54, quietMm: 4.1 },
     message: null,
     hasWordmark: false,
   },
@@ -189,11 +193,12 @@ interface Block {
 
 const textHeight = (text: FittedText) => text.lines.length * text.lineHeightMm;
 
-/** 남는 높이만큼 QR을 키운다. 최소·최대 사이로 자른다 */
+/** 남는 높이만큼 QR을 키운다(최대값까지). 최소 크기도 안 들어가면 카드 밖으로 넘치니 바로 실패한다 */
 function qrSizeFor(blocks: Block[], spec: LayoutSpec, cardHeight: number): number {
   const fixed = blocks.reduce((sum, block) => sum + block.height, 0) + spec.gapMm * blocks.length;
   const free = cardHeight - spec.marginMm * 2 - fixed - spec.qr.quietMm * 2;
-  return Math.min(spec.qr.maxMm, Math.max(spec.qr.minMm, free));
+  if (free < spec.qr.minMm) throw new Error(`QR 카드에 QR ${spec.qr.minMm}mm 자리가 없어요 (${free.toFixed(1)}mm)`);
+  return Math.min(spec.qr.maxMm, free);
 }
 
 /** 블록을 세로로 쌓아 가운데에 놓고, 가로도 가운데 정렬한다 */
