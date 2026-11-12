@@ -15,7 +15,7 @@ import {
 import { loadPeriodWithAllowances } from '@/features/payroll/server/allowance-service';
 import { loadHeadcountEstimate } from '@/features/store/server/headcount-estimate-service';
 import { canAccessStore } from '@/server/auth/access';
-import { canReadPayroll, requireMembership } from '@/server/auth/require-membership';
+import { canAccessVerified, requireMembership } from '@/server/auth/require-membership';
 
 import type { DashboardDto } from '../model/dashboard-types';
 
@@ -35,7 +35,7 @@ export async function getDashboard(
     findTodayStatus(db, { storeId: input.storeId, today, now: input.now }),
     countTodo(db, { actor, now: input.now, today }),
     summarizeCurrentPeriod(db, { storeId: input.storeId, today, payPeriod: payPeriodConfigOf(store) }),
-    canReadPayroll(db, actor),
+    canAccessVerified(db, actor, 'PAYROLL'),
   ]);
 
   return {
@@ -136,7 +136,7 @@ async function countTodo(
     termsMissing,
     missingClockOut,
     pendingCorrections,
-    laborReviews: canAccessStore(input.actor, 'LABOR_REVIEW') ? await countSheetReviews(db, { ...input, storeId }) : null,
+    laborReviews: (await canAccessVerified(db, input.actor, 'LABOR_REVIEW')) ? await countSheetReviews(db, { ...input, storeId }) : null,
     pendingInvitations,
     ...(canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await countPayslipDrafts(db, storeId) : NO_PAYSLIP_ACCESS),
     headcountMismatch: input.actor.role === 'OWNER' ? (await loadHeadcountEstimate(db, { storeId, now: input.now }))?.mismatch ?? null : null,

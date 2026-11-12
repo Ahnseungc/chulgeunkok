@@ -125,6 +125,13 @@ describe('getDashboard', () => {
     expect([after.basePayEstimate, after.phoneVerificationRequired]).toEqual([46440, false]);
   });
 
+  it('PAYROLL_READ로만 들어온 Manager는 인증 전엔 검토 수(시급 포함 안내)도 숨긴다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
+    const before = (await dashboard('manager')).todo.laborReviews;
+    await db.user.update({ where: { id: 'manager' }, data: { phone: '+821000000009' } });
+    expect([before, typeof (await dashboard('manager')).todo.laborReviews]).toEqual([null, 'number']);
+  });
+
   it('권한 없는 Manager에게는 금액과 검토 수를 숨긴다', async () => {
     const { currentPeriod, todo } = await dashboard('manager');
     expect([currentPeriod.basePayEstimate, currentPeriod.allowanceEstimate, todo.laborReviews, currentPeriod.recognizedSeconds]).toEqual([

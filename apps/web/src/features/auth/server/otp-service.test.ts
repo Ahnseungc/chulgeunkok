@@ -126,15 +126,31 @@ describe('verifyOtp', () => {
 describe('verifyOtp — 지금 세션에 번호 붙이기 (auth §4.2)', () => {
   const attach = (code: string, userId = 'manager') =>
     verifyOtp(db, { phone: PHONE, code, userAgent: 'test', now: later(1000), attachToUserId: userId });
+  const phoneOf = async (id: string) => (await db.user.findUniqueOrThrow({ where: { id } })).phone;
 
   beforeEach(async () => {
-    await db.user.create({ data: { id: 'manager', name: '최매니저' } });
+    await db.user.createMany({
+      data: [
+        { id: 'manager', name: '최매니저' },
+        { id: 'plain-manager', name: '정매니저' },
+        { id: 'staff', name: '이알바' },
+        { id: 'owner', name: '김사장', phone: '+821000000001' },
+      ],
+    });
+    await db.store.create({ data: { id: 'store', name: '골목카페' } });
+    await db.membership.createMany({
+      data: [
+        { storeId: 'store', userId: 'manager', role: 'MANAGER', permissions: ['PAYROLL_READ'] },
+        { storeId: 'store', userId: 'plain-manager', role: 'MANAGER', permissions: ['TERMS_EDIT'] },
+        { storeId: 'store', userId: 'staff', role: 'EMPLOYEE' },
+        { storeId: 'store', userId: 'owner', role: 'OWNER' },
+      ],
+    });
   });
 
-  it('기기를 새로 만들지 않고 그 사용자에게 번호만 붙인다', async () => {
+  it('급여 권한 Manager에게 기기를 새로 만들지 않고 번호만 붙인다', async () => {
     const result = await attach(await codeOf());
-    const user = await db.user.findUniqueOrThrow({ where: { id: 'manager' } });
-    expect([result, user.phone, await db.user.count({ where: { phone: PHONE } }), await db.deviceCredential.count()]).toEqual([
+    expect([result, await phoneOf('manager'), await db.user.count({ where: { phone: PHONE } }), await db.deviceCredential.count()]).toEqual([
       { deviceToken: null, needsName: false },
       PHONE,
       1,
@@ -142,16 +158,40 @@ describe('verifyOtp — 지금 세션에 번호 붙이기 (auth §4.2)', () => {
     ]);
   });
 
+  it('이미 번호가 있으면 바꾸지 않고 PHONE_ALREADY_SET (사장님 기기 쿠키로 번호를 옮기지 못한다)', async () => {
+    await expect(attach(await codeOf(), 'owner')).rejects.toMatchObject({ code: 'PHONE_ALREADY_SET' });
+    expect(await phoneOf('owner')).toBe('+821000000001');
+  });
+
+  it('같은 번호로 다시 하면 그대로 둔다', async () => {
+    await db.user.update({ where: { id: 'manager' }, data: { phone: PHONE } });
+    await expect(attach(await codeOf())).resolves.toEqual({ deviceToken: null, needsName: false });
+  });
+
+  it('직원 세션은 FORBIDDEN (OTP로 기기를 늘리지 못한다)', async () => {
+    await expect(attach(await codeOf(), 'staff')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(await phoneOf('staff')).toBeNull();
+  });
+
+  it('급여 권한 없는 Manager는 FORBIDDEN', async () => {
+    await expect(attach(await codeOf(), 'plain-manager')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('비활성 매장의 급여 권한만 있으면 FORBIDDEN', async () => {
+    await db.membership.updateMany({ where: { userId: 'manager' }, data: { status: 'INACTIVE' } });
+    await expect(attach(await codeOf())).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('다른 사람 번호면 PHONE_IN_USE이고 합치지 않는다', async () => {
-    await db.user.create({ data: { id: 'owner', name: '김사장', phone: PHONE } });
+    await db.user.create({ data: { id: 'other', name: '남', phone: PHONE } });
     await expect(attach(await codeOf())).rejects.toMatchObject({ code: 'PHONE_IN_USE' });
-    expect((await db.user.findUniqueOrThrow({ where: { id: 'manager' } })).phone).toBeNull();
+    expect(await phoneOf('manager')).toBeNull();
   });
 
   it('틀린 코드면 번호를 붙이지 않는다', async () => {
     const code = await codeOf();
     await expect(attach(wrongCodeFor(code))).rejects.toMatchObject({ code: 'OTP_INVALID' });
-    expect((await db.user.findUniqueOrThrow({ where: { id: 'manager' } })).phone).toBeNull();
+    expect(await phoneOf('manager')).toBeNull();
   });
 });
 

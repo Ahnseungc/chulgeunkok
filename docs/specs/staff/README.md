@@ -104,7 +104,7 @@ ACTIVE ──비활성화──▶ INACTIVE ──기기 재등록 수락──�
 
 - Owner만. Owner 본인은 불가 (`409 CANNOT_DEACTIVATE_OWNER`).
 - 진행 중(OPEN) 근무가 있으면 막는다: `409 MEMBER_HAS_OPEN_ATTENDANCE` "근무 중인 직원이에요. 퇴근 처리 후 비활성화해 주세요."
-- 처리: `status = INACTIVE`, `leftAt = now()`, 현재 근로조건 `effectiveTo = now()`.
+- 처리: `status = INACTIVE`, `leftAt = now()`, 현재 근로조건 `effectiveTo = now()`, 위임 권한 `permissions = []` (새 직원 초대로 복귀할 때 예전 급여 권한이 조용히 되살아나지 않게. 이력 `PERMISSIONS_CHANGED`).
 - `leftAt`은 기록 보관 3년의 시작점이다 (PRD §9).
 
 ### 4.2 역할·권한 변경
@@ -127,7 +127,7 @@ const UpdateMemberBody = z.object({
 | `type` | 남기는 곳 | `before` → `after` | `actorId` |
 | --- | --- | --- | --- |
 | `ROLE_CHANGED` | PATCH 역할 변경, `JOIN` 초대로 복귀하며 역할이 바뀜 (§3.3-8) | `{ role }` | 바꾼 사장님 / 초대한 사람 |
-| `PERMISSIONS_CHANGED` | PATCH 권한 변경, EMPLOYEE로 내려 권한이 비워짐 | `{ permissions }` | 바꾼 사장님 |
+| `PERMISSIONS_CHANGED` | PATCH 권한 변경, EMPLOYEE로 내리거나 퇴사 처리해 권한이 비워짐 | `{ permissions }` | 바꾼 사장님 |
 | `DEACTIVATED` | 퇴사 처리 (§4.1) | `{ status }` | 바꾼 사장님 |
 | `REACTIVATED` | INACTIVE 직원이 재등록·새 직원 초대를 수락 (§3.3-4·8) | `{ status }` | **초대한 사람** (복귀를 허락한 사람) |
 

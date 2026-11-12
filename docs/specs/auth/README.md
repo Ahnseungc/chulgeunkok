@@ -111,12 +111,16 @@ production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에**
 | 정산 미리보기·CSV, 임금명세서 목록·상세 (`PAYROLL`) | `403 PHONE_VERIFICATION_REQUIRED` "급여를 보려면 휴대폰 인증이 필요해요." |
 | 대시보드 예상 인건비 | 대시보드는 그대로 열고 금액만 `null`, `currentPeriod.phoneVerificationRequired = true` |
 | 본인 임금명세서 (보낸 것) | 직원과 같게 볼 수 있다. DRAFT는 인증 뒤에만 |
+| 근로조건 조회·검토 안내 (`TERMS_READ`·`LABOR_REVIEW`, 시급 포함) | `TERMS_EDIT`이 없으면 위와 같은 403. 직원 상세는 근로조건 구역을 숨기고, 대시보드는 검토 수를 숨긴다. `TERMS_EDIT` Manager는 그대로 |
 | 사장님 | 묻지 않는다 (OTP로만 기기를 등록한다) |
 
 - 판정은 공통 가드 `requireMembership`가 `PAYROLL` 동작일 때 한다. 숨기는 곳은 `canReadPayroll`.
 - 화면: 이 코드를 받으면 문구 + "휴대폰 인증하기" → `/owner/login?verify=1&next=<지금 경로>`. 대시보드는 이번 정산 기간 카드에 같은 안내.
 - **번호 붙이기**: `verify=1`이면 `POST /auth/otp/verify`에 `attach: true`를 보낸다. 서버는 기기 세션 사용자에게 번호만 넣고 기기·쿠키는 바꾸지 않는다 (응답에 새 쿠키 없음, 앱 연결 코드도 보내지 않음). 세션이 없으면 `UNAUTHENTICATED`.
+- 붙일 수 있는 사람: **번호가 없고**, 어느 매장에서든 **ACTIVE `PAYROLL_READ` Manager**. 아니면 `FORBIDDEN` (직원이 번호를 붙여 OTP로 기기를 늘리지 못하게, §3.4).
+- 이미 번호가 있으면 바꾸지 않는다: 같은 번호면 그대로 성공, 다른 번호면 `409 PHONE_ALREADY_SET`. 훔친 기기 쿠키로 계정 번호를 공격자 번호로 옮기지 못하게 한다. 번호 변경은 MVP에 없다.
 - 그 번호가 이미 다른 사용자 것이면 `409 PHONE_IN_USE` — 두 사람을 합치지 않는다 (§4). 사장님이기도 한 사람은 사장님 번호로 로그인한 기기에서 급여를 본다.
+- 번호를 붙인 Manager는 그 뒤 새 기기에서도 `/owner/login` OTP로 같은 사람으로 로그인할 수 있다 (사장님과 같은 경로). 기기 재등록 QR 없이 본인이 기기를 늘릴 수 있다 (번호를 인증한 사람이라 사장님과 같은 수준으로 본다).
 - 인증 뒤 `next`로 돌아간다. `next`는 `/owner` 아래 경로만 받는다 (오픈 리다이렉트 방지, 쿼리 제외).
 - `attach`가 없으면 기존 로그인 그대로다 (그 번호의 사용자로 새 기기 등록).
 
@@ -212,6 +216,7 @@ WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·
 | `PHONE_INVALID` | 400 | 휴대폰 번호를 확인해 주세요. |
 | `PHONE_VERIFICATION_REQUIRED` | 403 | 급여를 보려면 휴대폰 인증이 필요해요. |
 | `PHONE_IN_USE` | 409 | 이미 다른 계정에 등록된 번호예요. |
+| `PHONE_ALREADY_SET` | 409 | 이미 다른 번호로 인증했어요. |
 
 ## 10. 수용 기준
 

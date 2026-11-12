@@ -96,7 +96,8 @@ interface ApiError {
 
 - 권한 검사는 서버 공통 가드 `requireMembership(storeId, check)` 한 곳에서 한다. 비활성 Membership은 모든 매장 API에서 `FORBIDDEN`. 예외: 본인 임금명세서 조회·열람 기록(`/attendance/me/payslips`, 본인 `GET /payslips/:id`, `POST /payslips/:id/view`)은 퇴사 뒤에도 된다 (payslip §1-6).
 - Manager에게 `PAYROLL_READ`가 없으면 근태 응답에서 **시급·금액 필드를 제거**한다 (응답 스키마 분리).
-- "급여 미리보기·CSV", "임금명세서 조회", 대시보드 예상 인건비의 `PAYROLL_READ` Manager는 **휴대폰 인증(`User.phone`)까지** 해야 한다. 안 했으면 `403 PHONE_VERIFICATION_REQUIRED` (대시보드는 금액만 숨김). 같은 가드(`requireMembership`의 `PAYROLL`)에서 본다 (auth §4.2, Q8).
+- "급여 미리보기·CSV", "임금명세서 조회", 대시보드 예상 인건비의 `PAYROLL_READ` Manager는 **휴대폰 인증(`User.phone`)까지** 해야 한다. 안 했으면 `403 PHONE_VERIFICATION_REQUIRED` (대시보드는 금액만 숨김).
+- 시급이 보이는 "근로조건 조회"·"검토 항목 조회·확인"도 Manager는 `TERMS_EDIT`이 있거나, `PAYROLL_READ` + 휴대폰 인증이어야 한다 (직원 상세는 근로조건 구역을 숨기고, 대시보드는 검토 수를 숨김). 판정은 `access.needsVerifiedPhone` → `requireMembership` 한 곳 (auth §4.2, Q8).
 
 ### 2.6 감사
 
