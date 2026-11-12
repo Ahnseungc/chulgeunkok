@@ -100,7 +100,25 @@
 production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에** `INTERNAL`로 실패한다 (설정 누락을 숨기지 않는다).
 
 - 본인인증(PASS 등)은 유료 구독 결제 단계에서 붙인다 (P1).
-- 초대 링크로 들어온 Manager도 직원과 같은 기기 쿠키를 쓴다. 급여 권한(`PAYROLL_READ`)을 받은 Manager에게 OTP를 추가로 요구할지는 미결정 (인덱스 Q8).
+- 초대 링크로 들어온 Manager도 직원과 같은 기기 쿠키를 쓴다. 급여 권한을 받으면 §4.2 휴대폰 인증을 한 번 더 한다.
+
+### 4.2 급여 권한 Manager 휴대폰 인증 (인덱스 Q8)
+
+`PAYROLL_READ`를 받은 Manager는 초대 링크로만 기기를 등록해 번호가 없다. 급여를 보려면 `User.phone`이 있어야 한다.
+
+| 대상 | 휴대폰 인증 전 |
+| --- | --- |
+| 정산 미리보기·CSV, 임금명세서 목록·상세 (`PAYROLL`) | `403 PHONE_VERIFICATION_REQUIRED` "급여를 보려면 휴대폰 인증이 필요해요." |
+| 대시보드 예상 인건비 | 대시보드는 그대로 열고 금액만 `null`, `currentPeriod.phoneVerificationRequired = true` |
+| 본인 임금명세서 (보낸 것) | 직원과 같게 볼 수 있다. DRAFT는 인증 뒤에만 |
+| 사장님 | 묻지 않는다 (OTP로만 기기를 등록한다) |
+
+- 판정은 공통 가드 `requireMembership`가 `PAYROLL` 동작일 때 한다. 숨기는 곳은 `canReadPayroll`.
+- 화면: 이 코드를 받으면 문구 + "휴대폰 인증하기" → `/owner/login?verify=1&next=<지금 경로>`. 대시보드는 이번 정산 기간 카드에 같은 안내.
+- **번호 붙이기**: `verify=1`이면 `POST /auth/otp/verify`에 `attach: true`를 보낸다. 서버는 기기 세션 사용자에게 번호만 넣고 기기·쿠키는 바꾸지 않는다 (응답에 새 쿠키 없음, 앱 연결 코드도 보내지 않음). 세션이 없으면 `UNAUTHENTICATED`.
+- 그 번호가 이미 다른 사용자 것이면 `409 PHONE_IN_USE` — 두 사람을 합치지 않는다 (§4). 사장님이기도 한 사람은 사장님 번호로 로그인한 기기에서 급여를 본다.
+- 인증 뒤 `next`로 돌아간다. `next`는 `/owner` 아래 경로만 받는다 (오픈 리다이렉트 방지, 쿼리 제외).
+- `attach`가 없으면 기존 로그인 그대로다 (그 번호의 사용자로 새 기기 등록).
 
 ## 5. NFC
 
@@ -170,13 +188,14 @@ WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·
 | `/invite/[token]` | `staff` §3.3 |
 | `/p/[qrToken]` 미등록 | "이 휴대폰은 아직 등록되지 않았어요. 사장님께 초대 링크를 요청해 주세요." + 인앱 브라우저 안내 |
 | `/owner/login` | 휴대폰 번호 → 인증번호 → (처음이면) 이름 → `/owner` |
+| `/owner/login?verify=1&next=…` | §4.2 번호 붙이기. 번호 → 인증번호 → `next` |
 
 ## 8. API
 
 | Method | Endpoint | 설명 |
 | --- | --- | --- |
 | POST | `/auth/otp/send` | 사장님. body `{ phone }` |
-| POST | `/auth/otp/verify` | 사장님. body `{ phone, code }` → 기기 등록 + 쿠키. 응답 `{ needsName }` |
+| POST | `/auth/otp/verify` | 사장님. body `{ phone, code, attach? }` → 기기 등록 + 쿠키. 응답 `{ needsName }`. `attach: true`면 세션 사용자에게 번호만 (§4.2) |
 | GET | `/me` | 현재 사용자 `{ id, name, hasPhone }`, 소속 매장 `{ storeId, storeName, role, status }[]` |
 | PATCH | `/me` | body `{ name }` |
 | POST | `/auth/logout` | 현재 기기 폐기 + 쿠키 삭제 |
@@ -191,6 +210,8 @@ WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·
 | `OTP_TOO_MANY_ATTEMPTS` | 429 | 시도 횟수를 넘었어요. 인증번호를 다시 받아 주세요. |
 | `OTP_RESEND_TOO_SOON` | 429 | 잠시 후 다시 요청해 주세요. |
 | `PHONE_INVALID` | 400 | 휴대폰 번호를 확인해 주세요. |
+| `PHONE_VERIFICATION_REQUIRED` | 403 | 급여를 보려면 휴대폰 인증이 필요해요. |
+| `PHONE_IN_USE` | 409 | 이미 다른 계정에 등록된 번호예요. |
 
 ## 10. 수용 기준
 
@@ -198,5 +219,6 @@ WebView의 HttpOnly 쿠키를 네이티브가 직접 읽지 않는다 (Expo Go·
 - [ ] 쿠키가 없는 기기로 QR을 찍으면 미등록 안내가 나온다.
 - [ ] 기기 재등록 후 이전 기기로 punch하면 `UNAUTHENTICATED`.
 - [ ] DB에 기기 토큰 원문이 없다.
+- [ ] 휴대폰 인증 전 `PAYROLL_READ` Manager는 정산·명세서에서 `PHONE_VERIFICATION_REQUIRED`, 대시보드는 금액만 숨는다. 인증하면 같은 기기로 바로 보인다.
 - [ ] 기기 쿠키는 `HttpOnly`이고 JS에서 읽을 수 없다.
 - [ ] production에서는 `x-dev-user-id`·`dev_user_id`가 무시된다.

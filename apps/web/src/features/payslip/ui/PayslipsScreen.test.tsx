@@ -131,6 +131,21 @@ describe('PayslipsScreen', () => {
     expect(within(screen.getByRole('dialog')).getByRole('note').textContent).toContain('1명에게');
   });
 
+  it('급여 권한 매니저가 휴대폰 인증 전이면 문구와 인증 버튼을 보여 준다 (auth §4.2)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 403,
+        json: async () => ({ error: { code: 'PHONE_VERIFICATION_REQUIRED', message: '급여를 보려면 휴대폰 인증이 필요해요.' } }),
+      })),
+    );
+    renderScreen();
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText('급여를 보려면 휴대폰 인증이 필요해요.')).toBeTruthy();
+    expect(within(alert).getByRole('button', { name: '휴대폰 인증하기' })).toBeTruthy();
+  });
+
   it('URL의 periodStart로 첫 기간을 연다', async () => {
     respondWith(list([item({})]));
     renderScreen('2026-09-01');

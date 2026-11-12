@@ -3,6 +3,8 @@
 import { ActionButton, Snackbar, Text } from '@seed-design/react';
 import { useState } from 'react';
 
+import { PHONE_VERIFICATION_REQUIRED } from '@/features/auth/model/after-login';
+import PhoneVerificationPrompt from '@/features/auth/ui/PhoneVerificationPrompt';
 import { formatWon as won } from '@/features/payroll/model/payroll-types';
 import { CardStaggerList } from '@/shared/motion/CardStaggerList';
 import { AppLink } from '@/shared/ui/AppLink';
@@ -53,7 +55,12 @@ export default function PayslipsScreen({ storeId, initialPeriodStart }: Payslips
       <Text as="h1" textStyle="t8Bold">
         임금명세서
       </Text>
-      <InlineAlert message={payslips.errorMessage} />
+      {/* 급여 권한 Manager가 휴대폰 인증 전이면 인증으로 안내한다 (docs/specs/auth §4.2) */}
+      {payslips.errorCode === PHONE_VERIFICATION_REQUIRED ? (
+        <PhoneVerificationPrompt message={payslips.errorMessage} />
+      ) : (
+        <InlineAlert message={payslips.errorMessage} />
+      )}
       <PeriodNav period={data?.period ?? null} onChange={payslips.setPeriodStart} />
       {data ? (
         <>

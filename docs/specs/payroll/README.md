@@ -261,6 +261,8 @@ interface PayrollPreview {
 | 미리보기 | ✅ | ✅ | ❌ | 본인만 |
 | CSV | ✅ | ✅ | ❌ | ❌ |
 
+- `PAYROLL_READ` Manager는 휴대폰 인증 뒤에만 (`PHONE_VERIFICATION_REQUIRED`, auth §4.2).
+
 ## 8. 에러 코드
 
 | code | HTTP | 메시지 |

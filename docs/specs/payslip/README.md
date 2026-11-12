@@ -269,7 +269,7 @@ model PushToken {
 | Method | 경로 | 권한 |
 | --- | --- | --- |
 | GET | `/stores/:storeId/payslips?periodStart=` (생략 시 끝난 최근 기간) | Owner·`PAYROLL_READ` |
-| GET | `/payslips/:id` | Owner·`PAYROLL_READ`, 본인(SENT·SUPERSEDED만) |
+| GET | `/payslips/:id` | Owner·`PAYROLL_READ`, 본인(SENT·SUPERSEDED만). `PAYROLL_READ` Manager는 휴대폰 인증 뒤에만 (auth §4.2) |
 | PATCH | `/payslips/:id` body `{ payDate?, correctionNote? }` | Owner |
 | PUT | `/payslips/:id/lines/:lineId` body `{ amount, adjustReason? }` | Owner |
 | POST | `/payslips/:id/lines` body `{ kind, label, basis, amount }` | Owner |

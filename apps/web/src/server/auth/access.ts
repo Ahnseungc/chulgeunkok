@@ -36,3 +36,11 @@ export function canAccessStore(
     membership.permissions.includes(permission),
   );
 }
+
+/**
+ * 급여 권한을 위임받은 Manager는 휴대폰 인증(User.phone)까지 해야 급여를 본다 (docs/specs/auth §4.2, 인덱스 Q8).
+ * 사장님은 휴대폰 인증으로만 기기를 등록하므로 따로 묻지 않는다.
+ */
+export function needsVerifiedPhone(membership: { role: Role }, action: StoreAction): boolean {
+  return action === 'PAYROLL' && membership.role === 'MANAGER';
+}

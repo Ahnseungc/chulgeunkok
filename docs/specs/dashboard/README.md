@@ -81,6 +81,7 @@ interface Dashboard {
     recognizedSeconds: number;
     basePayEstimate: number | null; // PAYROLL_READ 없으면 null
     allowanceEstimate: number | null; // 예상 주휴·가산 합. PAYROLL_READ 없으면 null
+    phoneVerificationRequired: boolean; // PAYROLL_READ Manager가 휴대폰 인증 전이라 금액을 숨김 (auth §4.2)
   };
 }
 ```

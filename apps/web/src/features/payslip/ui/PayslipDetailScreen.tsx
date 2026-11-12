@@ -3,6 +3,8 @@
 import { ActionButton, Snackbar, Text } from '@seed-design/react';
 import { type Ref, useEffect, useRef, useState } from 'react';
 
+import { PHONE_VERIFICATION_REQUIRED } from '@/features/auth/model/after-login';
+import PhoneVerificationPrompt from '@/features/auth/ui/PhoneVerificationPrompt';
 import { DEDUCTION_TYPE_LABEL, type DeductionTypeValue } from '@/features/labor/model/labor-types';
 import { formatWon as won } from '@/features/payroll/model/payroll-types';
 import { formatDuration, formatLocalDate, formatPeriodRange, toStoreLocalDate } from '@/shared/lib/format-time';
@@ -104,7 +106,11 @@ export default function PayslipDetailScreen({ storeId, payslipId }: PayslipDetai
           </Text>
         ) : null}
       </header>
-      <InlineAlert message={detail.loadErrorMessage} />
+      {detail.loadErrorCode === PHONE_VERIFICATION_REQUIRED ? (
+        <PhoneVerificationPrompt message={detail.loadErrorMessage} />
+      ) : (
+        <InlineAlert message={detail.loadErrorMessage} />
+      )}
       {payslip ? (
         <PageStaggerEntrance className="motion-contents">
           {payslip.previousSent ? (

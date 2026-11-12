@@ -70,6 +70,7 @@ interface ApiError {
 | `VALIDATION_FAILED` | 400 | 입력 검증 실패 |
 | `CONFLICT` | 409 | 상태 충돌 (도메인별 세부 코드 우선) |
 | `RATE_LIMITED` | 429 | 요청 제한 |
+| `PHONE_VERIFICATION_REQUIRED` | 403 | 급여 권한 Manager가 휴대폰 인증 전 (auth §4.2) |
 | `INTERNAL` | 500 | 서버 오류. 메시지는 일반 문구 |
 
 도메인 에러 코드는 각 문서 "에러 코드" 절.
@@ -95,6 +96,7 @@ interface ApiError {
 
 - 권한 검사는 서버 공통 가드 `requireMembership(storeId, check)` 한 곳에서 한다. 비활성 Membership은 모든 매장 API에서 `FORBIDDEN`. 예외: 본인 임금명세서 조회·열람 기록(`/attendance/me/payslips`, 본인 `GET /payslips/:id`, `POST /payslips/:id/view`)은 퇴사 뒤에도 된다 (payslip §1-6).
 - Manager에게 `PAYROLL_READ`가 없으면 근태 응답에서 **시급·금액 필드를 제거**한다 (응답 스키마 분리).
+- "급여 미리보기·CSV", "임금명세서 조회", 대시보드 예상 인건비의 `PAYROLL_READ` Manager는 **휴대폰 인증(`User.phone`)까지** 해야 한다. 안 했으면 `403 PHONE_VERIFICATION_REQUIRED` (대시보드는 금액만 숨김). 같은 가드(`requireMembership`의 `PAYROLL`)에서 본다 (auth §4.2, Q8).
 
 ### 2.6 감사
 
@@ -140,7 +142,7 @@ interface ApiError {
 | Q5 | 원 미만 올림 정책 수용성 | payroll §3 |
 | Q6 | 법정수당 세부 규칙 (노무사 검증) | labor §4 |
 | Q7 | 관리자 근태 직접 추가를 P0에 넣을지 — **결정됨 (2026-11-12): 넣는다.** Owner·Manager가 빠진 근무를 만들고 `AttendanceRevision.before = null` | attendance §7.5 |
-| Q8 | 급여 권한 받은 Manager에게 휴대폰 인증을 추가로 요구할지 | auth §4 |
+| Q8 | 급여 권한 받은 Manager에게 휴대폰 인증을 추가로 요구할지 — **결정됨 (2026-11-12): 요구한다.** `PAYROLL_READ` Manager는 `User.phone`이 있어야 급여를 본다. 없으면 `403 PHONE_VERIFICATION_REQUIRED`, 대시보드는 금액만 숨김 | auth §4.2 |
 
 ---
 

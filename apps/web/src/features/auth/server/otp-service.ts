@@ -1,6 +1,6 @@
 import { createHash, randomInt } from 'node:crypto';
 
-import type { PrismaClient } from '@chulgeunkok/db';
+import type { Prisma, PrismaClient } from '@chulgeunkok/db';
 
 import type { SmsSender } from '@/server/integrations/sms';
 import { ApiError } from '@/server/http/api-error';
@@ -68,12 +68,13 @@ async function assertCanSend(db: PrismaClient, input: { phone: string; now: Date
 
 /**
  * POST /auth/otp/verify — 성공하면 그 번호의 사용자로 기기를 등록한다.
+ * `attachToUserId`가 있으면 기기를 새로 만들지 않고 그 사용자(지금 기기 세션)에 번호만 붙인다 (§4.2).
  * 틀린 시도는 트랜잭션 밖에서 기록해야 예외로 끝나도 시도 횟수가 남는다.
  */
 export async function verifyOtp(
   db: PrismaClient,
-  input: { phone: string; code: string; userAgent: string | null; now: Date },
-): Promise<{ deviceToken: string; needsName: boolean }> {
+  input: { phone: string; code: string; userAgent: string | null; now: Date; attachToUserId?: string | null },
+): Promise<{ deviceToken: string | null; needsName: boolean }> {
   const otp = await db.otpCode.findFirst({
     where: { phone: input.phone, consumedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -90,6 +91,7 @@ export async function verifyOtp(
       data: { consumedAt: input.now },
     });
     if (consumed.count === 0) throw new ApiError('OTP_EXPIRED');
+    if (input.attachToUserId) return attachPhone(tx, { userId: input.attachToUserId, phone: input.phone });
     const user = await tx.user.upsert({
       where: { phone: input.phone },
       create: { phone: input.phone, name: PENDING_NAME },
@@ -98,6 +100,20 @@ export async function verifyOtp(
     const deviceToken = await registerDevice(tx, { userId: user.id, userAgent: input.userAgent });
     return { deviceToken, needsName: user.name === PENDING_NAME };
   });
+}
+
+/**
+ * 초대로 등록한 Manager가 급여를 보려고 번호를 인증할 때 (§4.2). 기기·세션은 그대로 두고 번호만 붙인다.
+ * 그 번호가 다른 사람 것이면 합치지 않는다 (§4 "번호가 없던 User와는 합치지 않는다").
+ */
+async function attachPhone(
+  tx: Prisma.TransactionClient,
+  input: { userId: string; phone: string },
+): Promise<{ deviceToken: null; needsName: boolean }> {
+  const owner = await tx.user.findUnique({ where: { phone: input.phone }, select: { id: true } });
+  if (owner && owner.id !== input.userId) throw new ApiError('PHONE_IN_USE');
+  const user = await tx.user.update({ where: { id: input.userId }, data: { phone: input.phone } });
+  return { deviceToken: null, needsName: user.name === PENDING_NAME };
 }
 
 async function recordFailedAttempt(

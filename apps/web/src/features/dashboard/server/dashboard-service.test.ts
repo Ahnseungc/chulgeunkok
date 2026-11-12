@@ -107,7 +107,22 @@ describe('getDashboard', () => {
       recognizedSeconds: 4.5 * 3600,
       basePayEstimate: 46440,
       allowanceEstimate: 0,
+      phoneVerificationRequired: false,
     });
+  });
+
+  it('급여 권한 Manager가 휴대폰 인증 전이면 금액만 숨기고 인증 안내 표시를 준다 (auth §4.2)', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
+    const before = (await dashboard('manager')).currentPeriod;
+    await db.user.update({ where: { id: 'manager' }, data: { phone: '+821000000009' } });
+    const after = (await dashboard('manager')).currentPeriod;
+    expect([before.basePayEstimate, before.allowanceEstimate, before.phoneVerificationRequired, before.recognizedSeconds]).toEqual([
+      null,
+      null,
+      true,
+      4.5 * 3600,
+    ]);
+    expect([after.basePayEstimate, after.phoneVerificationRequired]).toEqual([46440, false]);
   });
 
   it('권한 없는 Manager에게는 금액과 검토 수를 숨긴다', async () => {
@@ -118,6 +133,8 @@ describe('getDashboard', () => {
       null,
       4.5 * 3600,
     ]);
+    // 급여 권한이 없으면 인증으로 풀리는 것이 아니라 안내하지 않는다
+    expect(currentPeriod.phoneVerificationRequired).toBe(false);
   });
 
   it('확인할 명세서 초안 수와 가장 오래된 기간을 사장님에게만 준다', async () => {

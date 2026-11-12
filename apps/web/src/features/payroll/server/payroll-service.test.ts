@@ -17,7 +17,7 @@ beforeEach(async () => {
   await db.user.createMany({
     data: [
       { id: 'owner', name: '김사장', phone: '+821000000001' },
-      { id: 'manager', name: '최매니저' },
+      { id: 'manager', name: '최매니저', phone: '+821000000002' },
       { id: 'staff', name: '=이알바', phone: '+821012345678' },
       { id: 'idle', name: '박신입' },
     ],
@@ -72,6 +72,11 @@ describe('getPayrollPreview', () => {
 
   it('PAYROLL_READ가 있는 매니저는 볼 수 있다', async () => {
     expect((await preview('manager')).totals.basePayEstimate).toBe(63960);
+  });
+
+  it('PAYROLL_READ 매니저도 휴대폰 인증 전이면 PHONE_VERIFICATION_REQUIRED (auth §4.2)', async () => {
+    await db.user.update({ where: { id: 'manager' }, data: { phone: null } });
+    await expect(preview('manager')).rejects.toMatchObject({ code: 'PHONE_VERIFICATION_REQUIRED' });
   });
 
   it('직원은 볼 수 없다', async () => {

@@ -8,6 +8,8 @@ import { TextEntrance } from '@/shared/motion/TextEntrance';
 import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 
+import { DEFAULT_AFTER_LOGIN_PATH } from '../model/after-login';
+
 import { useOwnerLogin, type OwnerLoginStep } from './useOwnerLogin';
 
 const CODE_LENGTH = 6;
@@ -21,10 +23,19 @@ const TITLE = {
   name: '이름을 알려 주세요',
 } as const satisfies Record<OwnerLoginStep['step'], string>;
 
-/** `/owner/login` — docs/specs/auth §4 */
-export default function OwnerLoginScreen() {
-  const login = useOwnerLogin();
+/** 급여 권한 Manager가 번호를 인증할 때 첫 제목 (§4.2) */
+const ATTACH_PHONE_TITLE = '급여를 보려면 휴대폰 번호를 인증해 주세요';
+
+interface OwnerLoginScreenProps {
+  attach?: boolean;
+  nextPath?: string;
+}
+
+/** `/owner/login` — docs/specs/auth §4. `attach`면 지금 기기에 번호만 붙이고 `nextPath`로 돌아간다 (§4.2) */
+export default function OwnerLoginScreen({ attach = false, nextPath = DEFAULT_AFTER_LOGIN_PATH }: OwnerLoginScreenProps) {
+  const login = useOwnerLogin({ attach, nextPath });
   const { state } = login;
+  const title = attach && state.step === 'phone' ? ATTACH_PHONE_TITLE : TITLE[state.step];
 
   return (
     <main className="screen">
@@ -32,7 +43,7 @@ export default function OwnerLoginScreen() {
       {/* 단계가 바뀔 때마다 제목·입력칸이 살짝 올라오며 바뀐다 (입력은 바로 된다) */}
       <TextEntrance key={state.step}>
         <Text as="h1" textStyle="t8Bold">
-          {TITLE[state.step]}
+          {title}
         </Text>
       </TextEntrance>
       {state.step === 'phone' ? <PhoneStep {...login} /> : null}

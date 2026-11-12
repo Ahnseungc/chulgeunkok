@@ -123,6 +123,38 @@ describe('verifyOtp', () => {
   });
 });
 
+describe('verifyOtp — 지금 세션에 번호 붙이기 (auth §4.2)', () => {
+  const attach = (code: string, userId = 'manager') =>
+    verifyOtp(db, { phone: PHONE, code, userAgent: 'test', now: later(1000), attachToUserId: userId });
+
+  beforeEach(async () => {
+    await db.user.create({ data: { id: 'manager', name: '최매니저' } });
+  });
+
+  it('기기를 새로 만들지 않고 그 사용자에게 번호만 붙인다', async () => {
+    const result = await attach(await codeOf());
+    const user = await db.user.findUniqueOrThrow({ where: { id: 'manager' } });
+    expect([result, user.phone, await db.user.count({ where: { phone: PHONE } }), await db.deviceCredential.count()]).toEqual([
+      { deviceToken: null, needsName: false },
+      PHONE,
+      1,
+      0,
+    ]);
+  });
+
+  it('다른 사람 번호면 PHONE_IN_USE이고 합치지 않는다', async () => {
+    await db.user.create({ data: { id: 'owner', name: '김사장', phone: PHONE } });
+    await expect(attach(await codeOf())).rejects.toMatchObject({ code: 'PHONE_IN_USE' });
+    expect((await db.user.findUniqueOrThrow({ where: { id: 'manager' } })).phone).toBeNull();
+  });
+
+  it('틀린 코드면 번호를 붙이지 않는다', async () => {
+    const code = await codeOf();
+    await expect(attach(wrongCodeFor(code))).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    expect((await db.user.findUniqueOrThrow({ where: { id: 'manager' } })).phone).toBeNull();
+  });
+});
+
 describe('getMe · updateMyName', () => {
   it('이름을 저장하면 다시 묻지 않는다', async () => {
     const result = await verify(await codeOf());
