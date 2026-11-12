@@ -78,6 +78,7 @@ interface ApiError {
 | 동작 | Owner | Manager | Manager + `PAYROLL_READ` | Manager + `TERMS_EDIT` | Employee |
 | --- | --- | --- | --- | --- | --- |
 | 매장 수정·QR 재발급·규모 신고 | ✅ | ❌ | ❌ | ❌ | ❌ |
+| QR 카드 디자인·로고 저장, QR 주소 조회 | ✅ | ❌ | ❌ | ❌ | ❌ |
 | 직원 초대 | ✅ | ✅ (Employee만) | ✅ | ✅ | ❌ |
 | 직원 비활성화·역할·권한 변경 | ✅ | ❌ | ❌ | ❌ | ❌ |
 | 근로조건 조회(시급 포함) | ✅ | ❌ | ✅ | ✅ | 본인만 |
