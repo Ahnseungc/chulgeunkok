@@ -32,6 +32,10 @@
 개발 빌드: `cd apps/mobile && GOOGLE_SERVICES_JSON=./google-services.json GOOGLE_SERVICE_INFO_PLIST=./GoogleService-Info.plist npx expo prebuild --clean`
 실행: `WEB_ORIGIN=http://<PC LAN IP>:3020 npx expo run:android` (또는 `run:ios`). Expo Go 에서는 푸시가 꺼진다. 두 파일은 `.gitignore` 대상이다.
 
+## QR 카드 저장 (앱)
+
+QR 카드 PDF·PNG 받기는 웹 `SAVE_FILE` 브릿지로 앱에 파일을 넘겨 공유 시트로 저장한다. `expo-file-system`, `expo-sharing` 네이티브 모듈이 들어갔으므로 기존 개발 빌드는 `npx expo prebuild` 후 다시 빌드해야 한다 (OTA 만으로는 안 된다).
+
 ## 배치
 
 `/api/internal/jobs/[job]` 를 `Authorization: Bearer $CRON_SECRET` 로 호출한다. 스케줄러(KST 기준)는 레포 밖에서 건다. 레포에는 vercel.json 크론 설정이 없다.
@@ -46,5 +50,6 @@
 - `PUSH_PROVIDER` (web): `dev`(로그만) | `fcm`. 기본 `dev`.
 - `FIREBASE_SERVICE_ACCOUNT` (web): `fcm`일 때 서비스 계정 JSON 한 줄. 시크릿.
 - `GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_INFO_PLIST` (앱 빌드): 위 "앱 푸시 (FCM)" 참고.
+- `QR_TOKEN_ENC_KEY` (web, QR 카드): QR 원문 암호화 키(AES-256-GCM, 32바이트 base64). `openssl rand -base64 32` 로 만든다. production 필수이며 없으면 QR 발급이 `INTERNAL` 로 실패한다. 잃어버리거나 바꾸면 저장된 암호문을 못 풀어 모든 매장이 QR을 재발급해야 한다. 시크릿.
 
 값 예시는 `apps/web/.env.example`.

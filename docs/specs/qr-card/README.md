@@ -160,12 +160,12 @@ QR 최소 크기: 스탠드 60mm, 스티커 50mm. 오류 정정 레벨 M 이상.
 
 ## 9. 수용 기준
 
-- [ ] 매장 생성·재발급 뒤 DB에 `tokenCiphertext`가 있고, `GET /qr`가 같은 원문 URL을 돌려준다. DB 어디에도 원문 평문은 없다.
-- [ ] 재발급하면 `GET /qr`가 새 URL을 주고, 이전 토큰 punch는 `QR_TOKEN_REVOKED` (기존 동작 유지).
-- [ ] Manager·Employee는 `GET /qr`·디자인 API 모두 `FORBIDDEN`.
-- [ ] 암호문이 없는 기존 토큰은 `url: null`, 화면에 재발급 안내.
-- [ ] 레이아웃·색·문구를 바꾸면 미리보기가 바로 바뀌고, 다시 들어와도 그대로다.
-- [ ] 로고 200KB 초과는 `QR_LOGO_TOO_LARGE`, GIF는 `QR_LOGO_INVALID`.
-- [ ] 받은 PDF를 실제 크기로 인쇄하면 A6(105×148mm)·80×80mm이고 QR이 휴대폰 카메라로 읽힌다.
-- [ ] 스티커 레이아웃에는 안내 문구가 없다.
-- [ ] 키(`QR_TOKEN_ENC_KEY`)가 없는 production에서 발급은 `INTERNAL`로 실패한다.
+- [x] 매장 생성·재발급 뒤 DB에 `tokenCiphertext`가 있고, `GET /qr`가 같은 원문 URL을 돌려준다. DB 어디에도 원문 평문은 없다.
+- [x] 재발급하면 `GET /qr`가 새 URL을 주고, 이전 토큰 punch는 `QR_TOKEN_REVOKED` (기존 동작 유지).
+- [x] Manager·Employee는 `GET /qr`·디자인 API 모두 `FORBIDDEN`.
+- [x] 암호문이 없는 기존 토큰은 `url: null`, 화면에 재발급 안내.
+- [x] 레이아웃·색·문구를 바꾸면 미리보기가 바로 바뀌고, 다시 들어와도 그대로다.
+- [x] 로고 200KB 초과는 `QR_LOGO_TOO_LARGE`, GIF는 `QR_LOGO_INVALID`.
+- [ ] 받은 PDF를 실제 크기로 인쇄하면 A6(105×148mm)·80×80mm이고 QR이 휴대폰 카메라로 읽힌다. — 실물 확인 필요
+- [x] 스티커 레이아웃에는 안내 문구가 없다.
+- [x] 키(`QR_TOKEN_ENC_KEY`)가 없는 production에서 발급은 `INTERNAL`로 실패한다.

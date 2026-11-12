@@ -21,6 +21,7 @@ beforeEach(async () => {
     data: [
       { id: 'owner', name: '김사장', phone: '+821000000001' },
       { id: 'manager', name: '최매니저' },
+      { id: 'employee', name: '박직원' },
     ],
   });
 });
@@ -100,5 +101,11 @@ describe('getStoreQrUrl (docs/specs/qr-card §3.2)', () => {
       data: { storeId: store.id, userId: 'manager', role: 'MANAGER', permissions: ['PAYROLL_READ'] },
     });
     await expect(qrUrl(store.id, 'manager')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('Employee는 FORBIDDEN', async () => {
+    const { store } = await createOwnedStore();
+    await db.membership.create({ data: { storeId: store.id, userId: 'employee', role: 'EMPLOYEE', status: 'ACTIVE' } });
+    await expect(qrUrl(store.id, 'employee')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
