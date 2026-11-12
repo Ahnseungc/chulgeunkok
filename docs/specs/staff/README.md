@@ -120,6 +120,22 @@ const UpdateMemberBody = z.object({
 - `permissions`는 `role = MANAGER`일 때만 의미가 있다. EMPLOYEE로 내리면 비운다.
 - Manager도 본인 근무는 출퇴근한다 (Manager = 직원 + 관리 권한).
 
+### 4.3 변경 이력
+
+역할·권한·상태가 바뀌면 `MembershipEvent`를 **변경과 같은 트랜잭션**에서 남긴다 (인덱스 §2.6, Q1). 지우거나 고치지 않는다.
+
+| `type` | 남기는 곳 | `before` → `after` | `actorId` |
+| --- | --- | --- | --- |
+| `ROLE_CHANGED` | PATCH 역할 변경, `JOIN` 초대로 복귀하며 역할이 바뀜 (§3.3-8) | `{ role }` | 바꾼 사장님 / 초대한 사람 |
+| `PERMISSIONS_CHANGED` | PATCH 권한 변경, EMPLOYEE로 내려 권한이 비워짐 | `{ permissions }` | 바꾼 사장님 |
+| `DEACTIVATED` | 퇴사 처리 (§4.1) | `{ status }` | 바꾼 사장님 |
+| `REACTIVATED` | INACTIVE 직원이 재등록·새 직원 초대를 수락 (§3.3-4·8) | `{ status }` | **초대한 사람** (복귀를 허락한 사람) |
+
+- 한 요청에서 여러 값이 바뀌면 종류마다 1건씩 남긴다 (예: 매니저 → 직원 = `ROLE_CHANGED` + `PERMISSIONS_CHANGED`). 값이 그대로면 남기지 않는다.
+- 변경이 실패하면(근무 중 퇴사 처리 등) 이력도 남지 않는다.
+- 조회 `GET /stores/:storeId/members/:memberId/events` — **사장님만** (`MEMBER_ADMIN`). 최근 것 먼저. 응답 `{ events: { id, type, before, after, actorName, createdAt }[] }`.
+- 화면: 직원 상세(§5.2) 맨 아래 "변경 이력". 한 줄에 문장 + 시각 · 바꾼 사람. 예: "역할을 직원에서 매니저로 바꿨어요", "맡긴 권한: 없음 → 급여 보기", "퇴사 처리했어요", "다시 일하게 됐어요". 이력이 없으면 "아직 바꾼 내용이 없어요."
+
 ## 5. 직원 목록·상세
 
 ### 5.1 목록 `/owner/[storeId]/members`
@@ -134,7 +150,7 @@ const UpdateMemberBody = z.object({
 
 ### 5.2 상세 `/owner/[storeId]/members/[memberId]`
 
-한 화면에 구역으로: **근로조건** (요약 + 등록·수정 → `…/terms`) · **확인할 안내** (`labor` §6, 들어올 때 안 본 안내가 있으면 바텀시트 1회) · **휴대폰** (기기 재등록 QR, 퇴사 처리). 근태 기록 구역은 근태 화면 작업 때 추가.
+한 화면에 구역으로: **근로조건** (요약 + 등록·수정 → `…/terms`) · **확인할 안내** (`labor` §6, 들어올 때 안 본 안내가 있으면 바텀시트 1회) · **휴대폰** (기기 재등록 QR, 퇴사 처리) · **변경 이력** (사장님만, §4.3). 근태 기록 구역은 근태 화면 작업 때 추가.
 
 - 근로조건 구역은 `TERMS_READ` 권한이 있을 때만 보이고, 수정 버튼은 `TERMS_WRITE`일 때만.
 - 사장님(OWNER) 본인은 근로조건·기기 재등록·퇴사 구역이 없다.
@@ -155,6 +171,7 @@ const UpdateMemberBody = z.object({
 | GET | `/stores/:storeId/members?status=ACTIVE` | Owner, Manager |
 | GET | `/stores/:storeId/members/:memberId` | Owner, Manager |
 | PATCH | `/stores/:storeId/members/:memberId` | Owner |
+| GET | `/stores/:storeId/members/:memberId/events` | Owner — §4.3 |
 
 ## 7. 에러 코드
 
@@ -176,3 +193,4 @@ const UpdateMemberBody = z.object({
 - [ ] Manager가 `MANAGER` 역할 초대를 만들면 `FORBIDDEN`.
 - [ ] 비활성 직원은 해당 월 출근 기록이 없으면 과금 인원에서 빠진다.
 - [ ] 근무 중 직원 비활성화는 막힌다.
+- [ ] 역할·권한 변경, 퇴사 처리, 복귀마다 변경 이력이 남고 사장님만 직원 상세에서 본다.

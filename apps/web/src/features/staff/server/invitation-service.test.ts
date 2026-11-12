@@ -171,6 +171,16 @@ describe('acceptInvitation — 새 직원', () => {
     await expect(accepted).rejects.toMatchObject({ code: 'ALREADY_MEMBER' });
   });
 
+  it('퇴사한 직원이 새 직원 초대로 돌아오면 복귀·역할 이력이 남는다', async () => {
+    await db.membership.update({ where: { id: 'm-staff' }, data: { status: 'INACTIVE', leftAt: NOW } });
+    await accept(await invite({ kind: 'JOIN', role: 'MANAGER', delivery: 'QR' }), { sessionUserId: 'staff', name: undefined });
+    const events = await db.membershipEvent.findMany({ where: { membershipId: 'm-staff' }, orderBy: { type: 'asc' } });
+    expect(events.map((event) => [event.type, event.actorId, event.after])).toEqual([
+      ['ROLE_CHANGED', 'owner', { role: 'MANAGER' }],
+      ['REACTIVATED', 'owner', { status: 'ACTIVE' }],
+    ]);
+  });
+
   it('한 번 수락한 초대는 INVITATION_USED', async () => {
     const token = await invite({ kind: 'JOIN', role: 'EMPLOYEE', delivery: 'QR' });
     await accept(token);
@@ -199,6 +209,20 @@ describe('acceptInvitation — 기기 재등록', () => {
     await accept(await invite({ kind: 'REREGISTER', memberId: 'm-staff', delivery: 'QR' }));
     const member = await db.membership.findUniqueOrThrow({ where: { id: 'm-staff' } });
     expect([member.status, member.leftAt]).toEqual(['ACTIVE', null]);
+  });
+
+  it('퇴사한 직원이 돌아오면 초대한 사람 이름으로 REACTIVATED 이력이 남는다', async () => {
+    await db.membership.update({ where: { id: 'm-staff' }, data: { status: 'INACTIVE', leftAt: NOW } });
+    await accept(await invite({ kind: 'REREGISTER', memberId: 'm-staff', delivery: 'QR' }));
+    const events = await db.membershipEvent.findMany({ where: { membershipId: 'm-staff' } });
+    expect(events.map((event) => [event.type, event.actorId, event.before, event.after])).toEqual([
+      ['REACTIVATED', 'owner', { status: 'INACTIVE' }, { status: 'ACTIVE' }],
+    ]);
+  });
+
+  it('재직 중 기기만 바꾸면 이력을 남기지 않는다', async () => {
+    await accept(await invite({ kind: 'REREGISTER', memberId: 'm-staff', delivery: 'QR' }));
+    expect(await db.membershipEvent.count()).toBe(0);
   });
 
   it('재등록은 새 사람을 만들지 않는다', async () => {

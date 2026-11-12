@@ -18,6 +18,7 @@ import Sheet from '@/shared/ui/Sheet';
 import type { MemberDetailDto } from '../model/member-types';
 
 import InviteQrSheet from './InviteQrSheet';
+import MemberHistorySection from './MemberHistorySection';
 import { ROLE_LABEL } from './member-labels';
 import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
@@ -143,6 +144,13 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
                     </ActionButton>
                   ) : null}
                 </section>
+              </PageStaggerEntranceItem>
+            ) : null}
+
+            {detail.role !== 'OWNER' && detail.canViewHistory ? (
+              <PageStaggerEntranceItem>
+                {/* 퇴사 처리·복귀로 상태가 바뀌면 다시 불러온다 */}
+                <MemberHistorySection key={`${detail.status}-${detail.role}`} memberPath={memberPath} />
               </PageStaggerEntranceItem>
             ) : null}
           </PageStaggerEntrance>

@@ -23,4 +23,18 @@ export interface MemberDetailDto extends MemberSummaryDto {
   /** 조회한 사람이 근로조건을 볼·고칠 수 있는지 (화면 버튼 노출용) */
   canReadTerms: boolean;
   canEditTerms: boolean;
+  /** 변경 이력을 볼 수 있는지 (사장님만, §4.3) */
+  canViewHistory: boolean;
+}
+
+export type MemberPermission = 'PAYROLL_READ' | 'TERMS_EDIT';
+
+/** 변경 이력 한 줄. before·after에는 그 종류의 값만 있다 (docs/specs/staff §4.3) */
+export interface MembershipEventDto {
+  id: string;
+  type: 'ROLE_CHANGED' | 'PERMISSIONS_CHANGED' | 'DEACTIVATED' | 'REACTIVATED';
+  before: { role?: MemberRole; permissions?: MemberPermission[]; status?: 'ACTIVE' | 'INACTIVE' };
+  after: { role?: MemberRole; permissions?: MemberPermission[]; status?: 'ACTIVE' | 'INACTIVE' };
+  actorName: string;
+  createdAt: string;
 }

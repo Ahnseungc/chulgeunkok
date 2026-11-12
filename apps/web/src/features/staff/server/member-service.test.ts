@@ -3,6 +3,7 @@ import { createTestDb } from '@chulgeunkok/db/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getMember, listMembers, updateMember } from './member-service';
+import { listMembershipEvents } from './membership-events';
 
 const NOW = new Date('2026-11-04T01:00:00Z');
 
@@ -123,5 +124,72 @@ describe('updateMember', () => {
     await expect(
       updateMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-a', change: { status: 'INACTIVE' }, now: NOW }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+});
+
+describe('변경 이력 (staff §4.3)', () => {
+  const update = (memberId: string, change: Parameters<typeof updateMember>[1]['change']) =>
+    updateMember(db, { storeId: 'store', actorUserId: 'owner', memberId, change, now: NOW });
+  const eventsOf = (memberId: string, actorUserId = 'owner') =>
+    listMembershipEvents(db, { storeId: 'store', actorUserId, memberId });
+
+  it('매니저로 올리고 권한을 주면 역할·권한 이력이 각각 남는다', async () => {
+    await update('m-a', { role: 'MANAGER', permissions: ['PAYROLL_READ'] });
+    const events = await eventsOf('m-a');
+    expect(events.map((event) => [event.type, event.before, event.after, event.actorName])).toEqual(
+      expect.arrayContaining([
+        ['ROLE_CHANGED', { role: 'EMPLOYEE' }, { role: 'MANAGER' }, '김사장'],
+        ['PERMISSIONS_CHANGED', { permissions: [] }, { permissions: ['PAYROLL_READ'] }, '김사장'],
+      ]),
+    );
+    expect(events).toHaveLength(2);
+  });
+
+  it('직원으로 내리면 지워진 권한도 이력에 남는다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ', 'TERMS_EDIT'] } });
+    await update('m-manager', { role: 'EMPLOYEE' });
+    const events = await eventsOf('m-manager');
+    expect(events.find((event) => event.type === 'PERMISSIONS_CHANGED')?.after).toEqual({ permissions: [] });
+  });
+
+  it('값이 그대로면 이력을 남기지 않는다', async () => {
+    await update('m-manager', { role: 'MANAGER', permissions: [] });
+    expect(await eventsOf('m-manager')).toEqual([]);
+  });
+
+  it('퇴사 처리는 DEACTIVATED, 최근 것이 먼저 온다', async () => {
+    await update('m-a', { role: 'MANAGER' });
+    await updateMember(db, {
+      storeId: 'store',
+      actorUserId: 'owner',
+      memberId: 'm-a',
+      change: { status: 'INACTIVE' },
+      now: new Date(NOW.getTime() + 60_000),
+    });
+    const events = await eventsOf('m-a');
+    expect(events.map((event) => [event.type, event.before, event.after])).toEqual([
+      ['DEACTIVATED', { status: 'ACTIVE' }, { status: 'INACTIVE' }],
+      ['ROLE_CHANGED', { role: 'EMPLOYEE' }, { role: 'MANAGER' }],
+    ]);
+  });
+
+  it('근무 중이라 퇴사 처리가 막히면 이력도 남지 않는다', async () => {
+    await startWork();
+    await expect(update('m-b', { status: 'INACTIVE' })).rejects.toMatchObject({ code: 'MEMBER_HAS_OPEN_ATTENDANCE' });
+    expect(await db.membershipEvent.count()).toBe(0);
+  });
+
+  it('사장님만 이력을 본다', async () => {
+    await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ', 'TERMS_EDIT'] } });
+    await expect(eventsOf('m-a', 'manager')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    const owner = await getMember(db, { storeId: 'store', actorUserId: 'owner', memberId: 'm-a' });
+    const manager = await getMember(db, { storeId: 'store', actorUserId: 'manager', memberId: 'm-a' });
+    expect([owner.canViewHistory, manager.canViewHistory]).toEqual([true, false]);
+  });
+
+  it('다른 매장 직원 이력은 NOT_FOUND', async () => {
+    await db.store.create({ data: { id: 'store2', name: '옆집' } });
+    await db.membership.create({ data: { id: 'm-other', storeId: 'store2', userId: 'staff-a', role: 'EMPLOYEE' } });
+    await expect(eventsOf('m-other')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
