@@ -70,7 +70,7 @@ function estimateMemberAllowances(input: {
   // ponytail: 매번 새 클로저지만 직원 수 × 기간 일수라 비용이 작다
   const works = input.rows.flatMap(({ attendance, segments }) =>
     attendance.status === 'CLOSED' && attendance.clockOutAt
-      ? [{ clockInAt: attendance.clockInAt, clockOutAt: attendance.clockOutAt, segments, terms: attendance.terms }]
+      ? [{ clockInAt: attendance.clockInAt, clockOutAt: attendance.clockOutAt, segments, terms: attendance.terms, breaks: attendance.breaks }]
       : [],
   );
   return estimateAllowances({

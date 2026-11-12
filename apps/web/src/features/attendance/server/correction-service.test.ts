@@ -74,6 +74,13 @@ describe('createCorrectionRequest', () => {
     await expect(request('closed', { type: 'BREAK_WAIVED', reason: '못 쉼' }, 'other')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
+  it('휴게를 직접 남긴 근무는 휴게 못 함을 신청할 수 없다 (attendance §3.6)', async () => {
+    await db.attendanceBreak.create({
+      data: { attendanceId: 'closed', startAt: kst('2026-11-09T20:00:00'), endAt: kst('2026-11-09T20:20:00') },
+    });
+    await expect(request('closed', { type: 'BREAK_WAIVED', reason: '못 쉼' })).rejects.toMatchObject({ code: 'BREAK_ALREADY_RECORDED' });
+  });
+
   it('같은 근태에 대기 중 요청은 하나만', async () => {
     await request('closed', { type: 'BREAK_WAIVED', reason: '못 쉼' });
     await expect(

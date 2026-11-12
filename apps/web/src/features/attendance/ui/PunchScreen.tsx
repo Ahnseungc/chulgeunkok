@@ -150,8 +150,8 @@ function PunchDone({ state }: { state: Extract<PunchState, { phase: 'done' }> })
           </SuccessEntranceItem>
         </SuccessEntrance>
       </section>
-      {/* 퇴근하면 휴게를 못 쓴 날을 바로 알릴 수 있게 (docs/specs/attendance §3.4·§7.2) */}
-      {state.action === 'CLOCK_OUT' && attendance ? (
+      {/* 퇴근하면 휴게를 못 쓴 날을 바로 알릴 수 있게. 휴게를 직접 남긴 근무는 빼고 (docs/specs/attendance §3.4·§3.6·§7.2) */}
+      {state.action === 'CLOCK_OUT' && attendance && !state.breakRecorded ? (
         <ActionButton asChild variant="ghost" size="medium">
           <Link href={`/me/attendances/${attendance.id}`}>휴게 못 했어요</Link>
         </ActionButton>

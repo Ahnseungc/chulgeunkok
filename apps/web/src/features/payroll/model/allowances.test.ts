@@ -25,11 +25,13 @@ const partTime: AllowanceTerms = {
   schedules: [1, 3, 5].map((weekday) => ({ weekday, workMinutes: 5 * 60, breakMinutes: 0 })),
 };
 
-const work = (clockIn: string, clockOut: string, terms = fullTime): AllowanceWork => {
+/** breaks: 직원이 남긴 휴게 [시작, 끝] (서울 시각) */
+const work = (clockIn: string, clockOut: string, terms = fullTime, breakTimes: [string, string][] = []): AllowanceWork => {
   const clockInAt = kst(clockIn);
   const clockOutAt = kst(clockOut);
-  const { segments } = toSegments({ attendance: { id: clockIn, clockInAt, clockOutAt, breakWaived: false, breaks: [] }, terms });
-  return { clockInAt, clockOutAt, terms, segments };
+  const breaks = breakTimes.map(([start, end]) => ({ startAt: kst(start), endAt: kst(end) }));
+  const { segments } = toSegments({ attendance: { id: clockIn, clockInAt, clockOutAt, breakWaived: false, breaks }, terms });
+  return { clockInAt, clockOutAt, terms, segments, breaks };
 };
 
 /** 11/2(월)~11/6(금) 소정대로 근무 */
@@ -95,6 +97,15 @@ describe('가산수당 (5인 이상)', () => {
     // 금 18:00–토 02:00: 금 22–24 2h + 토 0–2 2h
     const result = estimate([work('2026-11-06T18:00:00', '2026-11-07T02:00:00')], { fiveOrMore: true });
     expect([result.nightSeconds, result.nightPremium, result.overtimeSeconds]).toEqual([4 * 3600, 20000, 0]);
+  });
+
+  it('남긴 휴게가 야간에 있으면 그만큼 야간에서 뺀다', () => {
+    // 월 18:00–24:00, 휴게 22:00–23:00 → 야간 23–24 1h
+    const result = estimate(
+      [work('2026-11-02T18:00:00', '2026-11-03T00:00:00', fullTime, [['2026-11-02T22:00:00', '2026-11-02T23:00:00']])],
+      { fiveOrMore: true },
+    );
+    expect([result.nightSeconds, result.nightPremium]).toEqual([3600, 5000]);
   });
 
   it('주휴일 근무는 8시간까지 50%, 넘으면 100%이고 연장으로 겹쳐 세지 않는다', () => {

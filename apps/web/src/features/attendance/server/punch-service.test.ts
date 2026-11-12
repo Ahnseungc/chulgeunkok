@@ -187,6 +187,7 @@ describe('punch', () => {
       status: 'CLOSED',
       clockOutAt: ONE_HOUR_LATER.toISOString(),
     });
+    expect(result.breakRecorded).toBe(false);
   });
 
   it('퇴근 실패 요청은 저장되지 않아 같은 키로 다시 시도할 수 있다', async () => {

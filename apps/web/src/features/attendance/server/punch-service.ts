@@ -22,6 +22,7 @@ import {
   findActiveMembership,
   findEffectiveTerms,
   findOpenAttendance,
+  lockMembership,
   nextPunchAction,
   resolveQrStore,
   toAttendanceDto,
@@ -86,7 +87,7 @@ export async function punch(
     result = await db.$transaction(async (tx) => {
       const store = await resolveQrStore(tx, input.qrToken);
       const membership = await findActiveMembership(tx, { storeId: store.id, userId: input.userId });
-      await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "id" = ${membership.id} FOR UPDATE`;
+      await lockMembership(tx, membership.id);
 
       const replay = await findIdempotentReplay<PunchResultDto>(tx, scope);
       if (replay) return replay;
@@ -104,7 +105,9 @@ export async function punch(
             now: input.now,
           });
 
-      const result: PunchResultDto = { action, attendance };
+      // 휴게를 남긴 근무면 완료 화면에서 "휴게 못 했어요"를 숨긴다 (§3.6)
+      const breakRecorded = action === 'CLOCK_OUT' && (await tx.attendanceBreak.count({ where: { attendanceId: attendance.id } })) > 0;
+      const result: PunchResultDto = { action, attendance, breakRecorded };
       await saveIdempotentResponse(tx, { ...scope, response: result });
       return result;
     });

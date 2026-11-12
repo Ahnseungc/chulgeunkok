@@ -25,6 +25,8 @@ export interface PunchPreviewDto {
 export interface PunchResultDto {
   action: PunchAction;
   attendance: AttendanceDto;
+  /** 퇴근한 근무에 직원이 남긴 휴게가 있다 (docs/specs/attendance §3.6). 출근은 false */
+  breakRecorded: boolean;
 }
 
 /** 직원이 남긴 휴게 한 번. 끝이 null이면 휴게 중 (docs/specs/attendance §3.6) */

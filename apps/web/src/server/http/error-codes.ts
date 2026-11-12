@@ -114,6 +114,7 @@ export const ERROR_CODES = {
   ATTENDANCE_CONFLICT: { status: 409, message: '다른 근무 기록과 겹쳐요.' },
   NOT_WORKING: { status: 409, message: '근무 중일 때만 휴게를 남길 수 있어요.' },
   BREAK_NOT_STARTED: { status: 409, message: '시작한 휴게가 없어요.' },
+  BREAK_ALREADY_RECORDED: { status: 409, message: '휴게를 직접 남긴 근무는 휴게 못 함을 신청할 수 없어요.' },
 
   // payroll
   PAY_PERIOD_INVALID: { status: 400, message: '정산 기간 시작일이 맞지 않아요.' },

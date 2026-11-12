@@ -26,12 +26,14 @@ export async function createCorrectionRequest(
 ): Promise<CorrectionDto> {
   const attendance = await db.attendance.findUnique({
     where: { id: input.attendanceId },
-    include: { membership: true },
+    include: { membership: true, _count: { select: { breaks: true } } },
   });
   // 남의 근태는 존재 여부도 숨긴다
   if (!attendance || attendance.membership.userId !== input.actorUserId) throw new ApiError('NOT_FOUND');
   if (attendance.membership.status !== 'ACTIVE') throw new ApiError('NOT_STORE_MEMBER');
   assertRequestAllowed({ attendance, body: input.body, now: input.now });
+  // 휴게를 직접 남긴 근무는 남긴 휴게만 빼므로 휴게 못 함이 쓰이지 않는다 (§3.6·§7.2)
+  if (input.body.type === 'BREAK_WAIVED' && attendance._count.breaks > 0) throw new ApiError('BREAK_ALREADY_RECORDED');
 
   try {
     const created = await db.correctionRequest.create({
