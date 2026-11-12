@@ -13,6 +13,7 @@ const wideMeasure = (text: string, fontSizeMm: number) => measure(text, fontSize
 const QR_V5_MODULES = 37;
 const MIN_QUIET_MODULES = 3;
 const QR_MIN_MM = { STAND: 60, STICKER: 50 } as const;
+const QR_MAX_MM = { STAND: 64, STICKER: 50 } as const;
 
 const TITLE_20 = '가'.repeat(20);
 const MESSAGE_40 = '나'.repeat(40);
@@ -70,6 +71,13 @@ describe('planQrCardLayout', () => {
       const quiet = p.qr.x - p.qrFrame.x;
       expect(quiet).toBeGreaterThanOrEqual((QR_MIN_MM[layout] / QR_V5_MODULES) * MIN_QUIET_MODULES);
       expect(p.qrFrame.x + p.qrFrame.width - (p.qr.x + p.qr.width)).toBeCloseTo(quiet);
+    });
+
+    it('QR 최대 크기에서도 quiet zone 은 버전 5 기준 3모듈 이상', () => {
+      // 짧은 제목·문구 없음·로고 없음 → 남는 높이가 가장 커서 QR 이 최대값까지 커진다
+      const p = plan(layout, { title: '가', message: '', logo: null });
+      expect(p.qr.width).toBe(QR_MAX_MM[layout]);
+      expect(p.qr.x - p.qrFrame.x).toBeGreaterThanOrEqual((p.qr.width / QR_V5_MODULES) * MIN_QUIET_MODULES);
     });
 
     it('20자 제목은 카드 폭 안에 들어간다', () => {
