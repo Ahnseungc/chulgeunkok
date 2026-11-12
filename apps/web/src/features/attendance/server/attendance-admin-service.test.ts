@@ -282,6 +282,21 @@ describe('getAttendanceDetail', () => {
     expect(detail.recognizedSeconds).toBe(4.5 * HOUR);
   });
 
+  it('직원이 남긴 휴게를 시각 순으로 보여 주고, 기록한 휴게만큼 뺀다 (§3.6)', async () => {
+    await db.attendanceBreak.createMany({
+      data: [
+        { attendanceId: 'closed', startAt: kst('2026-11-02T21:00:00'), endAt: kst('2026-11-02T21:05:00') },
+        { attendanceId: 'closed', startAt: kst('2026-11-02T20:00:00'), endAt: kst('2026-11-02T20:20:00') },
+      ],
+    });
+    const detail = await getAttendanceDetail(db, { attendanceId: 'closed', actorUserId: 'owner', now: NOW });
+    expect([detail.breaks.map((row) => row.startAt), detail.breakSeconds, detail.recognizedSeconds]).toEqual([
+      [kst('2026-11-02T20:00:00').toISOString(), kst('2026-11-02T21:00:00').toISOString()],
+      25 * 60,
+      5 * HOUR - 25 * 60,
+    ]);
+  });
+
   it('직원은 다른 사람 기록을 볼 수 없다', async () => {
     await expect(getAttendanceDetail(db, { attendanceId: 'october', actorUserId: 'staff', now: NOW })).rejects.toMatchObject({
       code: 'FORBIDDEN',

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { missingClockOutDeadline, nightWorkMinutes, overtimeReason, weekStartOf, type OvertimeInput } from './work-record-rules';
+import {
+  isRecordedBreakShort,
+  missingClockOutDeadline,
+  nightWorkMinutes,
+  overtimeReason,
+  weekStartOf,
+  type OvertimeInput,
+} from './work-record-rules';
 
 const kst = (local: string) => new Date(`${local}+09:00`);
 const HOUR = 3600;
@@ -87,5 +94,29 @@ describe('overtimeReason', () => {
   it('단시간근로자가 소정 없는 날 일하면 바로 대상', () => {
     const input = base({ isShortTime: true, scheduledLaborMinutes: () => 0, dayRecognizedSeconds: new Map([['2026-11-02', HOUR]]) });
     expect(overtimeReason(input)?.reasonCode).toBe('SHORT_TIME_DAILY');
+  });
+});
+
+describe('isRecordedBreakShort (labor §5 BREAK_SHORTAGE)', () => {
+  const MINUTE = 60;
+
+  it('5시간 근무에 20분 쉬면 근로 4시간 40분 → 30분 필요 → 부족', () => {
+    expect(isRecordedBreakShort({ workedSeconds: 5 * HOUR, breakSeconds: 20 * MINUTE })).toBe(true);
+  });
+
+  it('5시간 근무에 30분 쉬면 충분', () => {
+    expect(isRecordedBreakShort({ workedSeconds: 5 * HOUR, breakSeconds: 30 * MINUTE })).toBe(false);
+  });
+
+  it('9시간 근무에 40분 쉬면 근로 8시간 20분 → 1시간 필요 → 부족', () => {
+    expect(isRecordedBreakShort({ workedSeconds: 9 * HOUR, breakSeconds: 40 * MINUTE })).toBe(true);
+  });
+
+  it('4시간 20분 근무에 20분 쉬면 근로 4시간 → 30분 필요 → 부족 (경계)', () => {
+    expect(isRecordedBreakShort({ workedSeconds: 4 * HOUR + 20 * MINUTE, breakSeconds: 20 * MINUTE })).toBe(true);
+  });
+
+  it('근로가 4시간 미만이면 휴게 의무가 없다', () => {
+    expect(isRecordedBreakShort({ workedSeconds: 4 * HOUR, breakSeconds: 10 * MINUTE })).toBe(false);
   });
 });

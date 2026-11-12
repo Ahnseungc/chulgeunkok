@@ -28,7 +28,7 @@ const partTime: AllowanceTerms = {
 const work = (clockIn: string, clockOut: string, terms = fullTime): AllowanceWork => {
   const clockInAt = kst(clockIn);
   const clockOutAt = kst(clockOut);
-  const { segments } = toSegments({ attendance: { id: clockIn, clockInAt, clockOutAt, breakWaived: false }, terms });
+  const { segments } = toSegments({ attendance: { id: clockIn, clockInAt, clockOutAt, breakWaived: false, breaks: [] }, terms });
   return { clockInAt, clockOutAt, terms, segments };
 };
 

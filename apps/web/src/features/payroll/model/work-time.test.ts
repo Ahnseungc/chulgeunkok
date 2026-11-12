@@ -12,12 +12,25 @@ const kst = (local: string) => new Date(`${local}+09:00`);
 const attendanceOf = (
   clockIn: string,
   clockOut: string,
-  options: { breakMinutes?: number; weekday?: number; breakWaived?: boolean; hourlyWage?: number } = {},
+  options: {
+    breakMinutes?: number;
+    weekday?: number;
+    breakWaived?: boolean;
+    hourlyWage?: number;
+    /** 직원이 남긴 휴게 [시작, 끝] (서울 시각) */
+    breaks?: [string, string][];
+  } = {},
 ): SegmentInput => {
   const clockInAt = kst(clockIn);
   const weekday = options.weekday ?? new Date(clockInAt.getTime() + 9 * HOUR * 1000).getUTCDay();
   return {
-    attendance: { id: 'a', clockInAt, clockOutAt: kst(clockOut), breakWaived: options.breakWaived ?? false },
+    attendance: {
+      id: 'a',
+      clockInAt,
+      clockOutAt: kst(clockOut),
+      breakWaived: options.breakWaived ?? false,
+      breaks: (options.breaks ?? []).map(([start, end]) => ({ startAt: kst(start), endAt: kst(end) })),
+    },
     terms: {
       hourlyWage: options.hourlyWage ?? 10320,
       schedules: options.breakMinutes === undefined ? [] : [{ weekday, breakMinutes: options.breakMinutes }],
@@ -89,6 +102,73 @@ describe('toSegments · summarizePeriod — 스펙 예시 (payroll §3.5)', () =
   it('#8 소정 스케줄 없는 토요일 6시간 → 차감 0, 플래그', () => {
     const result = toSegments(attendanceOf('2026-11-07T10:00:00', '2026-11-07T16:00:00'));
     expect([result.segments[0]?.recognizedSeconds, result.breakNotScheduled]).toEqual([6 * HOUR, true]);
+  });
+});
+
+describe('toSegments — 기록한 휴게 (payroll §3.2, §3.5 #9–#13)', () => {
+  it('#9 18:00–23:00에 20:00–20:20 휴게를 남기면 소정 30분 대신 20분을 빼 4시간 40분', () => {
+    expect(
+      recognized(
+        attendanceOf('2026-11-02T18:00:00', '2026-11-02T23:00:00', {
+          breakMinutes: 30,
+          breaks: [['2026-11-02T20:00:00', '2026-11-02T20:20:00']],
+        }),
+      ),
+    ).toEqual([4 * HOUR + 40 * MINUTE]);
+  });
+
+  it('#10 자정을 넘는 휴게는 걸친 만큼 각 날짜 구간에서 뺀다', () => {
+    // 월 20:00–화 04:00, 휴게 23:40–00:30 → 월 4h−20m, 화 4h−30m
+    expect(
+      recognized(
+        attendanceOf('2026-11-02T20:00:00', '2026-11-03T04:00:00', {
+          breakMinutes: 60,
+          breaks: [['2026-11-02T23:40:00', '2026-11-03T00:30:00']],
+        }),
+      ),
+    ).toEqual([3 * HOUR + 40 * MINUTE, 3 * HOUR + 30 * MINUTE]);
+  });
+
+  it('#11 여러 번 남긴 휴게를 합해서 뺀다', () => {
+    const { segments } = toSegments(
+      attendanceOf('2026-11-02T18:00:00', '2026-11-02T23:00:00', {
+        breaks: [
+          ['2026-11-02T19:00:00', '2026-11-02T19:10:00'],
+          ['2026-11-02T21:00:00', '2026-11-02T21:15:00'],
+        ],
+      }),
+    );
+    expect(segments.map((segment) => [segment.breakSeconds, segment.recognizedSeconds])).toEqual([
+      [25 * MINUTE, 4 * HOUR + 35 * MINUTE],
+    ]);
+  });
+
+  it('#12 기록이 있으면 휴게 못 함·4시간 미만·소정 없음과 상관없이 기록만 뺀다', () => {
+    const waived = attendanceOf('2026-11-02T18:00:00', '2026-11-02T23:00:00', {
+      breakMinutes: 30,
+      breakWaived: true,
+      breaks: [['2026-11-02T20:00:00', '2026-11-02T20:20:00']],
+    });
+    const short = attendanceOf('2026-11-02T18:00:00', '2026-11-02T21:00:00', {
+      breakMinutes: 30,
+      breaks: [['2026-11-02T19:00:00', '2026-11-02T19:10:00']],
+    });
+    const unscheduled = toSegments(
+      attendanceOf('2026-11-07T10:00:00', '2026-11-07T16:00:00', { breaks: [['2026-11-07T12:00:00', '2026-11-07T12:30:00']] }),
+    );
+    expect([recognized(waived), recognized(short)]).toEqual([[4 * HOUR + 40 * MINUTE], [2 * HOUR + 50 * MINUTE]]);
+    expect([unscheduled.segments[0]?.recognizedSeconds, unscheduled.breakNotScheduled]).toEqual([5.5 * HOUR, false]);
+  });
+
+  it('#13 근무 밖으로 나간 휴게는 근무 안 부분만 뺀다 (관리자가 퇴근을 당긴 경우)', () => {
+    expect(
+      recognized(
+        attendanceOf('2026-11-02T18:00:00', '2026-11-02T22:00:00', {
+          breakMinutes: 30,
+          breaks: [['2026-11-02T21:50:00', '2026-11-02T22:30:00']],
+        }),
+      ),
+    ).toEqual([3 * HOUR + 50 * MINUTE]);
   });
 });
 

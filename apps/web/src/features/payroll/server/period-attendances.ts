@@ -1,4 +1,12 @@
-import type { Attendance, DbClient, EmploymentTerms, EmploymentTermsSchedule, Membership, User } from '@chulgeunkok/db';
+import type {
+  Attendance,
+  AttendanceBreak,
+  DbClient,
+  EmploymentTerms,
+  EmploymentTermsSchedule,
+  Membership,
+  User,
+} from '@chulgeunkok/db';
 
 import { ApiError } from '@/server/http/api-error';
 
@@ -19,6 +27,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export type PeriodAttendance = Attendance & {
   membership: Membership & { user: User };
   terms: EmploymentTerms & { schedules: EmploymentTermsSchedule[] };
+  /** 직원이 남긴 휴게, 시작 순 (docs/specs/attendance §3.6) */
+  breaks: AttendanceBreak[];
   _count: { revisions: number };
 };
 
@@ -68,6 +78,7 @@ export async function loadPeriodAttendances(
     include: {
       membership: { include: { user: true } },
       terms: { include: { schedules: true } },
+      breaks: { orderBy: { startAt: 'asc' } },
       _count: { select: { revisions: true } },
     },
     orderBy: { clockInAt: 'desc' },

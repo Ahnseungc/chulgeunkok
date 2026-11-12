@@ -55,3 +55,11 @@ await db.exec(payslipRow('p2', 2, 'DRAFT'));
 console.log('SENT 1건 + DRAFT 1건 OK');
 await expectFail('같은 직원·기간 DRAFT 2건', payslipRow('p3', 3, 'DRAFT'));
 await expectFail('급여 지급일 32', `UPDATE "Store" SET "payDay"=32 WHERE id='s1'`);
+
+// 0008
+await db.exec(`INSERT INTO "AttendanceBreak"(id,"attendanceId","startAt") VALUES ('b1','a1',now())`);
+console.log('열린 휴게 1개 OK');
+await expectFail('같은 근무에 열린 휴게 2개', `INSERT INTO "AttendanceBreak"(id,"attendanceId","startAt") VALUES ('b2','a1',now())`);
+await db.exec(`UPDATE "AttendanceBreak" SET "endAt"="startAt" + interval '10 minutes' WHERE id='b1'; INSERT INTO "AttendanceBreak"(id,"attendanceId","startAt") VALUES ('b2','a1',now() + interval '1 hour')`);
+console.log('닫은 뒤 새 휴게 OK');
+await expectFail('휴게 끝<시작', `UPDATE "AttendanceBreak" SET "endAt"="startAt" - interval '1 minute' WHERE id='b2'`);

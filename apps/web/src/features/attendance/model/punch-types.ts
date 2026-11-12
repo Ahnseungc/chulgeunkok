@@ -26,3 +26,16 @@ export interface PunchResultDto {
   action: PunchAction;
   attendance: AttendanceDto;
 }
+
+/** 직원이 남긴 휴게 한 번. 끝이 null이면 휴게 중 (docs/specs/attendance §3.6) */
+export interface AttendanceBreakDto {
+  id: string;
+  startAt: string;
+  endAt: string | null;
+}
+
+/** POST /attendance/break/start · /attendance/break/end 응답 */
+export interface BreakResultDto {
+  attendanceId: string;
+  break: AttendanceBreakDto;
+}

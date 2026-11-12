@@ -26,7 +26,10 @@ export async function getMyAttendances(
       where: { status: 'PENDING', attendance: { membershipId: member.id } },
       select: { attendanceId: true, type: true },
     }),
-    db.attendance.findFirst({ where: { membershipId: member.id, status: 'OPEN' } }),
+    db.attendance.findFirst({
+      where: { membershipId: member.id, status: 'OPEN' },
+      include: { breaks: { where: { endAt: null } } },
+    }),
   ]);
 
   const closed = rows.filter((row) => row.attendance.status === 'CLOSED');
@@ -35,7 +38,14 @@ export async function getMyAttendances(
   return {
     store: { id: store.id, name: store.name },
     period,
-    working: open ? { attendanceId: open.id, clockInAt: open.clockInAt.toISOString() } : null,
+    serverNow: input.now.toISOString(),
+    working: open
+      ? {
+          attendanceId: open.id,
+          clockInAt: open.clockInAt.toISOString(),
+          breakStartedAt: open.breaks[0]?.startAt.toISOString() ?? null,
+        }
+      : null,
     summary: {
       recognizedSeconds: summary.recognizedSeconds,
       basePayEstimate: summary.basePayEstimate,
