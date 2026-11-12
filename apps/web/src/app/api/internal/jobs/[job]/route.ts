@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { runMissingClockOutJob } from '@/features/attendance/server/missing-clock-out-job';
+import { runShiftReminderJob } from '@/features/attendance/server/shift-reminder-job';
 import { runDailyReviewJob } from '@/features/labor/server/work-record-review-service';
 import { runPayslipDraftJob } from '@/features/payslip/server/payslip-sync-service';
 import { db } from '@/server/db';
@@ -13,11 +14,13 @@ import { toErrorResponse } from '@/server/http/define-route';
  * - missing-clock-out: 10분마다 — 퇴근 누락 자동 전환 (docs/specs/attendance §5.1)
  * - daily-reviews: 매일 06:00 — 결근 의심 + 최근 근무 재평가 (docs/specs/labor §5)
  * - payslip-drafts: 매일 06:10 — 끝난 최근 3기간 임금명세서 초안·정정본 (docs/specs/payslip §4.3)
+ * - shift-reminders: 5분마다 — 출근·퇴근 10분 전·정시 푸시 (docs/specs/notifications)
  */
 const JOBS = {
   'missing-clock-out': runMissingClockOutJob,
   'daily-reviews': runDailyReviewJob,
   'payslip-drafts': runPayslipDraftJob,
+  'shift-reminders': runShiftReminderJob,
 } as const satisfies Record<string, (database: typeof db, now: Date) => Promise<object>>;
 
 async function handle(req: NextRequest, segment: { params: Promise<{ job: string }> }) {

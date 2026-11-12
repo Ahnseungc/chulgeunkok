@@ -18,7 +18,8 @@ export const localWeekday = (at: Date) => new Date(at.getTime() + STORE_UTC_OFFS
 /** 매장 시간대 날짜의 00:00 */
 export const localMidnight = (localDate: string) => new Date(Date.parse(`${localDate}T00:00:00Z`) - STORE_UTC_OFFSET_MS);
 
-const addDays = (localDate: string, days: number) =>
+/** 매장 시간대 날짜에 n일 더하기 `YYYY-MM-DD` */
+export const addDays = (localDate: string, days: number) =>
   new Date(Date.parse(`${localDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
 export interface PayPeriod {

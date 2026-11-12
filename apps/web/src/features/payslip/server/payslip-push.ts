@@ -7,6 +7,7 @@ import type { DbClient, Payslip } from '@chulgeunkok/db';
 
 import { formatWon } from '@/features/payroll/model/payroll-types';
 import type { PushMessage, PushSender } from '@/server/integrations/push';
+import { notifyDevices } from '@/server/integrations/push-devices';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -27,24 +28,6 @@ export function payslipPushMessage(payslip: Payslip, storeName: string): PushMes
   };
 }
 
-/** 한 토큰 발송. 예외는 로그로 바꾼다 */
-async function sendSafely(push: PushSender, token: string, message: PushMessage): Promise<'SENT' | 'TOKEN_INVALID' | null> {
-  try {
-    return await push.send(token, message);
-  } catch (error) {
-    console.error('[payslip] 푸시 발송 실패', message.path, error);
-    return null;
-  }
-}
-
-/** 한 직원의 기기들. 더 못 쓰는 토큰은 지운다 */
-async function notifyDevices(db: DbClient, input: { push: PushSender; tokens: string[]; message: PushMessage }): Promise<void> {
-  for (const token of input.tokens) {
-    const result = await sendSafely(input.push, token, input.message);
-    if (result === 'TOKEN_INVALID') await db.pushToken.deleteMany({ where: { token } });
-  }
-}
-
 /** 보낸 명세서마다 직원의 모든 기기에 알림. 더 못 쓰는 토큰은 지운다 (§6) */
 export async function notifyPayslipsSent(db: DbClient, input: { payslipIds: string[]; push: PushSender }): Promise<void> {
   try {
@@ -54,7 +37,7 @@ export async function notifyPayslipsSent(db: DbClient, input: { payslipIds: stri
     });
     for (const payslip of payslips) {
       const tokens = payslip.membership.user.pushTokens.map((pushToken) => pushToken.token);
-      await notifyDevices(db, { push: input.push, tokens, message: payslipPushMessage(payslip, payslip.store.name) });
+      await notifyDevices(db, { push: input.push, tokens, message: payslipPushMessage(payslip, payslip.store.name), logTag: 'payslip' });
     }
   } catch (error) {
     console.error('[payslip] 푸시 대상 조회·토큰 정리 실패', input.payslipIds, error);
