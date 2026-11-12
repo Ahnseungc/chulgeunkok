@@ -115,6 +115,77 @@ describe('사업장 규모', () => {
   });
 });
 
+describe('출근 기록 참고 추정치 (docs/specs/store §6.4)', () => {
+  const addWork = async (id: string, membershipId: string, local: string, status: 'CLOSED' | 'VOID' = 'CLOSED') => {
+    await db.attendance.create({
+      data: {
+        id,
+        storeId: 'store',
+        membershipId,
+        termsId: 'terms',
+        clockInAt: kst(local),
+        clockOutAt: new Date(kst(local).getTime() + 4 * 3600_000),
+        status,
+      },
+    });
+  };
+
+  beforeEach(async () => {
+    await db.user.createMany({ data: [{ id: 'e1', name: '직원1' }, { id: 'e2', name: '직원2' }] });
+    await db.membership.createMany({
+      data: [
+        { id: 'm-e1', storeId: 'store', userId: 'e1', role: 'EMPLOYEE' },
+        { id: 'm-e2', storeId: 'store', userId: 'e2', role: 'EMPLOYEE' },
+      ],
+    });
+    await db.employmentTerms.create({
+      data: {
+        id: 'terms',
+        membershipId: 'm-e1',
+        version: 1,
+        effectiveFrom: kst('2026-01-01T00:00:00'),
+        hourlyWage: 10320,
+        contractStartDate: new Date('2026-01-01'),
+        createdById: 'owner',
+      },
+    });
+  });
+
+  it('직전 달만 센다. 10-31 23:30 KST 는 10월, 11-01 00:10 KST 는 11월이다', async () => {
+    await addWork('a1', 'm-e1', '2026-10-31T23:30:00');
+    await addWork('a2', 'm-e2', '2026-11-01T00:10:00');
+    await addWork('a3', 'm-e2', '2026-09-30T23:59:00');
+    const estimate = (await settings()).headcountEstimate;
+    expect(estimate).toMatchObject({ month: '2026-10', average: 1, workerDays: 1, operatingDays: 1 });
+  });
+
+  it('VOID 와 사장님 근무는 빼고, 같은 날 여러 사람은 각각 센다', async () => {
+    await addWork('a1', 'm-e1', '2026-10-05T09:00:00');
+    await addWork('a2', 'm-e2', '2026-10-05T10:00:00');
+    await addWork('a3', 'm-e1', '2026-10-06T09:00:00');
+    await addWork('a4', 'm-e2', '2026-10-07T09:00:00', 'VOID');
+    await addWork('a5', 'm-owner', '2026-10-08T09:00:00');
+    const estimate = (await settings()).headcountEstimate;
+    expect(estimate).toMatchObject({ average: 1.5, workerDays: 3, operatingDays: 2 });
+  });
+
+  it('그달 말 신고값과 평균이 어긋나면 mismatch, 자동으로 바꾸지는 않는다', async () => {
+    await declareHeadcount(db, { storeId: 'store', actorUserId: 'owner', body: { band: 'FIVE_OR_MORE', effectiveFrom: '2026-11-01' }, now: kst('2026-11-01T09:00:00') });
+    await addWork('a1', 'm-e1', '2026-10-05T09:00:00');
+    const result = await settings();
+    expect([result.headcountEstimate?.mismatch, result.headcount.current]).toEqual([null, 'FIVE_OR_MORE']);
+    await db.storeHeadcountDeclaration.create({
+      data: { storeId: 'store', band: 'FIVE_OR_MORE', effectiveFrom: new Date('2026-10-01'), declaredById: 'owner' },
+    });
+    await db.storeHeadcountDeclaration.deleteMany({ where: { effectiveFrom: new Date('2026-11-01') } });
+    expect((await settings()).headcountEstimate?.mismatch).toBe('MAYBE_UNDER_5');
+  });
+
+  it('직전 달 기록이 없으면 null', async () => {
+    expect((await settings()).headcountEstimate).toBeNull();
+  });
+});
+
 describe('QR 재발급', () => {
   it('이전 QR은 바로 폐기되고 새 QR만 쓸 수 있다', async () => {
     const { url } = await rotateStoreQr(db, { storeId: 'store', actorUserId: 'owner', origin: 'https://x.test', now: NOW });

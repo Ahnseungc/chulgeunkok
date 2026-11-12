@@ -10,6 +10,7 @@ import LabeledTextField from '@/shared/ui/LabeledTextField';
 
 import { HEADCOUNT_LABEL, type HeadcountBandValue, type StoreSettingsDto } from '../model/store-settings-types';
 
+import HeadcountEstimateNote from './HeadcountEstimateNote';
 import QrRotateSection from './QrRotateSection';
 import { useStoreSettings } from './useStoreSettings';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
@@ -165,6 +166,7 @@ function HeadcountSection({ settings, pending, onSave }: SectionProps<[string, s
       <Text textStyle="t4Regular" color="fg.neutralMuted">
         지난 1개월 동안 일한 사람 수(아르바이트·사장님 가족 포함)를 일한 날 수로 나눈 값이에요. 등록한 직원 수와 달라요.
       </Text>
+      {settings.headcountEstimate ? <HeadcountEstimateNote estimate={settings.headcountEstimate} /> : null}
       <div className="headcount__options" role="group" aria-label="사업장 규모">
         {BANDS.map((option) => (
           <ActionButton

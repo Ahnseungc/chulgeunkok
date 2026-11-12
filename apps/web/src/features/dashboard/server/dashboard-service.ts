@@ -13,6 +13,7 @@ import {
   type PayPeriodConfig,
 } from '@/features/payroll/model/work-time';
 import { loadPeriodWithAllowances } from '@/features/payroll/server/allowance-service';
+import { loadHeadcountEstimate } from '@/features/store/server/headcount-estimate-service';
 import { canAccessStore } from '@/server/auth/access';
 import { requireMembership } from '@/server/auth/require-membership';
 
@@ -135,6 +136,7 @@ async function countTodo(
     laborReviews: canAccessStore(input.actor, 'LABOR_REVIEW') ? await countSheetReviews(db, { ...input, storeId }) : null,
     pendingInvitations,
     ...(canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await countPayslipDrafts(db, storeId) : NO_PAYSLIP_ACCESS),
+    headcountMismatch: input.actor.role === 'OWNER' ? (await loadHeadcountEstimate(db, { storeId, now: input.now }))?.mismatch ?? null : null,
   };
 }
 

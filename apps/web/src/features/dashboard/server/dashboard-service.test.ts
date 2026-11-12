@@ -149,6 +149,23 @@ describe('getDashboard', () => {
     ]);
   });
 
+  it('규모 불일치 카드는 사장님에게만 준다 (docs/specs/store §6.4)', async () => {
+    await db.storeHeadcountDeclaration.create({
+      data: { storeId: 'store', band: 'FIVE_OR_MORE', effectiveFrom: new Date('2026-09-01'), declaredById: 'owner' },
+    });
+    await db.attendance.create({
+      data: {
+        storeId: 'store',
+        membershipId: 'm-early',
+        termsId: 'terms-m-early',
+        clockInAt: kst('2026-10-10T10:00:00'),
+        clockOutAt: kst('2026-10-10T14:00:00'),
+        status: 'CLOSED',
+      },
+    });
+    expect([(await dashboard()).todo.headcountMismatch, (await dashboard('manager')).todo.headcountMismatch]).toEqual(['MAYBE_UNDER_5', null]);
+  });
+
   it('직원은 대시보드를 볼 수 없다', async () => {
     await expect(dashboard('early')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });

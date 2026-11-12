@@ -1,3 +1,5 @@
+import type { HeadcountMismatch } from '@/features/store/model/headcount-estimate';
+
 /** GET /stores/:storeId/dashboard 응답. 정본: docs/specs/dashboard §5 */
 export interface DashboardDto {
   serverNow: string;
@@ -25,6 +27,8 @@ export interface DashboardDto {
     payslipDrafts: number | null;
     /** 가장 오래된 DRAFT의 periodStart. 카드 링크가 그 기간을 연다. 없거나 사장님이 아니면 null */
     payslipDraftPeriodStart: string | null;
+    /** 직전 달 출근 기록과 신고 규모가 어긋남 (docs/specs/store §6.4). 사장님이 아니거나 어긋나지 않으면 null */
+    headcountMismatch: HeadcountMismatch | null;
   };
   currentPeriod: {
     start: string;
