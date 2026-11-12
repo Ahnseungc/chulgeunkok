@@ -7,7 +7,7 @@ import { errorMessageOf, useApiResource } from '@/shared/lib/useApiResource';
 
 import type { QrCardDesignDto } from '../model/qr-card-types';
 
-import { downloadQrCard, isLogoType, loadImage, resizeLogo, type QrCardFileKind } from './qr-card-files';
+import { downloadQrCard, isLogoType, loadImage, QrLogoResizeError, resizeLogo, type QrCardFileKind } from './qr-card-files';
 
 /** 마지막 입력 뒤 이만큼 멈추면 저장한다 (docs/specs/qr-card §5.4) */
 export const AUTOSAVE_DELAY_MS = 800;
@@ -107,7 +107,7 @@ function useQrLogo(path: string, hasSavedLogo: boolean) {
     try {
       setImage(await task());
     } catch (cause) {
-      setError(errorMessageOf(cause));
+      setError(cause instanceof QrLogoResizeError ? cause.message : errorMessageOf(cause));
     } finally {
       setPending(false);
     }
