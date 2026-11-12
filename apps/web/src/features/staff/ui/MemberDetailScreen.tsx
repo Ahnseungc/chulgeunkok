@@ -20,6 +20,7 @@ import type { MemberDetailDto } from '../model/member-types';
 
 import InviteQrSheet from './InviteQrSheet';
 import MemberHistorySection from './MemberHistorySection';
+import MemberRoleSection from './MemberRoleSection';
 import { ROLE_LABEL } from './member-labels';
 import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
@@ -129,6 +130,19 @@ export default function MemberDetailScreen({ storeId, memberId }: MemberDetailSc
                 </ExpandFadeReveal>
               ) : null}
             </AnimatePresence>
+
+            {detail.canEditRole && detail.role !== 'OWNER' ? (
+              <PageStaggerEntranceItem>
+                {/* 저장 뒤 다시 불러온 값으로 고른 상태를 새로 잡는다 */}
+                <MemberRoleSection
+                  key={`${detail.role}-${detail.permissions.join(',')}`}
+                  memberPath={memberPath}
+                  role={detail.role}
+                  permissions={detail.permissions}
+                  onSaved={() => void member.reload()}
+                />
+              </PageStaggerEntranceItem>
+            ) : null}
 
             {detail.role !== 'OWNER' ? (
               <PageStaggerEntranceItem>

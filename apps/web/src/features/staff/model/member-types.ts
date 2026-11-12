@@ -26,7 +26,12 @@ export interface MemberDetailDto extends MemberSummaryDto {
   canEditTerms: boolean;
   /** 변경 이력을 볼 수 있는지 (사장님만, §4.3) */
   canViewHistory: boolean;
+  /** 역할·권한을 바꿀 수 있는지 — 사장님이 재직 중인 직원·매니저를 볼 때만 (§5.2) */
+  canEditRole: boolean;
 }
+
+/** 사장님이 고를 수 있는 역할 (§4.2) */
+export type AssignableRole = Exclude<MemberRole, 'OWNER'>;
 
 export type TermsAccess = 'ALLOWED' | 'PHONE_VERIFICATION_REQUIRED' | 'FORBIDDEN';
 

@@ -1,13 +1,8 @@
 import type { MemberPermission, MembershipEventDto } from '../model/member-types';
 
-import { ROLE_LABEL } from './member-labels';
+import { PERMISSION_LABEL, ROLE_LABEL } from './member-labels';
 
 /** docs/specs/staff §4.3 변경 이력 문구 */
-const PERMISSION_LABEL = {
-  PAYROLL_READ: '급여 보기',
-  TERMS_EDIT: '근로조건 등록',
-} as const satisfies Record<MemberPermission, string>;
-
 const permissionText = (permissions: readonly MemberPermission[] = []) =>
   permissions.length === 0 ? '없음' : permissions.map((permission) => PERMISSION_LABEL[permission]).join(', ');
 

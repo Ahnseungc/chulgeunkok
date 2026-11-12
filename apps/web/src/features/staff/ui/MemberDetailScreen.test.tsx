@@ -11,6 +11,7 @@ import MemberDetailScreen from './MemberDetailScreen';
 const push = vi.fn();
 // 기본은 조회가 끝나지 않은 채(push 직후 슬라이드 중) 화면을 본다
 const apiFetch = vi.fn((_path: string, _init?: RequestInit): Promise<unknown> => new Promise(() => {}));
+vi.mock('@/shared/ui/useToast', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 vi.mock('@/shared/lib/api-client', () => ({
   apiFetch: (path: string, init?: RequestInit) => apiFetch(path, init),
@@ -32,6 +33,7 @@ const MEMBER: MemberDetailDto = {
   termsAccess: 'ALLOWED',
   canEditTerms: false,
   canViewHistory: false,
+  canEditRole: false,
 };
 
 const serveMember = (member: MemberDetailDto) =>
@@ -83,5 +85,22 @@ describe('MemberDetailScreen 근로조건 구역 (auth §4.2)', () => {
     render(<MemberDetailScreen storeId="s1" memberId="m1" />);
     expect(await screen.findByText('근로조건은 사장님이나 권한 있는 매니저만 볼 수 있어요.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '휴대폰 인증하기' })).toBeNull();
+  });
+});
+
+describe('MemberDetailScreen 역할·권한 구역 (staff §5.2)', () => {
+  it('바꿀 수 있을 때만 보이고, 저장한 역할로 고른 상태를 잡는다', async () => {
+    serveMember({ ...MEMBER, role: 'MANAGER', permissions: ['TERMS_EDIT'], canEditRole: true });
+    render(<MemberDetailScreen storeId="s1" memberId="m1" />);
+    expect(await screen.findByRole('heading', { name: '역할·권한' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '매니저' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('checkbox', { name: /근로조건 등록/ })).toHaveProperty('checked', true);
+  });
+
+  it('바꿀 수 없으면(매니저가 볼 때·퇴사·사장님 본인) 구역이 없다', async () => {
+    serveMember(MEMBER);
+    render(<MemberDetailScreen storeId="s1" memberId="m1" />);
+    await screen.findByRole('heading', { name: '근로조건' });
+    expect(screen.queryByRole('heading', { name: '역할·권한' })).toBeNull();
   });
 });

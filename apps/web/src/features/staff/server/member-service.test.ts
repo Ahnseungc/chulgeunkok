@@ -82,6 +82,24 @@ describe('getMember', () => {
   });
 });
 
+describe('getMember — 역할·권한 변경 버튼 (staff §5.2)', () => {
+  const canEditRoleOf = async (memberId: string, actorUserId = 'owner') =>
+    (await getMember(db, { storeId: 'store', actorUserId, memberId })).canEditRole;
+
+  it('사장님은 재직 중인 직원·매니저의 역할을 바꿀 수 있다', async () => {
+    expect([await canEditRoleOf('m-a'), await canEditRoleOf('m-manager')]).toEqual([true, true]);
+  });
+
+  it('사장님 본인, 퇴사한 직원, 매니저가 볼 때는 숨긴다', async () => {
+    await db.membership.update({ where: { id: 'm-b' }, data: { status: 'INACTIVE', leftAt: NOW } });
+    expect([await canEditRoleOf('m-owner'), await canEditRoleOf('m-b'), await canEditRoleOf('m-a', 'manager')]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
 describe('getMember — 시급 노출 (auth §4.2)', () => {
   it('PAYROLL_READ로만 들어온 Manager는 휴대폰 인증 전엔 근로조건 대신 인증 안내를 받고, 인증하면 본다', async () => {
     await db.membership.update({ where: { id: 'm-manager' }, data: { permissions: ['PAYROLL_READ'] } });
