@@ -185,6 +185,7 @@ model Store {
   attendances           Attendance[]
   subscriptions         Subscription[]
   payslips              Payslip[]
+  qrDesign              StoreQrDesign?
 }
 
 model Membership {
@@ -210,16 +211,39 @@ model Membership {
 }
 
 model StoreQrToken {
-  id        String    @id @default(cuid())
-  storeId   String
-  tokenHash String    @unique // SHA-256, 원문 저장 금지
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  revokedAt DateTime? @db.Timestamptz(3)
+  id              String    @id @default(cuid())
+  storeId         String
+  tokenHash       String    @unique // SHA-256, 원문 평문 저장 금지
+  // AES-256-GCM "v1.<iv>.<ct+tag>". 사장님 재조회용 (docs/specs/qr-card §3.1). 이전 토큰은 null
+  tokenCiphertext String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  revokedAt       DateTime? @db.Timestamptz(3)
 
   store Store @relation(fields: [storeId], references: [id])
 
   // 매장당 활성 토큰 1개: raw SQL 부분 유니크
   @@index([storeId])
+}
+
+/// QR 카드 레이아웃 (docs/specs/qr-card §4.1)
+enum QrCardLayout {
+  STAND // 탁상 스탠드 A6 세로 (105×148mm)
+  STICKER // 스티커 80×80mm
+}
+
+/// 매장 QR 카드 디자인. 재발급해도 그대로 둔다 (docs/specs/qr-card §4.1·§8)
+model StoreQrDesign {
+  storeId     String       @id
+  layout      QrCardLayout @default(STAND)
+  color       String       @default("kok") // 프리셋 키 (qr-card §4.2)
+  title       String // 1~20자
+  message     String // 0~40자
+  logo        Bytes? // PNG/JPEG, 200KB 이하 (qr-card §4.3)
+  logoMime    String?
+  updatedById String // 세션 사용자. User 관계 없이 문자열
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model StoreInvitation {

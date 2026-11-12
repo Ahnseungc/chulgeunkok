@@ -127,7 +127,8 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 | 항목 | 값 |
 | --- | --- |
 | 원문 | 32바이트 난수, base64url (43자) |
-| 저장 | `sha256(원문)` hex → `tokenHash` |
+| 저장 | `sha256(원문)` hex → `tokenHash` (출퇴근 판정은 이것만) |
+| 암호문 | AES-256-GCM `v1.<iv>.<ct+tag>` → `tokenCiphertext`. 키 `QR_TOKEN_ENC_KEY` (docs/specs/qr-card §3.1) |
 | URL | `https://<도메인>/p/<원문>` |
 | 활성 | 매장당 1개 (`revokedAt IS NULL`, 부분 유니크) |
 
@@ -139,15 +140,13 @@ User당 Owner 매장 10개 (남용 방지). 초과 시 `409 STORE_LIMIT_REACHED`
 
 ### 5.3 원문 재조회
 
-원문은 저장하지 않으므로 다시 볼 수 없다. 출력물을 잃어버리면 재발급한다.
-
-> 대안 검토: 원문을 KMS 암호화로 저장해 재출력을 허용. 사장님이 스티커를 다시 뽑을 일이 잦다면 P1에서 도입. ponytail: MVP는 재발급으로 충분하다.
+Owner는 `GET /stores/:storeId/qr` 로 다시 볼 수 있다 (docs/specs/qr-card §3.2). 원문은 암호문으로만 저장하고, 이 기능 전에 만든 토큰(암호문 없음)은 `url: null` 이라 재발급을 안내한다.
 
 ### 5.4 출력
 
-- 매장 생성 직후와 설정의 "새 QR 만들기" 직후 화면에서 QR 미리보기 + 인쇄 + PNG 저장. 별도 QR 페이지는 두지 않는다 (원문을 다시 볼 수 없으므로).
-- QR 이미지는 클라이언트에서 생성 (원문은 재발급 직후 메모리에만).
-- P1: A6 스티커 레이아웃(`assets/brand/출근콕-QR스티커.png`) 인쇄용 템플릿.
+- 매장 생성 직후와 설정의 "새 QR 만들기" 직후 화면에서 QR 미리보기 + 인쇄 + PNG 저장 + "QR 카드 만들기" 링크 (docs/specs/qr-card).
+- QR 이미지는 클라이언트에서 생성.
+- 스탠드·스티커 카드 제작은 QR 카드 화면(`/owner/[storeId]/qr-card`, docs/specs/qr-card)이 맡는다.
 
 ## 6. 사업장 규모 신고
 
