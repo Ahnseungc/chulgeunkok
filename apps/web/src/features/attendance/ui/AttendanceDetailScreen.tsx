@@ -18,9 +18,15 @@ import InlineAlert from '@/shared/ui/InlineAlert';
 import LabeledTextField from '@/shared/ui/LabeledTextField';
 import { TEXT_PLACEHOLDER } from '@/shared/ui/text-placeholder';
 
-import type { AttendanceDetailDto, AttendanceSnapshot } from '../model/attendance-admin-types';
+import type {
+  AttendanceDetailDto,
+  AttendanceRevisionDto,
+  AttendanceSnapshot,
+  BreakSnapshot,
+} from '../model/attendance-admin-types';
 
 import { AttendanceBadges } from './AttendancesScreen';
+import BreakEditSheet from './BreakEditSheet';
 import { AppLink } from '@/shared/ui/AppLink';
 import ScreenHeader from '@/shared/ui/ScreenHeader';
 
@@ -76,9 +82,9 @@ export default function AttendanceDetailScreen({ storeId, attendanceId }: Attend
               </AppLink>
             </PageStaggerEntranceItem>
           ) : null}
-          {hasRecordedBreaks(data.breaks) ? (
+          {data.status === 'CLOSED' || hasRecordedBreaks(data.breaks) ? (
             <PageStaggerEntranceItem>
-              <BreakList detail={data} />
+              <BreakList detail={data} onSaved={detail.reload} />
             </PageStaggerEntranceItem>
           ) : null}
           <PageStaggerEntranceItem>
@@ -202,8 +208,18 @@ function clipBreak(attendanceBreak: BreakRow, detail: AttendanceDetailDto): { st
 
 const clockOf = (ms: number) => formatClock(new Date(ms).toISOString());
 
-/** 직원이 남긴 휴게 (읽기 전용). 있으면 정산은 소정 휴게 대신 이 시간을 뺀다 (docs/specs/attendance §3.6) */
-function BreakList({ detail }: { detail: AttendanceDetailDto }) {
+interface BreakListProps {
+  detail: AttendanceDetailDto;
+  onSaved: () => Promise<void>;
+}
+
+/**
+ * 직원이 남긴 휴게. 있으면 정산은 소정 휴게 대신 이 시간을 뺀다 (docs/specs/attendance §3.6).
+ * 끝난 근무(CLOSED)는 "휴게 고치기" 시트로 통째로 바꿀 수 있다 (§7.6)
+ */
+function BreakList({ detail, onSaved }: BreakListProps) {
+  const [editing, setEditing] = useState(false);
+  const clockOutAt = detail.status === 'CLOSED' ? detail.clockOutAt : null;
   const rows = countedBreaks(detail.breaks).map((attendanceBreak) => ({ id: attendanceBreak.id, ...clipBreak(attendanceBreak, detail) }));
   const totalMs = rows.reduce((sum, row) => sum + (row.endMs === null ? 0 : row.endMs - row.startMs), 0);
   return (
@@ -211,17 +227,31 @@ function BreakList({ detail }: { detail: AttendanceDetailDto }) {
       <Text as="h2" id="breaks-heading" textStyle="t6Bold">
         휴게 기록
       </Text>
-      <ul className="review-list">
-        {rows.map((row) => (
-          <li key={row.id} className="review-list__item">
-            {clockOf(row.startMs)} ~ {row.endMs === null ? '휴게 중' : `${clockOf(row.endMs)} · ${formatDuration(row.endMs - row.startMs)}`}
-          </li>
-        ))}
-      </ul>
-      <Text textStyle="t4Regular">합계 {formatDuration(totalMs)}</Text>
+      {rows.length > 0 ? (
+        <>
+          <ul className="review-list">
+            {rows.map((row) => (
+              <li key={row.id} className="review-list__item">
+                {clockOf(row.startMs)} ~ {row.endMs === null ? '휴게 중' : `${clockOf(row.endMs)} · ${formatDuration(row.endMs - row.startMs)}`}
+              </li>
+            ))}
+          </ul>
+          <Text textStyle="t4Regular">합계 {formatDuration(totalMs)}</Text>
+        </>
+      ) : (
+        <Text textStyle="t4Regular">남긴 휴게가 없어요</Text>
+      )}
       <Text textStyle="t3Regular" color="fg.neutralMuted">
         직원이 남긴 휴게가 있으면 소정 휴게 대신 이 시간을 빼요.
       </Text>
+      {clockOutAt ? (
+        <>
+          <ActionButton variant="neutralWeak" size="medium" onClick={() => setEditing(true)}>
+            휴게 고치기
+          </ActionButton>
+          <BreakEditSheet open={editing} detail={{ ...detail, clockOutAt }} onClose={() => setEditing(false)} onSaved={onSaved} />
+        </>
+      ) : null}
     </section>
   );
 }
@@ -230,6 +260,17 @@ const describeSnapshot = (snapshot: AttendanceSnapshot | null) =>
   snapshot
     ? `${formatClock(snapshot.clockInAt)} ~ ${snapshot.clockOutAt ? formatClock(snapshot.clockOutAt) : '없음'}${snapshot.status === 'VOID' ? ' (무효)' : ''}${snapshot.breakWaived ? ' · 휴게 못 함' : ''}`
     : '없음';
+
+const describeBreaks = (breaks: BreakSnapshot[] | undefined) =>
+  breaks?.length
+    ? breaks.map((row) => `${formatClock(row.startAt)}~${row.endAt ? formatClock(row.endAt) : '휴게 중'}`).join(', ')
+    : '없음';
+
+/** 휴게를 고친 이력(§7.6)은 휴게만, 그 밖은 근무 시각·상태를 앞뒤로 보여 준다. 이전 이력에는 breaks 가 없다 */
+const describeRevision = ({ before, after }: AttendanceRevisionDto) =>
+  after.breaks
+    ? `휴게 ${describeBreaks(before?.breaks)} → ${describeBreaks(after.breaks)}`
+    : `${describeSnapshot(before)} → ${describeSnapshot(after)}`;
 
 function RevisionList({ detail }: { detail: AttendanceDetailDto }) {
   if (detail.revisions.length === 0) return null;
@@ -245,7 +286,7 @@ function RevisionList({ detail }: { detail: AttendanceDetailDto }) {
               {revision.actorName} · {new Date(revision.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
             </Text>
             <Text textStyle="t4Regular" color="fg.neutralMuted">
-              {describeSnapshot(revision.before)} → {describeSnapshot(revision.after)}
+              {describeRevision(revision)}
             </Text>
             <Text textStyle="t4Regular">{revision.reason}</Text>
           </li>

@@ -305,7 +305,7 @@ async function assertNoOverlap(
   if (overlapping) throw new ApiError('ATTENDANCE_CONFLICT');
 }
 
-function snapshot(attendance: Pick<Attendance, 'clockInAt' | 'clockOutAt' | 'status' | 'breakWaived'>) {
+export function snapshot(attendance: Pick<Attendance, 'clockInAt' | 'clockOutAt' | 'status' | 'breakWaived'>) {
   return {
     clockInAt: attendance.clockInAt.toISOString(),
     clockOutAt: attendance.clockOutAt?.toISOString() ?? null,
