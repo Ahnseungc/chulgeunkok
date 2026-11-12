@@ -111,6 +111,14 @@ describe('AddAttendanceSheet', () => {
     expect((submit as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('출근과 퇴근이 같은 시각이면 24시간 근무가 되지 않게 추가 버튼을 끄고 안내한다', async () => {
+    stubApi({ ok: true, body: {} });
+    const sheet = await openSheet();
+    fillForm(sheet, { 출근: '18:00', 퇴근: '18:00' });
+    expect((within(sheet).getByRole('button', { name: '추가' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(sheet).getByText('출근과 퇴근 시각이 같아요. 다르게 넣어 주세요.')).toBeTruthy();
+  });
+
   it('추가하면 값을 보내고 토스트를 띄운 뒤 목록을 다시 불러온다', async () => {
     const calls = stubApi({ ok: true, body: { id: 'a1' } });
     const sheet = await openSheet();
