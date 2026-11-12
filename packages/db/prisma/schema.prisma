@@ -583,7 +583,6 @@ model PayslipLine {
   @@index([payslipId])
 }
 
-// 기기 1대 = FCM 토큰 1개 (docs/specs/payslip §6)
 // 출퇴근 알림 발송 기록. 유니크로 중복 발송을 막는다 (docs/specs/notifications §5)
 enum ShiftReminderKind {
   START_SOON // 소정 출근 10분 전
@@ -604,6 +603,7 @@ model ShiftReminder {
   @@unique([membershipId, kind, scheduledAt])
 }
 
+// 기기 1대 = FCM 토큰 1개 (docs/specs/payslip §6)
 model PushToken {
   id                 String   @id @default(cuid())
   deviceCredentialId String   @unique

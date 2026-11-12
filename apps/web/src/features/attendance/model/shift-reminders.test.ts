@@ -48,11 +48,19 @@ describe('shiftReminderSlots', () => {
 describe('dueShiftReminders', () => {
   const kindsAt = (local: string, versions = [terms()]) => dueShiftReminders(versions, kst(local)).map((slot) => slot.kind);
 
-  it('(지금 − 5분, 지금] 에 든 알림만', () => {
-    expect(kindsAt('2026-11-16T17:50:00')).toEqual(['START_SOON']);
-    expect(kindsAt('2026-11-16T17:54:59')).toEqual(['START_SOON']);
-    expect(kindsAt('2026-11-16T17:55:00')).toEqual([]);
+  it('시각이 되기 전엔 안 보낸다', () => {
     expect(kindsAt('2026-11-16T17:49:59')).toEqual([]);
+    expect(kindsAt('2026-11-16T17:50:00')).toEqual(['START_SOON']);
+  });
+
+  it('10분 전 알림은 출근 시각 전까지만 (늦은 실행 따라잡기)', () => {
+    expect(kindsAt('2026-11-16T17:59:59')).toEqual(['START_SOON']);
+    expect(kindsAt('2026-11-16T18:00:00')).toEqual(['START_NOW']);
+  });
+
+  it('정시 알림은 15분 늦게까지만', () => {
+    expect(kindsAt('2026-11-16T18:14:59')).toEqual(['START_NOW']);
+    expect(kindsAt('2026-11-16T18:15:00')).toEqual([]);
   });
 
   it('어제 시작한 근무의 퇴근 알림', () => {

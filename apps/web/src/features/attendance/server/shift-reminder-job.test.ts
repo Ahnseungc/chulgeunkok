@@ -116,6 +116,41 @@ describe('runShiftReminderJob', () => {
     expect([messages, result.skipped, await db.shiftReminder.count()]).toEqual([[], 1, 0]);
   });
 
+  it('소정 출근 2시간보다 일찍 출근해 근무 중이어도 출근 알림을 건너뛴다', async () => {
+    await createAttendance({ clockInAt: '2026-11-16T15:00:00' });
+    const { messages } = await run('2026-11-16T17:52:00');
+    expect(messages).toEqual([]);
+  });
+
+  it('실행이 밀려도 놓친 알림을 다음 실행이 보낸다', async () => {
+    await run('2026-11-16T17:49:50');
+    const late = await run('2026-11-16T17:55:10');
+    expect(late.messages.map((message) => message.title)).toEqual(['10분 뒤 출근이에요']);
+  });
+
+  it('겹치는 창에서 실행해도 한 번씩만 보낸다', async () => {
+    const push = fakePush();
+    for (const at of ['17:50:00', '17:55:00', '18:00:00', '18:05:00', '18:10:00']) await run(`2026-11-16T${at}`, push);
+    expect(push.sent.map(([, message]) => message.title)).toEqual(['10분 뒤 출근이에요', '출근 시간이에요']);
+  });
+
+  it('출근 시각이 지난 뒤엔 10분 전 알림을 보내지 않는다', async () => {
+    const { messages } = await run('2026-11-16T18:02:00');
+    expect(messages.map((message) => message.title)).toEqual(['출근 시간이에요']);
+  });
+
+  it('정시 알림은 15분 넘게 늦으면 보내지 않는다', async () => {
+    const { result } = await run('2026-11-16T18:15:00');
+    expect(result.due).toBe(0);
+  });
+
+  it('근무 중이 아니라 건너뛴 퇴근 알림도 늦게 출근하면 창 안에서 간다', async () => {
+    await run('2026-11-16T23:00:00');
+    await createAttendance({ clockInAt: '2026-11-16T23:02:00' });
+    const { messages } = await run('2026-11-16T23:05:00');
+    expect(messages.map((message) => message.title)).toEqual(['퇴근 시간이에요']);
+  });
+
   it('일찍 출근하고 퇴근했어도 출근 알림을 건너뛴다', async () => {
     await createAttendance({ clockInAt: '2026-11-16T16:30:00', clockOutAt: '2026-11-16T17:50:00' });
     const { messages } = await run('2026-11-16T18:00:00');
