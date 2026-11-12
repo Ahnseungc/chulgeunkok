@@ -133,14 +133,14 @@ interface BreakResult { attendanceId: string; break: { id: string; startAt: stri
 - 검토: 남긴 휴게 합계가 법정 휴게보다 짧으면 그 근무에 `BREAK_SHORTAGE` (`labor` §5).
 - 사장님 근태 상세에 휴게 기록(시각·합계, 근무 안 부분으로 잘라서)을 읽기 전용으로 보여 준다. 휴게 편집은 이번 범위 밖이다 (잘못 남긴 휴게는 아직 고칠 수 없다).
 
-## 4. 출근 위치
+## 4. 출근 위치 (인덱스 Q4 결정됨)
 
 - `location`이 있고 매장 좌표가 있으면 haversine 거리 계산.
 - `clockInOutsideArea = distance > 200m && accuracyM <= 100`. 정확도가 100m를 넘으면 `null`(판정 불가).
 - 관리자 근태 목록에 "매장 밖" 배지. 직원 화면에는 보이지 않는다.
 - 위치는 출근 1회만. 퇴근 위치는 받지 않는다. 1년 뒤 일배치로 좌표 3개 필드를 `null`로 지운다.
 
-## 5. 퇴근 누락
+## 5. 퇴근 누락 (인덱스 Q3 결정됨)
 
 ### 5.1 자동 전환 (10분 주기 배치)
 

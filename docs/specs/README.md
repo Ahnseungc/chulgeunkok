@@ -137,11 +137,11 @@ interface ApiError {
 | # | 질문 | 영향 |
 | --- | --- | --- |
 | Q1 | 역할·권한·직원 상태 변경 감사 로그를 MVP에 넣을지 — **결정됨 (2026-11-12): 넣는다.** `MembershipEvent`, 직원 상세(사장님)에 "변경 이력" | staff §4.3 (`0010_membership_event`) |
-| Q2 | SMS 공급자 계약 (어댑터는 구현됨, 지금은 `dev`) | auth §4.1 |
-| Q3 | 퇴근 누락 자동 전환 기준 (소정 종료 + 4h 가정) | attendance §5 |
-| Q4 | "매장 밖" 판정 반경 (200m 가정) | attendance §4 |
-| Q5 | 원 미만 올림 정책 수용성 | payroll §3 |
-| Q6 | 법정수당 세부 규칙 (노무사 검증) | labor §4 |
+| Q2 | SMS 공급자 계약 (어댑터는 구현됨, 지금은 `dev`) — **MVP 제외.** 공급자는 출시 때 정한다 | auth §4.1 |
+| Q3 | 퇴근 누락 자동 전환 기준 — **결정됨 (2026-11-12): 소정 종료 + 4시간.** 소정 없음·추가 근무·주마다 다른 근로조건은 출근 + 16시간 (`MISSING_AFTER_*_MS`) | attendance §5 |
+| Q4 | "매장 밖" 판정 반경 — **결정됨 (2026-11-12): 200m.** 위치 정확도가 100m를 넘으면 판정하지 않는다 (`OUTSIDE_AREA_RADIUS_M`) | attendance §4 |
+| Q5 | 원 미만 올림 정책 — **결정됨 (2026-11-12): 직원·기간 합계에서 1회 올림.** | payroll §3 |
+| Q6 | 법정수당 세부 규칙 (노무사 검증) — **MVP 제외.** 기준값은 설계 가정이고 화면은 모두 "예상" | labor §4 |
 | Q7 | 관리자 근태 직접 추가를 P0에 넣을지 — **결정됨 (2026-11-12): 넣는다.** Owner·Manager가 빠진 근무를 만들고 `AttendanceRevision.before = null` | attendance §7.5 |
 | Q8 | 급여 권한 받은 Manager에게 휴대폰 인증을 추가로 요구할지 — **결정됨 (2026-11-12): 요구한다.** `PAYROLL_READ` Manager는 `User.phone`이 있어야 급여를 본다. 없으면 `403 PHONE_VERIFICATION_REQUIRED`, 대시보드는 금액만 숨김 | auth §4.2 |
 

@@ -114,7 +114,7 @@ basePayEstimate = Math.ceil(
 
 ### 3.6 예상 주휴수당·가산수당 (PRD §6.3)
 
-`model/allowances.ts` `estimateAllowances`. 근태·근로조건·규모 신고 조회는 `server/allowance-service.ts` `loadPeriodWithAllowances` 하나로 정산 미리보기·직원 본인(`/me`)·대시보드가 같이 쓴다. 직원·기간마다 항목별 합계에서 1회 원 미만 올림. 기준값은 노무사 검증 전 설계 가정이고 모두 "예상"이다.
+`model/allowances.ts` `estimateAllowances`. 근태·근로조건·규모 신고 조회는 `server/allowance-service.ts` `loadPeriodWithAllowances` 하나로 정산 미리보기·직원 본인(`/me`)·대시보드가 같이 쓴다. 직원·기간마다 항목별 합계에서 1회 원 미만 올림. 원 미만 올림은 결정됨(인덱스 Q5). 법정수당 기준값은 노무사 검증 전 설계 가정이고(Q6, MVP 제외) 모두 "예상"이다.
 
 **주 단위 항목은 그 주 일요일이 속한 기간에 넣는다.** 끝난 주(일요일 < 오늘)만 센다. 그래서 기간 첫 주 월요일부터 근태를 읽는다.
 
