@@ -7,7 +7,7 @@ import { ApiError } from '@/server/http/api-error';
 
 import { QR_CARD_DEFAULT_MESSAGE } from '../model/qr-card-types';
 
-import { deleteQrLogo, getQrDesign, getQrLogo, saveQrDesign, saveQrLogo } from './qr-design-service';
+import { defaultQrCardTitle, deleteQrLogo, getQrDesign, getQrLogo, saveQrDesign, saveQrLogo } from './qr-design-service';
 
 let db: PrismaClient;
 let close: () => Promise<void>;
@@ -15,6 +15,8 @@ let storeId: string;
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8)]);
 const PNG_URL = `data:image/png;base64,${PNG.toString('base64')}`;
+/** 매장 이름 상한 30자 (store schema) */
+const NAME_30 = '가나다라마바사아자차'.repeat(3);
 const BODY = { layout: 'STICKER', color: 'blue', title: '내 카페', message: '' } as const;
 
 beforeEach(async () => {
@@ -97,6 +99,18 @@ describe('qr-design-service', () => {
     expect(again).toMatchObject({ color: 'green', hasLogo: true });
   });
 
+  it('30자 매장 이름은 기본 title 20자로 자른다', async () => {
+    await db.store.update({ where: { id: storeId }, data: { name: NAME_30 } });
+    expect((await getQrDesign(db, owner())).title).toBe(NAME_30.slice(0, 20));
+  });
+
+  it('30자 매장 이름 매장에 로고를 먼저 올려도 title은 20자로 저장된다', async () => {
+    await db.store.update({ where: { id: storeId }, data: { name: NAME_30 } });
+    expect((await saveQrLogo(db, { ...owner(), dataUrl: PNG_URL })).title).toBe(NAME_30.slice(0, 20));
+    const row = await db.storeQrDesign.findUniqueOrThrow({ where: { storeId } });
+    expect(row.title).toBe(NAME_30.slice(0, 20));
+  });
+
   it('Manager·Employee는 FORBIDDEN', async () => {
     for (const actorUserId of ['manager', 'employee']) {
       const input = { storeId, actorUserId };
@@ -112,5 +126,17 @@ describe('qr-design-service', () => {
         await expect(call).rejects.toBeInstanceOf(ApiError);
       }
     }
+  });
+});
+
+describe('defaultQrCardTitle (§4.1)', () => {
+  it('20자 이하는 그대로', () => {
+    expect(defaultQrCardTitle('골목카페')).toBe('골목카페');
+  });
+
+  it('이모지를 반으로 가르지 않고 UTF-16 20 이하로 자른다', () => {
+    const title = defaultQrCardTitle(`${'가'.repeat(19)}🍰`);
+    expect(title).toBe('가'.repeat(19));
+    expect(title.length).toBeLessThanOrEqual(20);
   });
 });

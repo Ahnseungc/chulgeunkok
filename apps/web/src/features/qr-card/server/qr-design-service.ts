@@ -5,7 +5,12 @@ import type { PrismaClient, StoreQrDesign } from '@chulgeunkok/db';
 import { requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
-import { QR_CARD_DEFAULT_MESSAGE, type QrCardColorKey, type QrCardDesignDto } from '../model/qr-card-types';
+import {
+  QR_CARD_DEFAULT_MESSAGE,
+  QR_CARD_TITLE_MAX,
+  type QrCardColorKey,
+  type QrCardDesignDto,
+} from '../model/qr-card-types';
 import type { SaveQrDesignBody } from '../schema';
 
 import { parseLogoDataUrl } from './logo-image';
@@ -34,7 +39,20 @@ async function storeName(db: PrismaClient, storeId: string): Promise<string> {
   return store.name;
 }
 
-/** 저장한 적 없으면 기본값 (§4.1). 매장 이름은 처음 저장할 때만 title로 고정된다 */
+/**
+ * 매장 이름(30자까지)을 카드 제목 상한(20자, §4.1)에 맞춰 자른다.
+ * 코드 포인트 단위라 이모지를 반으로 가르지 않고, 검증(zod max, UTF-16 길이)도 넘지 않는다.
+ */
+export function defaultQrCardTitle(name: string): string {
+  let title = '';
+  for (const char of name) {
+    if (title.length + char.length > QR_CARD_TITLE_MAX) break;
+    title += char;
+  }
+  return title.trimEnd();
+}
+
+/** 저장한 적 없으면 기본값 (§4.1). 매장 이름(20자로 자름)은 처음 저장할 때만 title로 고정된다 */
 export async function getQrDesign(db: PrismaClient, input: QrDesignActor): Promise<QrCardDesignDto> {
   await requireOwner(db, input);
   const row = await db.storeQrDesign.findUnique({ where: { storeId: input.storeId } });
@@ -42,7 +60,7 @@ export async function getQrDesign(db: PrismaClient, input: QrDesignActor): Promi
   return {
     layout: 'STAND',
     color: 'kok',
-    title: await storeName(db, input.storeId),
+    title: defaultQrCardTitle(await storeName(db, input.storeId)),
     message: QR_CARD_DEFAULT_MESSAGE,
     hasLogo: false,
     saved: false,
@@ -74,7 +92,7 @@ export async function saveQrLogo(
     where: { storeId: input.storeId },
     create: {
       storeId: input.storeId,
-      title: await storeName(db, input.storeId),
+      title: defaultQrCardTitle(await storeName(db, input.storeId)),
       message: QR_CARD_DEFAULT_MESSAGE,
       ...logo,
     },
