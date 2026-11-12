@@ -3,6 +3,13 @@ import { Text } from '@seed-design/react';
 import type { DashboardDto } from '../model/dashboard-types';
 import { AppLink } from '@/shared/ui/AppLink';
 
+const HEADCOUNT_MISMATCH_DESCRIPTION = {
+  MAYBE_FIVE_OR_MORE: '지난달 출근 기록으로는 5인 이상일 수 있어요',
+  MAYBE_UNDER_5: '지난달 출근 기록으로는 5인 미만일 수 있어요',
+} as const;
+
+const HEADCOUNT_CARD_TITLE = '사업장 규모 확인';
+
 interface TodoCardsProps {
   storeId: string;
   todo: DashboardDto['todo'];
@@ -18,6 +25,7 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
   const payslipsPath = todo.payslipDraftPeriodStart
     ? (`/owner/${storeId}/payslips?periodStart=${todo.payslipDraftPeriodStart}` as const)
     : (`/owner/${storeId}/payslips` as const);
+  const settingsPath = `/owner/${storeId}/settings` as const;
   const cards = [
     { count: todo.termsMissing, title: '근로조건 필요', description: '근로조건이 없으면 출근할 수 없어요', href: membersPath },
     { count: todo.missingClockOut, title: '퇴근 누락', description: '퇴근 시각을 넣어 주세요', href: missingPath },
@@ -25,6 +33,12 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
     { count: todo.laborReviews ?? 0, title: '확인할 안내', description: '최저임금·휴게·주휴 안내', href: membersPath },
     { count: todo.pendingInvitations, title: '대기 중 초대', description: '아직 수락하지 않은 등록 QR·링크', href: membersPath },
     { count: todo.payslipDrafts ?? 0, title: '명세서 확인', description: '확인하고 직원에게 보내 주세요', href: payslipsPath },
+    {
+      count: todo.headcountMismatch ? 1 : 0,
+      title: HEADCOUNT_CARD_TITLE,
+      description: todo.headcountMismatch ? HEADCOUNT_MISMATCH_DESCRIPTION[todo.headcountMismatch] : '',
+      href: settingsPath,
+    },
   ].filter((card) => card.count > 0);
 
   if (cards.length === 0) return null;
@@ -37,9 +51,7 @@ export default function TodoCards({ storeId, todo }: TodoCardsProps) {
         {cards.map((card) => {
           const content = (
             <>
-              <Text textStyle="t5Bold">
-                {card.title} {card.count}건
-              </Text>
+              <Text textStyle="t5Bold">{card.title === HEADCOUNT_CARD_TITLE ? card.title : `${card.title} ${card.count}건`}</Text>
               <Text textStyle="t4Regular" color="fg.neutralMuted">
                 {card.description}
               </Text>

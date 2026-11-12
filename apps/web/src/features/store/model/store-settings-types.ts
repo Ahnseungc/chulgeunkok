@@ -1,5 +1,7 @@
 import type { PayPeriod } from '@/features/payroll/model/work-time';
 
+import type { HeadcountEstimate, HeadcountMismatch } from './headcount-estimate';
+
 export type HeadcountBandValue = 'UNDER_5' | 'FIVE_OR_MORE' | 'UNKNOWN';
 
 /** GET /stores/:storeId/settings 응답. docs/specs/store §4~6 */
@@ -19,6 +21,8 @@ export interface StoreSettingsDto {
     current: HeadcountBandValue;
     history: { band: HeadcountBandValue; effectiveFrom: string; declaredByName: string; note: string | null }[];
   };
+  /** 직전 달 출근 기록 참고 추정치. 가동일이 없으면 null (docs/specs/store §6.4) */
+  headcountEstimate: (HeadcountEstimate & { month: string; mismatch: HeadcountMismatch | null }) | null;
   /** 지금 쓰는 매장 QR 발급 시각 */
   qrIssuedAt: string | null;
 }

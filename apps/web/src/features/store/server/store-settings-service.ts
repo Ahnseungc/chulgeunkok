@@ -6,6 +6,7 @@ import { ApiError } from '@/server/http/api-error';
 
 import type { StoreSettingsDto } from '../model/store-settings-types';
 
+import { loadHeadcountEstimate } from './headcount-estimate-service';
 import { issueQrToken } from './qr-token';
 
 /** 사업장 규모 신고는 오늘부터 이 기간 안의 날짜만 (docs/specs/store §6.1) */
@@ -22,7 +23,7 @@ export async function getStoreSettings(
   input: { storeId: string; actorUserId: string; now: Date },
 ): Promise<StoreSettingsDto> {
   await requireMembership({ storeId: input.storeId, userId: input.actorUserId, action: 'STORE_ADMIN' }, db);
-  const [store, declarations, activeQr] = await Promise.all([
+  const [store, declarations, activeQr, headcountEstimate] = await Promise.all([
     db.store.findUniqueOrThrow({ where: { id: input.storeId } }),
     db.storeHeadcountDeclaration.findMany({
       where: { storeId: input.storeId },
@@ -30,6 +31,7 @@ export async function getStoreSettings(
       orderBy: { effectiveFrom: 'desc' },
     }),
     db.storeQrToken.findFirst({ where: { storeId: input.storeId, revokedAt: null } }),
+    loadHeadcountEstimate(db, { storeId: input.storeId, now: input.now }),
   ]);
   const today = toLocalDate(input.now);
   const config = payPeriodConfigOf(store);
@@ -54,6 +56,7 @@ export async function getStoreSettings(
         note: declaration.note,
       })),
     },
+    headcountEstimate,
     qrIssuedAt: activeQr?.createdAt.toISOString() ?? null,
   };
 }
