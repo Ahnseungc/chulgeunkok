@@ -115,7 +115,7 @@ async function countTodo(
   input: { actor: Membership; now: Date; today: string },
 ): Promise<DashboardDto['todo']> {
   const storeId = input.actor.storeId;
-  const [termsMissing, missingClockOut, pendingCorrections, pendingInvitations] = await Promise.all([
+  const [termsMissing, missingClockOut, pendingCorrections, pendingInvitations, headcountMismatch] = await Promise.all([
     db.membership.count({
       where: {
         storeId,
@@ -131,6 +131,7 @@ async function countTodo(
     db.storeInvitation.count({
       where: { storeId, acceptedAt: null, revokedAt: null, expiresAt: { gt: input.now } },
     }),
+    loadHeadcountMismatch(db, { actor: input.actor, now: input.now }),
   ]);
   return {
     termsMissing,
@@ -139,8 +140,14 @@ async function countTodo(
     laborReviews: (await canAccessVerified(db, input.actor, 'LABOR_REVIEW')) ? await countSheetReviews(db, { ...input, storeId }) : null,
     pendingInvitations,
     ...(canAccessStore(input.actor, 'PAYSLIP_WRITE') ? await countPayslipDrafts(db, storeId) : NO_PAYSLIP_ACCESS),
-    headcountMismatch: input.actor.role === 'OWNER' ? (await loadHeadcountEstimate(db, { storeId, now: input.now }))?.mismatch ?? null : null,
+    headcountMismatch,
   };
+}
+
+/** 규모 신고값과 출근 기록 추정치가 다른지. 사장님만 (docs/specs/store §6.4) */
+async function loadHeadcountMismatch(db: PrismaClient, input: { actor: Membership; now: Date }) {
+  if (input.actor.role !== 'OWNER') return null;
+  return (await loadHeadcountEstimate(db, { storeId: input.actor.storeId, now: input.now }))?.mismatch ?? null;
 }
 
 const NO_PAYSLIP_ACCESS = { payslipDrafts: null, payslipDraftPeriodStart: null } as const;
