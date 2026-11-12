@@ -181,6 +181,21 @@ describe('acceptInvitation — 새 직원', () => {
     ]);
   });
 
+  it('퇴사 전 권한이 남아 있어도 새 직원 초대로 돌아오면 권한 없이 시작하고 이력이 남는다', async () => {
+    await db.membership.update({
+      where: { id: 'm-manager' },
+      data: { status: 'INACTIVE', leftAt: NOW, permissions: ['PAYROLL_READ'] },
+    });
+    await accept(await invite({ kind: 'JOIN', role: 'MANAGER', delivery: 'QR' }), { sessionUserId: 'manager', name: undefined });
+    const member = await db.membership.findUniqueOrThrow({ where: { id: 'm-manager' } });
+    const events = await db.membershipEvent.findMany({ where: { membershipId: 'm-manager' }, orderBy: { type: 'asc' } });
+    expect([member.status, member.permissions]).toEqual(['ACTIVE', []]);
+    expect(events.map((event) => [event.type, event.before, event.after])).toEqual([
+      ['PERMISSIONS_CHANGED', { permissions: ['PAYROLL_READ'] }, { permissions: [] }],
+      ['REACTIVATED', { status: 'INACTIVE' }, { status: 'ACTIVE' }],
+    ]);
+  });
+
   it('한 번 수락한 초대는 INVITATION_USED', async () => {
     const token = await invite({ kind: 'JOIN', role: 'EMPLOYEE', delivery: 'QR' });
     await accept(token);
