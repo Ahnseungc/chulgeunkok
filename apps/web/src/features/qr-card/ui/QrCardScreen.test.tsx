@@ -73,6 +73,23 @@ const stubApi = (qr: { url: string | null }) => {
   return calls;
 };
 
+/** PUT 응답을 테스트가 직접 끝낸다. 나머지 요청은 stubApi 와 같다 */
+const stubApiWithHeldPut = () => {
+  const calls: FetchCall[] = [];
+  const releases: (() => void)[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      const method = init.method ?? 'GET';
+      calls.push({ url, method, body: init.body ? JSON.parse(String(init.body)) : undefined });
+      if (url.endsWith('/qr')) return { ok: true, json: async () => ({ url: QR_URL, issuedAt: null }) };
+      if (method === 'PUT') await new Promise<void>((resolve) => releases.push(resolve));
+      return { ok: true, json: async () => savedDesign };
+    }),
+  );
+  return { calls, releases };
+};
+
 const putCalls = (calls: FetchCall[]) => calls.filter((call) => call.method === 'PUT');
 
 const openScreen = async (qr: { url: string | null } = { url: QR_URL }) => {
@@ -130,6 +147,30 @@ describe('QrCardScreen', () => {
         body: { layout: 'STAND', color: 'black', title: '골목카페', message: QR_CARD_DEFAULT_MESSAGE },
       },
     ]);
+  });
+
+  it('PUT 은 한 번에 하나, 보내는 동안 바뀐 값은 끝난 뒤 마지막 값으로 한 번 더', async () => {
+    const { calls, releases } = stubApiWithHeldPut();
+    render(<QrCardScreen storeId="s1" />);
+    await screen.findByDisplayValue('골목카페');
+    vi.useFakeTimers();
+
+    fireEvent.click(screen.getByRole('button', { name: '초록' }));
+    await act(async () => vi.advanceTimersByTime(AUTOSAVE_DELAY_MS));
+    fireEvent.click(screen.getByRole('button', { name: '검정' }));
+    await act(async () => vi.advanceTimersByTime(AUTOSAVE_DELAY_MS));
+    fireEvent.click(screen.getByRole('button', { name: '흰색' }));
+    await act(async () => vi.advanceTimersByTime(AUTOSAVE_DELAY_MS));
+    expect(putCalls(calls).map((call) => (call.body as { color: string }).color)).toEqual(['green']);
+    expect(screen.getByText('저장하고 있어요')).toBeTruthy();
+
+    await act(async () => releases[0]?.());
+    expect(putCalls(calls).map((call) => (call.body as { color: string }).color)).toEqual(['green', 'white']);
+    expect(screen.getByText('저장하고 있어요')).toBeTruthy();
+
+    await act(async () => releases[1]?.());
+    expect(putCalls(calls)).toHaveLength(2);
+    expect(screen.getByText('저장했어요')).toBeTruthy();
   });
 
   it('매장 이름을 비우면 PUT 하지 않고 글자 수 안내', async () => {
