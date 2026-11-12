@@ -114,7 +114,7 @@ production에서 `dev`이면 서버 시작 시가 아니라 **발송 시점에**
 | 근로조건 조회·검토 안내 (`TERMS_READ`·`LABOR_REVIEW`, 시급 포함) | `TERMS_EDIT`이 없으면 위와 같은 403. 직원 상세는 근로조건 구역을 숨기고, 대시보드는 검토 수를 숨긴다. `TERMS_EDIT` Manager는 그대로 |
 | 사장님 | 묻지 않는다 (OTP로만 기기를 등록한다) |
 
-- 판정은 공통 가드 `requireMembership`가 `PAYROLL` 동작일 때 한다. 숨기는 곳은 `canAccessVerified` (`PAYROLL`·`TERMS_READ`·`LABOR_REVIEW`). 본인 근로조건은 인증 없이 본다.
+- 판정은 `access.needsVerifiedPhone` → 공통 가드 `requireMembership` 한 곳에서 한다 (인덱스 §2.5). `PAYROLL`은 항상, `TERMS_READ`·`LABOR_REVIEW`는 `TERMS_EDIT`이 없는 Manager일 때 인증을 본다. 막지 않고 숨기는 곳은 `canAccessVerified` (같은 판정). 본인 근로조건은 인증 없이 본다.
 - 화면: 이 코드를 받으면 문구 + "휴대폰 인증하기" → `/owner/login?verify=1&next=<지금 경로>`. 대시보드는 이번 정산 기간 카드에 같은 안내.
 - **번호 붙이기**: `verify=1`이면 `POST /auth/otp/verify`에 `attach: true`를 보낸다. 서버는 기기 세션 사용자에게 번호만 넣고 기기·쿠키는 바꾸지 않는다 (응답에 새 쿠키 없음, 앱 연결 코드도 보내지 않음). 세션이 없으면 `UNAUTHENTICATED`.
 - 붙일 수 있는 사람: **번호가 없고**, 어느 매장에서든 **ACTIVE `PAYROLL_READ` Manager**. 아니면 `FORBIDDEN` (직원이 번호를 붙여 OTP로 기기를 늘리지 못하게, §3.4).
