@@ -15,7 +15,7 @@ import {
 import { loadPeriodWithAllowances } from '@/features/payroll/server/allowance-service';
 import { loadHeadcountEstimate } from '@/features/store/server/headcount-estimate-service';
 import { canAccessStore } from '@/server/auth/access';
-import { requireMembership } from '@/server/auth/require-membership';
+import { canReadPayroll, requireMembership } from '@/server/auth/require-membership';
 
 import type { DashboardDto } from '../model/dashboard-types';
 
@@ -30,11 +30,12 @@ export async function getDashboard(
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const today = toLocalDate(input.now);
 
-  const [working, todayStatus, todo, currentPeriod] = await Promise.all([
+  const [working, todayStatus, todo, currentPeriod, showPay] = await Promise.all([
     findWorking(db, input.storeId),
     findTodayStatus(db, { storeId: input.storeId, today, now: input.now }),
     countTodo(db, { actor, now: input.now, today }),
     summarizeCurrentPeriod(db, { storeId: input.storeId, today, payPeriod: payPeriodConfigOf(store) }),
+    canReadPayroll(db, actor),
   ]);
 
   return {
@@ -45,8 +46,10 @@ export async function getDashboard(
     todo,
     currentPeriod: {
       ...currentPeriod,
-      basePayEstimate: canAccessStore(actor, 'PAYROLL') ? currentPeriod.basePayEstimate : null,
-      allowanceEstimate: canAccessStore(actor, 'PAYROLL') ? currentPeriod.allowanceEstimate : null,
+      // 급여 권한 Manager가 휴대폰 인증 전이면 대시보드 전체를 막지 않고 금액만 숨긴다 (auth §4.2)
+      basePayEstimate: showPay ? currentPeriod.basePayEstimate : null,
+      allowanceEstimate: showPay ? currentPeriod.allowanceEstimate : null,
+      phoneVerificationRequired: !showPay && canAccessStore(actor, 'PAYROLL'),
     },
   };
 }

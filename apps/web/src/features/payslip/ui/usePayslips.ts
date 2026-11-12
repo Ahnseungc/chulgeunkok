@@ -33,7 +33,7 @@ function sendErrorText(error: unknown, items: readonly PayslipListItemDto[]): st
 export function usePayslips(storeId: string, initialPeriodStart?: string) {
   const [periodStart, setPeriodStart] = useState<string | undefined>(initialPeriodStart);
   const query = periodStart ? `?periodStart=${periodStart}` : '';
-  const { data, errorMessage, reload } = useApiResource<PayslipListDto>(`/api/v1/stores/${storeId}/payslips${query}`);
+  const { data, errorMessage, errorCode, reload } = useApiResource<PayslipListDto>(`/api/v1/stores/${storeId}/payslips${query}`);
   // 상세에서 고치거나 보낸 뒤 돌아오면 목록을 다시 불러온다
   useOnRevive(() => void reload());
   const [pending, setPending] = useState(false);
@@ -55,5 +55,5 @@ export function usePayslips(storeId: string, initialPeriodStart?: string) {
     }
   };
 
-  return { data, errorMessage, setPeriodStart, pending, sendAll };
+  return { data, errorMessage, errorCode, setPeriodStart, pending, sendAll };
 }

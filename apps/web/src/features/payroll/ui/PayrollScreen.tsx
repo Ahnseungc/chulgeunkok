@@ -5,6 +5,8 @@ import { ActionButton, Text } from '@seed-design/react';
 import { AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
+import { PHONE_VERIFICATION_REQUIRED } from '@/features/auth/model/after-login';
+import PhoneVerificationPrompt from '@/features/auth/ui/PhoneVerificationPrompt';
 import { formatDuration } from '@/shared/lib/format-time';
 import { useApiResource } from '@/shared/lib/useApiResource';
 import { CardStaggerList } from '@/shared/motion/CardStaggerList';
@@ -38,7 +40,7 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
   const [periodStart, setPeriodStart] = useState<string | undefined>();
   const [exportDetail, setExportDetail] = useState<boolean | null>(null);
   const query = periodStart ? `?periodStart=${periodStart}` : '';
-  const { data, errorMessage, reload } = useApiResource<PayrollPreviewDto>(`/api/v1/stores/${storeId}/payroll/preview${query}`);
+  const { data, errorMessage, errorCode, reload } = useApiResource<PayrollPreviewDto>(`/api/v1/stores/${storeId}/payroll/preview${query}`);
   // 스택에서 되살아나면 보관된 화면을 보여 준 채 최신 목록으로 다시 불러온다
   useOnRevive(() => void reload());
   // 처음 받은 합계만 카운트업. 되살아남 재조회·기간 이동으로 바뀐 값은 바로 바꾼다
@@ -70,7 +72,8 @@ export default function PayrollScreen({ storeId }: PayrollScreenProps) {
           끝난 기간 명세서를 확인하고 직원에게 보내요
         </Text>
       </AppLink>
-      <InlineAlert message={errorMessage} />
+      {/* 급여 권한 Manager가 휴대폰 인증 전이면 인증으로 안내한다 (docs/specs/auth §4.2) */}
+      {errorCode === PHONE_VERIFICATION_REQUIRED ? <PhoneVerificationPrompt message={errorMessage} /> : <InlineAlert message={errorMessage} />}
       {/* 기간은 합계와 같이 오지만 자리는 먼저 잡는다 */}
       <PeriodNav period={data?.period ?? null} onChange={setPeriodStart} />
       {data ? (

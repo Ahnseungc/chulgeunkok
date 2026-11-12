@@ -22,12 +22,15 @@ export function useApiResource<T>(path: string | null, options: ApiResourceOptio
   const router = useRouter();
   const [data, setData] = useState<T | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** 화면이 코드별로 다르게 안내할 때 (예: PHONE_VERIFICATION_REQUIRED) */
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!path) return;
     try {
       setData(await apiFetch<T>(path));
       setErrorMessage(null);
+      setErrorCode(null);
     } catch (error) {
       if (loginPath && error instanceof ApiRequestError && error.code === 'UNAUTHENTICATED') {
         // 로그인 경로는 앱 안의 고정 경로다
@@ -35,6 +38,7 @@ export function useApiResource<T>(path: string | null, options: ApiResourceOptio
         return;
       }
       setErrorMessage(error instanceof ApiRequestError ? error.message : NETWORK_ERROR_MESSAGE);
+      setErrorCode(error instanceof ApiRequestError ? error.code : null);
     }
   }, [path, router, loginPath]);
 
@@ -42,7 +46,7 @@ export function useApiResource<T>(path: string | null, options: ApiResourceOptio
     void reload();
   }, [reload]);
 
-  return { data, errorMessage, reload };
+  return { data, errorMessage, errorCode, reload };
 }
 
 /** 화면이 보이는 동안 일정 간격으로 다시 조회하고, 탭으로 돌아오면 바로 조회한다 */

@@ -433,9 +433,10 @@ body {
   padding: 8px 0;
 }
 
-/* 직원 상세 */
+/* 직원 상세 · 급여 휴대폰 인증 안내 (docs/specs/auth §4.2) */
 .member-header,
-.detail-section {
+.detail-section,
+.verify-prompt {
   display: flex;
   flex-direction: column;
   align-items: flex-start;

@@ -7,8 +7,7 @@ import type { DbClient, Membership, Payslip, PayslipLine, PrismaClient } from '@
 
 import { localMidnight, payPeriodConfigOf, type PayPeriod } from '@/features/payroll/model/work-time';
 import { resolvePeriod } from '@/features/payroll/server/period-attendances';
-import { canAccessStore } from '@/server/auth/access';
-import { requireMembership } from '@/server/auth/require-membership';
+import { canReadPayroll, requireMembership } from '@/server/auth/require-membership';
 import { ApiError } from '@/server/http/api-error';
 
 import type { MyPayslipListItemDto, PayslipDetailDto, PayslipListDto, PayslipListItemDto } from '../model/payslip-types';
@@ -134,7 +133,7 @@ async function assertCanRead(
     await requireMembership({ storeId: payslip.storeId, userId: input.actorUserId, action: 'PAYROLL' }, db);
     return;
   }
-  const canReadStore = membership.status === 'ACTIVE' && canAccessStore(membership, 'PAYROLL');
+  const canReadStore = membership.status === 'ACTIVE' && (await canReadPayroll(db, membership));
   if (!canReadStore && payslip.status === 'DRAFT') throw new ApiError('NOT_FOUND');
 }
 

@@ -9,7 +9,6 @@ import { notifyDeviceRegistered } from '@/shared/lib/app-shell';
 import type { SendOtpResultDto, VerifyOtpResultDto } from '../model/me-types';
 
 const NETWORK_ERROR_MESSAGE = '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
-const AFTER_LOGIN_PATH = '/owner';
 
 export type OwnerLoginStep =
   | { step: 'phone' }
@@ -19,9 +18,17 @@ export type OwnerLoginStep =
 const messageOf = (error: unknown) =>
   error instanceof ApiRequestError ? error.message : NETWORK_ERROR_MESSAGE;
 
+interface OwnerLoginOptions {
+  /** 지금 기기 세션에 번호만 붙인다 (급여 권한 Manager, docs/specs/auth §4.2). 기기를 새로 등록하지 않는다 */
+  attach: boolean;
+  /** 인증 뒤 갈 화면 (afterLoginPath 로 검증한 값) */
+  nextPath: string;
+}
+
 /** 사장님 휴대폰 인증 단계: 번호 → 인증번호 → (처음이면) 이름. docs/specs/auth §4 */
-export function useOwnerLogin() {
+export function useOwnerLogin({ attach, nextPath }: OwnerLoginOptions) {
   const router = useRouter();
+  const goNext = () => router.replace(nextPath as Parameters<typeof router.replace>[0]);
   const [state, setState] = useState<OwnerLoginStep>({ step: 'phone' });
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -52,17 +59,18 @@ export function useOwnerLogin() {
     run(async () => {
       const result = await apiFetch<VerifyOtpResultDto>('/api/v1/auth/otp/verify', {
         method: 'POST',
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone, code, ...(attach ? { attach: true } : {}) }),
       });
-      await notifyDeviceRegistered();
+      // 번호만 붙였으면 기기가 그대로라 앱에 알릴 것이 없다
+      if (!attach) await notifyDeviceRegistered();
       if (result.needsName) setState({ step: 'name' });
-      else router.replace(AFTER_LOGIN_PATH);
+      else goNext();
     });
 
   const saveName = (name: string) =>
     run(async () => {
       await apiFetch('/api/v1/me', { method: 'PATCH', body: JSON.stringify({ name }) });
-      router.replace(AFTER_LOGIN_PATH);
+      goNext();
     });
 
   const restart = () => {

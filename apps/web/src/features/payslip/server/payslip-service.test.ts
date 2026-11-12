@@ -39,7 +39,7 @@ beforeEach(async () => {
     data: [
       { id: 'owner', name: '김사장' },
       { id: 'staff', name: '이알바' },
-      { id: 'reader', name: '박매니저' },
+      { id: 'reader', name: '박매니저', phone: '+821000000003' },
       { id: 'manager', name: '최매니저' },
     ],
   });
@@ -311,6 +311,15 @@ describe('권한', () => {
       updatePayslip(db, { payslipId: draft.id, actorUserId: 'reader', body: { payDate: '2026-12-11' } }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     await expect(send([draft.id], fakePush(), 'reader')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('PAYROLL_READ Manager도 휴대폰 인증 전이면 목록·상세 PHONE_VERIFICATION_REQUIRED (auth §4.2)', async () => {
+    const draft = await openDraft();
+    await db.user.update({ where: { id: 'reader' }, data: { phone: null } });
+    await expect(list('reader')).rejects.toMatchObject({ code: 'PHONE_VERIFICATION_REQUIRED' });
+    await expect(getPayslip(db, { payslipId: draft.id, actorUserId: 'reader' })).rejects.toMatchObject({
+      code: 'PHONE_VERIFICATION_REQUIRED',
+    });
   });
 
   it('권한 없는 Manager는 조회도 FORBIDDEN', async () => {

@@ -2,6 +2,7 @@
 
 import { ActionButton, Text } from '@seed-design/react';
 
+import PhoneVerificationPrompt from '@/features/auth/ui/PhoneVerificationPrompt';
 import { formatClock, formatDuration, formatPeriodRange } from '@/shared/lib/format-time';
 import { usePolling, useApiResource } from '@/shared/lib/useApiResource';
 import { useServerNow } from '@/shared/lib/useServerNow';
@@ -135,6 +136,8 @@ export default function DashboardScreen({ storeId }: DashboardScreenProps) {
                   ) : null}
                 </Text>
               )}
+              {/* 급여 권한 Manager가 휴대폰 인증 전이면 금액 대신 인증 안내 (docs/specs/auth §4.2) */}
+              {data.currentPeriod.phoneVerificationRequired ? <PhoneVerificationPrompt /> : null}
             </section>
           </PageStaggerEntranceItem>
         </PageStaggerEntrance>

@@ -91,6 +91,7 @@ export function usePayslipDetail(payslipId: string) {
   return {
     payslip,
     loadErrorMessage: resource.errorMessage,
+    loadErrorCode: resource.errorCode,
     pending,
     errorMessage,
     clearError: () => setErrorMessage(null),

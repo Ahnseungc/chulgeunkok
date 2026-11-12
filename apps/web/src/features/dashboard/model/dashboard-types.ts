@@ -38,5 +38,7 @@ export interface DashboardDto {
     basePayEstimate: number | null;
     /** 예상 주휴·가산·유급휴일수당 합 (docs/specs/payroll §3.6·§3.7). 권한(PAYROLL)이 없으면 null */
     allowanceEstimate: number | null;
+    /** 급여 권한은 있지만 휴대폰 인증 전이라 금액을 숨겼다 (docs/specs/auth §4.2). 화면이 인증 안내를 띄운다 */
+    phoneVerificationRequired: boolean;
   };
 }

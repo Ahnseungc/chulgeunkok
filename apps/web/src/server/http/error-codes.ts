@@ -26,6 +26,8 @@ export const ERROR_CODES = {
   },
   OTP_RESEND_TOO_SOON: { status: 429, message: '잠시 후 다시 요청해 주세요.' },
   PHONE_INVALID: { status: 400, message: '휴대폰 번호를 확인해 주세요.' },
+  PHONE_VERIFICATION_REQUIRED: { status: 403, message: '급여를 보려면 휴대폰 인증이 필요해요.' },
+  PHONE_IN_USE: { status: 409, message: '이미 다른 계정에 등록된 번호예요.' },
 
   // store
   STORE_LIMIT_REACHED: { status: 409, message: '매장은 10개까지 만들 수 있어요.' },
