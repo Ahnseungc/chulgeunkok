@@ -33,7 +33,7 @@ export function shiftReminderMessage(slot: ShiftReminderSlot, storeName: string)
 }
 
 /**
- * 5분 주기: (지금 − 5분, 지금] 에 도래한 출퇴근 알림을 보낸다 (docs/specs/notifications).
+ * 5분 주기: (지금 − 15분, 지금] 에 도래한 출퇴근 알림을 보낸다. 겹친 창의 중복은 ShiftReminder 유니크가 막는다 (docs/specs/notifications §5).
  * 직원 한 명의 실패는 로그만 남기고 다음 직원으로 넘어간다.
  */
 export async function runShiftReminderJob(

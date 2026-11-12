@@ -7,8 +7,11 @@ import { addDays, localMidnight, localWeekday, toLocalDate } from '@/features/pa
 const MINUTE_MS = 60 * 1000;
 /** 10분 전 알림 (§3) */
 const LEAD_MS = 10 * MINUTE_MS;
-/** 배치 주기. 한 번 실행은 (지금 − 5분, 지금] 에 든 알림을 본다 (§5) */
-export const REMINDER_WINDOW_MS = 5 * MINUTE_MS;
+/**
+ * 배치는 5분마다지만 한 번 실행은 (지금 − 15분, 지금] 를 본다. 실행이 밀려도 빠지지 않고,
+ * 겹친 창의 중복은 ShiftReminder 유니크가 막는다 (§5)
+ */
+export const REMINDER_LOOKBACK_MS = 15 * MINUTE_MS;
 /** 어제 시작한 자정 넘는 근무 ~ 내일 이른 출근의 10분 전 알림 (§4) */
 const CANDIDATE_DAY_OFFSETS = [-1, 0, 1] as const;
 
@@ -70,14 +73,27 @@ export function shiftReminderSlots(shift: ScheduledShift): ShiftReminderSlot[] {
   ];
 }
 
-export const isReminderDue = (at: Date, now: Date) => at.getTime() > now.getTime() - REMINDER_WINDOW_MS && at <= now;
+const isSoon = (kind: ShiftReminderKind) => kind === 'START_SOON' || kind === 'END_SOON';
+
+/** 10분 전 알림이 가리키는 시각 (소정 출근·퇴근) */
+const targetOf = (slot: ShiftReminderSlot) => (slot.kind === 'START_SOON' ? slot.shift.startAt : slot.shift.endAt);
+
+/**
+ * 이번 실행에서 보낼 때가 된 알림인가 (§5). 정시 알림은 15분 늦게까지만,
+ * 10분 전 알림은 가리키는 출근·퇴근 시각 전까지만 보낸다 ("10분 뒤"가 거짓이 되지 않게)
+ */
+export function isReminderDue(slot: ShiftReminderSlot, now: Date): boolean {
+  const lateMs = now.getTime() - slot.at.getTime();
+  if (lateMs < 0 || lateMs >= REMINDER_LOOKBACK_MS) return false;
+  return !isSoon(slot.kind) || now < targetOf(slot);
+}
 
 /** 이번 실행에서 보낼 알림 (§4·§5) */
 export function dueShiftReminders(terms: readonly ReminderTerms[], now: Date): ShiftReminderSlot[] {
   const today = toLocalDate(now);
   return CANDIDATE_DAY_OFFSETS.flatMap((offset) => {
     const shift = scheduledShiftOn(terms, addDays(today, offset));
-    return shift ? shiftReminderSlots(shift).filter((slot) => isReminderDue(slot.at, now)) : [];
+    return shift ? shiftReminderSlots(shift).filter((slot) => isReminderDue(slot, now)) : [];
   });
 }
 
